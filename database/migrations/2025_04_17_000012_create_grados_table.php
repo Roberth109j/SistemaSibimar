@@ -17,8 +17,12 @@ return new class extends Migration
         Schema::create('grados', function (Blueprint $table) {
             $table->id();
             $table->string('nombre');
-            $table->foreignId('seccion_id')->constrained('secciones')->onDelete('cascade'); // Relación con sección primaria o bachillerato
+            // Relación con sección primaria o bachillerato
+            $table->foreignId('seccion_id')->constrained('secciones')->onDelete('cascade'); 
+            $table->enum('estado', ['ACTIVO', 'INACTIVO'])->default('ACTIVO');
             $table->timestamps();
+            
+
         });
     }
 

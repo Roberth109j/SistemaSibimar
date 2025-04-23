@@ -37,9 +37,6 @@ return new class extends Migration
             $table->foreignId('editorial_id')->constrained('editoriales')->onDelete('restrict');
             
             
-            //relacion de libros con ciudades - paises
-            $table->foreignId('ciudad_id')->constrained('ciudades')->onDelete('restrict');
-
             //coautores relacion con libros definida en la otra migracion
 
             //opciones para Clase de libro

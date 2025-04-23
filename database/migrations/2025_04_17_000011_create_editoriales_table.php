@@ -15,6 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('nombre')->unique(); // Único para evitar duplicados
             $table->timestamps();
+            //relacion de libros con ciudades - paises
+            $table->foreignId('ciudad_id')->constrained('ciudades')->onDelete('restrict');
+            
         });
     }
 
