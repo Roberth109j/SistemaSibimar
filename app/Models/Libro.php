@@ -27,10 +27,10 @@ class Libro extends Model
         'fecha_ingreso',
         'precio',
         'idioma',
+        'edad_recomendada',
         'paginas',
         'tema_id',
         'sign_top',
-        'grado_id',
         'estanteria_id'
     ];
 
@@ -108,10 +108,5 @@ class Libro extends Model
     public function scopePorClase($query, $clase)
     {
         return $query->where('clase', $clase);
-    }
-
-    public function scopePorGrado($query, $gradoId)
-    {
-        return $query->where('grado_id', $gradoId);
     }
 }
