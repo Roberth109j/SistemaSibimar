@@ -63,18 +63,17 @@ return new class extends Migration
             //Idioma del libro
             $table->enum('idioma', ['ESPANOL', 'INGLES', 'FRANCES','OTRO']);
 
+            //Edad recomendada para leer el libro
+            $table->integer('edad_recomendada')->nullable();
+            
             //numero de paginas
             $table->integer('paginas');
             
-
             //relacion con tabla temas dewey
             $table->foreignId('tema_id')->constrained('temas_dewey')->onDelete('restrict');
            
             //signatura topografica primera letra apellido numero consecutivo y primera letra del titulo del libro   
             $table->string('sign_top')->nullable();
-
-            //grado para el que es apto el libro
-            $table->foreignId('grado_id')->constrained('grados')->onDelete('cascade');
 
             //estanteria donde se encuentra el libro
             $table->foreignId('estanteria_id')->constrained('estanterias')->onDelete('restrict');
