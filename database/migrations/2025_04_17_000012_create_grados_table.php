@@ -21,8 +21,6 @@ return new class extends Migration
             $table->foreignId('seccion_id')->constrained('secciones')->onDelete('cascade'); 
             $table->enum('estado', ['ACTIVO', 'INACTIVO'])->default('ACTIVO');
             $table->timestamps();
-            
-
         });
     }
 
