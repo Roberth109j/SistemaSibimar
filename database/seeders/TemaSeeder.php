@@ -1207,7 +1207,7 @@ class TemaSeeder extends Seeder
             ['codigo' => '985', 'nombre' => 'Perú', 'subcategoria_id' => 99],
             ['codigo' => '986', 'nombre' => 'Colombia y Ecuador', 'subcategoria_id' => 99],
             ['codigo' => '987', 'nombre' => 'Venezuela', 'subcategoria_id' => 99],
-            ['codigo' => '988', 'nombre' => 'Guayanasq', 'subcategoria_id' => 99],
+            ['codigo' => '988', 'nombre' => 'Guayanas', 'subcategoria_id' => 99],
             ['codigo' => '989', 'nombre' => 'Paraguay y Uruguay', 'subcategoria_id' => 99],            
 
             // Temas de la subcategoría '990' Historia general de otras áreas

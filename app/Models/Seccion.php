@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Seccion extends Model
 {
     use HasFactory;
+    protected $table = 'secciones';
+
 
     protected $fillable = [
         'nombre'

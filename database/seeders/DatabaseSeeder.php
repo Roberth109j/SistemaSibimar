@@ -27,6 +27,24 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UserSeeder::class,
         ]);
+
+        $this->call([
+            CategoriasSeeder::class,
+        ]);
+
+        $this->call([
+            SubCategoriasSeeder::class,
+        ]);
+        
+        $this->call([
+            TemaSeeder::class,
+        ]);
+
+        $this->call([
+            SeccionSeeder::class,
+        ]);
+
+
         
     }
 }

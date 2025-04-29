@@ -13,9 +13,9 @@ class UserSeeder extends Seeder
         DB::table('users')->insert([
             [
                 'name' => 'Primaria',
-                'email' => 'primara@gmail.com',
+                'email' => 'primaria@gmail.com',
                 'email_verified_at' => now(),
-                'password' => Hash::make('Primaria123'), // puedes cambiarlo
+                'password' => Hash::make('primaria'),
                 'seccion_id' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -24,7 +24,7 @@ class UserSeeder extends Seeder
                 'name' => 'Bachillerato',
                 'email' => 'bachillerato@gmail.com',
                 'email_verified_at' => now(),
-                'password' => Hash::make('Bachillerato123'),
+                'password' => Hash::make('bachillerato'),
                 'seccion_id' => null,
                 'created_at' => now(),
                 'updated_at' => now(),

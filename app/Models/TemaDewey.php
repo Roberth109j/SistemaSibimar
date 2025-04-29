@@ -19,7 +19,7 @@ class TemaDewey extends Model
     /**
      * Obtiene la subcategoría Dewey a la que pertenece este tema.
      */
-    public function subcategoriaDewey()
+    public function subcategoria()
     {
         return $this->belongsTo(SubcategoriaDewey::class, 'subcategoria_id');
     }
