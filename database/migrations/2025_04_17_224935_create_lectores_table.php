@@ -22,19 +22,19 @@ return new class extends Migration {
             
             // Tipo de lector
             $table->enum('tipo', ['ESTUDIANTE', 'DOCENTE', 'OTRO'])
-                  ->default('ESTUDIANTE')
-                  ->index(); // Índice para filtrar por tipo
-                  
+                ->default('ESTUDIANTE')
+                ->index(); // Índice para filtrar por tipo
+                
             
             // Relación con grados (solo para estudiantes)
             $table->foreignId('grado_id')
-                  ->nullable()
-                  ->constrained('grados')
-                  ->onDelete('restrict');
+                ->nullable()
+                ->constrained('grados')
+                ->onDelete('restrict');
             
             // Estado del lector
             $table->enum('estado', ['ACTIVO', 'INACTIVO'])
-                  ->default('ACTIVO')
+                ->default('ACTIVO')
                   ->index(); // Índice para filtrar por estado
             
             // Timestamps
