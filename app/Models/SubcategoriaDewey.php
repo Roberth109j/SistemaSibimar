@@ -21,7 +21,7 @@ class SubcategoriaDewey extends Model
     /**
      * Obtiene la categoría Dewey a la que pertenece esta subcategoría.
      */
-    public function categoriaDewey(): BelongsTo
+    public function categoria(): BelongsTo
     {
         return $this->belongsTo(CategoriaDewey::class, 'categoria_id');
     }
