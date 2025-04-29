@@ -68,10 +68,7 @@ class Libro extends Model
         return $this->belongsTo(Autor::class);
     }
 
-    public function coautores(): BelongsToMany
-    {
-        return $this->belongsToMany(Autor::class, 'coautores', 'libro_id', 'autor_id');
-    }
+
 
     public function editorial(): BelongsTo
     {

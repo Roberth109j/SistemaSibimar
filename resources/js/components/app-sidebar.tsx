@@ -13,6 +13,30 @@ const mainNavItems: NavItem[] = [
         href: '/dashboard',
         icon: LayoutGrid,
     },
+
+    {
+        title: 'Autores',
+        href: '/autores',
+        icon: LayoutGrid,
+    },
+
+    {
+        title: 'Editoriales',
+        href: '/editoriales',
+        icon: LayoutGrid,
+    },
+
+    {
+        title: 'Estanterias',
+        href: '/estanterias',
+        icon: LayoutGrid,
+    },
+
+    {
+        title: 'Libros',
+        href: '/libros',
+        icon: BookOpen,
+    },
     
 ];
 
