@@ -1,140 +1,342 @@
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
+import { useState, useEffect } from 'react';
 
 export default function Welcome() {
     const { auth } = usePage<SharedData>().props;
+    const [isDarkMode, setIsDarkMode] = useState(false);
+    
+    // Agregar animación onload con JavaScript
+    useEffect(() => {
+        // Verificar preferencias de tema
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            setIsDarkMode(savedTheme === 'dark');
+            document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+        } else {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            setIsDarkMode(prefersDark);
+            document.documentElement.classList.toggle('dark', prefersDark);
+        }
+        
+        // Agregar keyframes y estilos de animación
+        const styleSheet = document.createElement("style");
+        styleSheet.innerHTML = `
+            @keyframes pulse-glow {
+                0% { transform: scale(1); filter: brightness(1); }
+                50% { transform: scale(1.08); filter: brightness(1.2) contrast(1.1); }
+                100% { transform: scale(1); filter: brightness(1); }
+            }
+            
+            .img-hover-container:hover .img-hover-effect {
+                animation: pulse-glow 2s ease-in-out;
+                transform: scale(1.08);
+                filter: brightness(1.2) contrast(1.1);
+                box-shadow: 0 0 20px rgba(10, 47, 108, 0.5);
+            }
+            
+            .img-hover-effect {
+                transition: transform 0.5s ease, filter 0.5s ease, box-shadow 0.5s ease;
+            }
+            
+            /* Animaciones para header y footer - más pronunciadas */
+            @keyframes slideInDown {
+                from {
+                    transform: translateY(-100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes slideInUp {
+                from {
+                    transform: translateY(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                }
+                to {
+                    opacity: 1;
+                }
+            }
+            
+            /* Aplicar animaciones cuando se carga el DOM */
+            .header-animation {
+                animation: slideInDown 1.2s ease-out forwards;
+            }
+            
+            .footer-animation {
+                animation: slideInUp 1.2s ease-out forwards;
+            }
+            
+            .contact-animation {
+                opacity: 0;
+                animation: fadeIn 1s ease-out forwards;
+            }
+        `;
+        document.head.appendChild(styleSheet);
+        
+        // Añadir script para iniciar animaciones después de que la página cargue
+        const animationScript = document.createElement("script");
+        animationScript.innerHTML = `
+            window.addEventListener('load', function() {
+                // Asegurarse de que las animaciones se ejecuten después de que todo esté cargado
+                setTimeout(function() {
+                    const header = document.querySelector('.header-animation');
+                    const footer = document.querySelector('.footer-animation');
+                    const contacts = document.querySelectorAll('.contact-animation');
+                    
+                    if (header) header.style.animation = 'slideInDown 1.2s ease-out forwards';
+                    if (footer) footer.style.animation = 'slideInUp 1.2s ease-out forwards';
+                    
+                    contacts.forEach((contact, index) => {
+                        contact.style.animation = 'fadeIn 1s ease-out forwards';
+                        contact.style.animationDelay = (0.3 * (index + 1)) + 's';
+                    });
+                }, 300);
+            });
+        `;
+        document.head.appendChild(animationScript);
+        
+        return () => {
+            document.head.removeChild(styleSheet);
+            if (document.head.contains(animationScript)) {
+                document.head.removeChild(animationScript);
+            }
+        };
+    }, []);
+
+    // Manejar cambio de tema
+    const toggleDarkMode = () => {
+        const newMode = !isDarkMode;
+        setIsDarkMode(newMode);
+        document.documentElement.classList.toggle('dark', newMode);
+        localStorage.setItem('theme', newMode ? 'dark' : 'light');
+    };
 
     return (
         <>
-            <Head title="Welcome">
+            <Head title="Biblioteca Madre Caridad">
                 <link rel="preconnect" href="https://fonts.bunny.net" />
-                <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
+                <link href="https://fonts.bunny.net/css?family=outfit:300,400,500,600,700|montserrat:400,500,600,700&display=swap" rel="stylesheet" />
             </Head>
-            <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]">
-                <header className="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl">
-                    <nav className="flex items-center justify-end gap-4">
-                        {auth.user ? (
-                            <Link
-                                href={route('dashboard')}
-                                className="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
-                            >
-                                Dashboard
-                            </Link>
-                        ) : (
-                            <>
-                                <Link
-                                    href={route('login')}
-                                    className="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
-                                >
-                                    Ingresar
-                                </Link>
-                                {/* <Link
-                                    href={route('register')}
-                                    className="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
-                                >
-                                    Register
-                                </Link> */}
-                            </>
-                        )}
-                    </nav>
-                </header>
-                <div className="flex w-full items-center justify-center opacity-100 transition-opacity duration-750 lg:grow starting:opacity-0">
-                    <main className="flex w-full max-w-[335px] flex-col-reverse lg:max-w-4xl lg:flex-row">
-                        <div className="flex-1 rounded-br-lg rounded-bl-lg bg-white p-6 pb-12 text-[13px] leading-[20px] shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] lg:rounded-tl-lg lg:rounded-br-none lg:p-20 dark:bg-[#161615] dark:text-[#EDEDEC] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]">
-                            <h1 className="mb-1 font-medium">Bibloteca del Colegio Liceo de la Merced Maridiaz</h1>
-                            <p className="mb-2 text-[#706f6c] dark:text-[#A1A09A]">
-                                📚 "La biblioteca no es solo un lugar para leer, es un universo donde las palabras se convierten en caminos hacia otros mundos."
-                                <br />
-                                📖 Puertas abiertas al conocimiento.
-                            </p>
-                            <ul className="mb-4 flex flex-col lg:mb-6">
-                                <li className="relative flex items-center gap-4 py-2 before:absolute before:top-1/2 before:bottom-0 before:left-[0.4rem] before:border-l before:border-[#e3e3e0] dark:before:border-[#3E3E3A]">
-                                    <span className="relative bg-white py-1 dark:bg-[#161615]">
-                                        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#e3e3e0] bg-[#FDFDFC] shadow-[0px_0px_1px_0px_rgba(0,0,0,0.03),0px_1px_2px_0px_rgba(0,0,0,0.06)] dark:border-[#3E3E3A] dark:bg-[#161615]">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-[#dbdbd7] dark:bg-[#3E3E3A]" />
-                                        </span>
-                                    </span>
-                                    <span>
-                                        🧠 El hogar de las ideas.
-                                        {/* <a
-                                            href="https://laravel.com/docs"
-                                            target="_blank"
-                                            className="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
-                                        >
-                                            <span>Documentation</span>
-                                            <svg
-                                                width={10}
-                                                height={11}
-                                                viewBox="0 0 10 11"
-                                                fill="none"
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-2.5 w-2.5"
-                                            >
-                                                <path
-                                                    d="M7.70833 6.95834V2.79167H3.54167M2.5 8L7.5 3.00001"
-                                                    stroke="currentColor"
-                                                    strokeLinecap="square"
-                                                />
-                                            </svg>
-                                        </a> */}
-                                    </span>
-                                </li>
-                                <li className="relative flex items-center gap-4 py-2 before:absolute before:top-0 before:bottom-1/2 before:left-[0.4rem] before:border-l before:border-[#e3e3e0] dark:before:border-[#3E3E3A]">
-                                    <span className="relative bg-white py-1 dark:bg-[#161615]">
-                                        <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#e3e3e0] bg-[#FDFDFC] shadow-[0px_0px_1px_0px_rgba(0,0,0,0.03),0px_1px_2px_0px_rgba(0,0,0,0.06)] dark:border-[#3E3E3A] dark:bg-[#161615]">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-[#dbdbd7] dark:bg-[#3E3E3A]" />
-                                        </span>
-                                    </span>
-                                    <span>
-                                        📘 Cada libro, una aventura.
-                                        {/* <a
-                                            href="https://laracasts.com"
-                                            target="_blank"
-                                            className="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
-                                        >
-                                            <span>Laracasts</span>
-                                            <svg
-                                                width={10}
-                                                height={11}
-                                                viewBox="0 0 10 11"
-                                                fill="none"
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                className="h-2.5 w-2.5"
-                                            >
-                                                <path
-                                                    d="M7.70833 6.95834V2.79167H3.54167M2.5 8L7.5 3.00001"
-                                                    stroke="currentColor"
-                                                    strokeLinecap="square"
-                                                />
-                                            </svg>
-                                        </a> */}
-                                    </span>
-                                </li>
-                            </ul>
-                            <ul className="flex gap-3 text-sm leading-normal">
-                                <li>
-                                    <a
-                                        href="https://franciscanaspasto.edu.co"
-                                        target="_blank"
-                                        className="inline-block rounded-sm border border-black bg-[#1b1b18] px-5 py-1.5 text-sm leading-normal text-white hover:border-black hover:bg-black dark:border-[#eeeeec] dark:bg-[#eeeeec] dark:text-[#1C1C1A] dark:hover:border-white dark:hover:bg-white"
-                                    >
-                                        Conoce nuestra intitucion
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                        <div className="relative -mb-px aspect-[335/376] w-full shrink-0 overflow-hidden rounded-t-lg bg-[#fff2f2] lg:mb-0 lg:-ml-px lg:aspect-auto lg:w-[438px] lg:rounded-t-none lg:rounded-r-lg dark:bg-[#1D0002]">
-                            <img
-                                src="/IMG/Bilbioteca.JPEG"
-                                alt="Biblioteca"
-                                className="absolute inset-0 h-full w-full object-cover object-center"
-                                loading="lazy"
-                            />
-                            <div className="absolute inset-0 rounded-t-lg shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] lg:rounded-t-none lg:rounded-r-lg dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]" />
-                        </div>
-                    </main>
+            <div className="min-h-screen overflow-hidden flex flex-col bg-gradient-to-br from-slate-50 to-white text-gray-800 transition-colors duration-300 dark:from-gray-900 dark:to-gray-800 dark:text-gray-100 font-['Montserrat',sans-serif] relative">
+                {/* Elementos decorativos de fondo */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
+                    <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
+                    <div className="hidden md:block absolute top-1/2 right-1/3 w-16 h-16 bg-blue-500/10 rounded-full dark:bg-blue-400/10"></div>
+                    <div className="hidden md:block absolute bottom-1/3 left-1/4 w-8 h-8 bg-indigo-500/20 rounded-full dark:bg-indigo-400/20"></div>
                 </div>
-                <div className="hidden h-14.5 lg:block"></div>
+                {/* Header */}
+                <header className="bg-[#0a2f6c] sticky top-0 z-50 shadow-md py-0.5 dark:bg-gray-800 header-animation">
+                    <div className="container mx-auto px-4">
+                        <nav className="flex items-center justify-between">
+                            <div className="flex items-center">
+                                {/* Logo mucho más grande tipo banner */}
+                                <div className="w-72 h-24 relative">
+                                    <img 
+                                        src="https://franciscanaspasto.edu.co/wp-content/uploads/2024/03/logo.png" 
+                                        alt="Logo Biblioteca Madre Caridad" 
+                                        className="w-full h-full object-contain drop-shadow-lg" 
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <button
+                                    onClick={toggleDarkMode}
+                                    className="p-2 rounded-full bg-blue-800/80 text-white hover:bg-blue-700/80 transition-colors duration-300"
+                                    aria-label="Cambiar tema"
+                                >
+                                    {isDarkMode ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                        </svg>
+                                    ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                        </svg>
+                                    )}
+                                </button>
+                                {auth.user ? (
+                                    <Link
+                                        href={route('dashboard')}
+                                        className="rounded-lg bg-white text-blue-900 px-5 py-2 text-sm font-medium transition-all hover:translate-y-[-2px] hover:shadow-lg"
+                                    >
+                                        Dashboard
+                                    </Link>
+                                ) : (
+                                    <Link
+                                        href={route('login')}
+                                        className="rounded-lg bg-white text-blue-900 px-5 py-2 text-sm font-medium transition-all hover:translate-y-[-2px] hover:shadow-lg"
+                                    >
+                                        Ingresar
+                                    </Link>
+                                )}
+                            </div>
+                        </nav>
+                    </div>
+                </header>
+
+                {/* Main Content */}
+                <main className="container mx-auto px-4 py-6 flex-grow flex items-center">
+                    <div className="mx-auto w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-xl transition-all duration-300 hover:shadow-2xl dark:bg-gray-800/95 dark:shadow-gray-900/30 border border-blue-100 dark:border-blue-900/20 relative">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#0a2f6c] to-transparent opacity-50"></div>
+                        <div className="flex flex-col lg:flex-row">
+                            {/* Left Content */}
+                            <div className="order-2 w-full p-4 lg:order-1 lg:w-1/2 lg:p-6">
+                                <div className="relative mb-6">
+                                    <div className="absolute -top-6 -left-6 w-12 h-12 bg-blue-100 rounded-full opacity-70 dark:bg-blue-900/30 animate-pulse"></div>
+                                    <h1 className="mb-1 text-3xl font-bold text-gray-900 dark:text-white tracking-tight relative z-10 flex items-center">
+                                        Biblioteca
+                                        <div className="ml-2 w-2 h-5 bg-[#0a2f6c] dark:bg-blue-500 rounded animate-pulse"></div>
+                                    </h1>
+                                    <h2 className="text-2xl font-semibold text-[#0a2f6c] dark:text-blue-300 tracking-wide">
+                                        Madre Caridad
+                                    </h2>
+                                    <div className="mt-3 h-1.5 w-24 rounded-full bg-[#0a2f6c] dark:bg-gray-500 animate-pulse"></div>
+                                </div>
+                                
+                                <div className="relative p-5 mb-6 bg-slate-50 dark:bg-gray-700/30 rounded-xl shadow-inner border-l-4 border-[#0a2f6c] dark:border-gray-500">
+                                    <div className="absolute -top-2 -right-2 text-blue-500 dark:text-gray-500 opacity-30 text-4xl">❝</div>
+                                    <p className="text-gray-700 dark:text-gray-300 italic text-base">
+                                        La biblioteca no es solo un lugar para leer, es un universo donde las palabras se convierten en caminos hacia otros mundos.
+                                    </p>
+                                    <div className="absolute -bottom-2 -right-2 text-blue-500 dark:text-gray-500 opacity-30 text-4xl">❞</div>
+                                </div>
+                                
+                                <div className="mb-5 space-y-3 rounded-xl bg-gradient-to-br from-white to-slate-50 p-4 shadow-xl dark:from-gray-800 dark:to-gray-700/30 border border-slate-200 dark:border-gray-700/50 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 dark:bg-blue-900/10 rounded-bl-3xl opacity-60"></div>
+                                    <div className="flex items-center space-x-4 transform transition-transform hover:translate-x-2 relative z-10">
+                                        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0a2f6c] text-white shadow-md dark:bg-gray-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                            </svg>
+                                        </span>
+                                        <span className="text-lg font-medium text-gray-700 dark:text-gray-200 flex items-center">
+                                            El hogar de las ideas
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center space-x-4 transform transition-transform hover:translate-x-2 relative z-10">
+                                        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md dark:bg-gray-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                            </svg>
+                                        </span>
+                                        <span className="text-lg font-medium text-gray-700 dark:text-gray-200 flex items-center">
+                                            Cada libro, una aventura
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                {/* Quitamos la sección de contacto de aquí ya que la movimos al footer */}
+                                
+                                <a
+                                    href="https://franciscanaspasto.edu.co" 
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group inline-flex items-center rounded-lg px-6 py-3 text-base font-medium text-white transition-all hover:translate-y-[-2px] hover:shadow-xl relative overflow-hidden border border-blue-400/30"
+                                >
+                                    <span className="absolute inset-0 bg-[#0a2f6c] dark:bg-gray-600"></span>
+                                    <span className="absolute inset-0 bg-[#0f3b83] dark:bg-gray-500 opacity-0 group-hover:opacity-100 transition-opacity z-0"></span>
+                                    <span className="relative z-10 flex items-center">
+                                        Conoce nuestra institución
+                                        <svg className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                        </svg>
+                                    </span>
+                                </a>
+                            </div>
+                            
+                            {/* Right Image */}
+                            <div className="order-1 w-full lg:order-2 lg:w-1/2">
+                                <div className="relative h-64 w-full overflow-hidden lg:h-full group cursor-pointer img-hover-container">
+                                    <img
+                                        src="/IMG/Bilbioteca.JPEG"
+                                        alt="Biblioteca"
+                                        className="h-full w-full object-cover object-center img-hover-effect"
+                                        loading="lazy"
+                                    />
+                                    <div className="absolute inset-0">
+                                        <div className="absolute inset-0 bg-gradient-to-t from-[#0a2f6c]/30 to-transparent opacity-40"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+
+                {/* Footer simplificado - solo contacto y copyright */}
+                <footer className="bg-[#0a2f6c] text-center dark:bg-gray-800 py-2 footer-animation">
+                    <div className="container mx-auto px-4 relative">
+                        <div className="absolute inset-0 overflow-hidden opacity-10 pointer-events-none">
+                            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white to-transparent"></div>
+                            <div className="grid grid-cols-10 h-full w-full">
+                                {[...Array(10)].map((_, i) => (
+                                    <div key={i} className="border-r border-white/10 h-full"></div>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        <div className="my-2">
+                            <h3 className="text-lg font-medium text-white mb-3">
+                                Contáctanos
+                            </h3>
+                            
+                            <div className="flex flex-col md:flex-row justify-center gap-5 md:gap-10">
+                                <div className="flex items-center justify-center contact-animation" style={{ animationDelay: '0.3s' }}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    <span className="text-white text-sm">
+                                        Calle 18 No. 32A – 39
+                                    </span>
+                                </div>
+                                
+                                <div className="flex items-center justify-center contact-animation" style={{ animationDelay: '0.6s' }}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                    </svg>
+                                    <span className="text-white text-sm">3137329836</span>
+                                </div>
+                                
+                                <div className="flex items-center justify-center contact-animation" style={{ animationDelay: '0.9s' }}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                    <div className="text-center md:text-left">
+                                        <p className="text-white text-sm">liceo.merced@franciscanaspasto.edu.co</p>
+                                        <p className="text-white text-sm">maridiaz_3@hotmail.com</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="border-t border-blue-400/20 pt-1.5">
+                            <p className="text-xs text-white/90">
+                                © {new Date().getFullYear()} Todos los derechos reservados.
+                            </p>
+                        </div>
+                    </div>
+                </footer>
             </div>
         </>
     );
