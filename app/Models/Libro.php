@@ -90,6 +90,11 @@ class Libro extends Model
         return $this->belongsTo(Estanteria::class);
     }
 
+    public function ejemplares(): HasMany
+    {
+        return $this->hasMany(Ejemplar::class);
+    }
+
     // Scopes
     public function scopeDisponibles($query)
     {

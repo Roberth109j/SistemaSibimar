@@ -130,7 +130,7 @@ export default function Create({
     };
 
     const camposFaltantes = Object.entries(camposRequeridos)
-      .filter(([key]) => !form.data[key])
+      .filter(([key]) => !form.data[key as keyof typeof form.data])
       .map(([, label]) => label);
 
     if (camposFaltantes.length > 0) {

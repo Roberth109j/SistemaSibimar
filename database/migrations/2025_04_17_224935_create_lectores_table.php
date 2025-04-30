@@ -36,9 +36,7 @@ return new class extends Migration {
             $table->enum('estado', ['ACTIVO', 'INACTIVO'])
                 ->default('ACTIVO')
                   ->index(); // Índice para filtrar por estado
-            
-            // Timestamps
-            $table->timestamps();
+        
         });
     }
     

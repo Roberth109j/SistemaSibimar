@@ -7,6 +7,9 @@ use App\Http\Controllers\CoautorController;
 use App\Http\Controllers\EditorialController;
 use App\Http\Controllers\EstanteriaController;
 use App\Http\Controllers\LibroController;
+use App\Http\Controllers\EjemplarController;
+use App\Http\Controllers\GradoController;
+use App\Http\Controllers\LectorController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -16,7 +19,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
-    
+
     // Rutas específicas para el controlador de Autor
     Route::get('autores', [AutorController::class, 'index'])->name('autores.index');
     Route::get('autores/create', [AutorController::class, 'create'])->name('autores.create');
@@ -26,7 +29,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('autores/{autor}', [AutorController::class, 'update'])->name('autores.update');
     Route::patch('autores/{autor}', [AutorController::class, 'update']);
 
-    
+
 
     // Rutas para EditorialController
     Route::get('editoriales', [EditorialController::class, 'index'])->name('editoriales.index');
@@ -56,11 +59,40 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('libros/{libro}', [LibroController::class, 'update']);
     Route::delete('libros/{libro}', [LibroController::class, 'destroy'])->name('libros.destroy');
 
+    // Rutas de Ejemplares
+    Route::get('libros/{libro}/ejemplares', [EjemplarController::class, 'index'])->name('ejemplares.index');
+    Route::get('libros/{libro}/ejemplares/create', [EjemplarController::class, 'create'])->name('ejemplares.create');
+    Route::post('libros/{libro}/ejemplares', [EjemplarController::class, 'store'])->name('ejemplares.store');
+    Route::get('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'show'])->name('ejemplares.show');
+    Route::get('libros/{libro}/ejemplares/{ejemplar}/edit', [EjemplarController::class, 'edit'])->name('ejemplares.edit');
+    Route::put('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'update'])->name('ejemplares.update');
+    Route::patch('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'update']);
+    Route::delete('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'destroy'])->name('ejemplares.destroy');
+
     // Rutas adicionales para las funciones AJAX de clasificación Dewey
     Route::get('api/categorias/{categoriaId}/subcategorias', [LibroController::class, 'getSubcategorias']);
     Route::get('api/subcategorias/{subcategoriaId}/temas', [LibroController::class, 'getTemas']);
 
+    //Rutas para grados
+    Route::get('grados', [GradoController::class, 'index'])->name('grados.index');
+    Route::get('grados/create', [GradoController::class, 'create'])->name('grados.create');
+    Route::post('grados', [GradoController::class, 'store'])->name('grados.store');
+    Route::get('grados/{grado}', [GradoController::class, 'show'])->name('grados.show');
+    Route::get('grados/{grado}/edit', [GradoController::class, 'edit'])->name('grados.edit');
+    Route::put('grados/{grado}', [GradoController::class, 'update'])->name('grados.update');
+    Route::patch('grados/{grado}', [GradoController::class, 'update']);
+    Route::delete('grados/{grado}', [GradoController::class, 'destroy'])->name('grados.destroy');
+
+    // Rutas para LectorController
+    Route::get('lectores', [LectorController::class, 'index'])->name('lectores.index');
+    Route::get('lectores/create', [LectorController::class, 'create'])->name('lectores.create');
+    Route::post('lectores', [LectorController::class, 'store'])->name('lectores.store');
+    Route::get('lectores/{lector}', [LectorController::class, 'show'])->name('lectores.show');
+    Route::get('lectores/{lector}/edit', [LectorController::class, 'edit'])->name('lectores.edit');
+    Route::put('lectores/{lector}', [LectorController::class, 'update'])->name('lectores.update');
+    Route::patch('lectores/{lector}', [LectorController::class, 'update']);
+    Route::delete('lectores/{lector}', [LectorController::class, 'destroy'])->name('lectores.destroy');
 });
 
-require __DIR__.'/settings.php';
-require __DIR__.'/auth.php';
+require __DIR__ . '/settings.php';
+require __DIR__ . '/auth.php';

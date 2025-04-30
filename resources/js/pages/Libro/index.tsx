@@ -7,7 +7,6 @@ import {
   PlusCircle,
   Eye,
   Edit,
-  Trash2,
   Filter,
   BookOpen,
   ChevronLeft,
@@ -15,7 +14,8 @@ import {
   CheckCircle,
   AlertCircle,
   X,
-  PencilIcon,
+  BookCopy,
+  Library
 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -54,7 +54,7 @@ export default function Index({
     editorial: '',
     estanteria: ''
   });
-  const [selectedLibro, setSelectedLibro] = useState(null);
+  const [selectedLibro, setSelectedLibro] = useState<Libro | null>(null);
   const [view, setView] = useState('list');
   const [notification, setNotification] = useState({
     show: false,
@@ -87,7 +87,7 @@ export default function Index({
   }, [flash]);
 
   // Aplicar filtros a los libros
-  const filteredLibros = libros.data.filter(libro => {
+  const filteredLibros = libros.data.filter((libro: Libro) => {
     const matchesSearch = !searchTerm ||
       libro.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       libro.isbn.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -114,10 +114,8 @@ export default function Index({
     router.get(route('libros.edit', libro.id));
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm('¿Está seguro que desea eliminar este libro?')) {
-      router.delete(route('libros.destroy', id));
-    }
+  const handleEjemplaresLibro = (libro: Libro) => {
+    router.get(route('ejemplares.index', libro.id));
   };
 
   const resetFilters = () => {
@@ -175,13 +173,13 @@ export default function Index({
                   onClick={() => handleEditLibro(selectedLibro)}
                   className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
                 >
-                  <PencilIcon className="w-5 h-5" />
+                  <Edit className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => setView('list')}
                   className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 >
-                  <XMarkIcon className="w-6 h-6" />
+                  <X className="w-6 h-6" />
                 </button>
               </div>
             </div>
@@ -256,6 +254,27 @@ export default function Index({
                 </div>
               </div>
             )}
+
+            {/* Botón para gestionar ejemplares */}
+            <div className="mt-8">
+              <h3 className="text-xl font-medium mb-4">Gestión de Ejemplares</h3>
+              <div className="flex space-x-3">
+                <Link
+                  href={route('ejemplares.index', selectedLibro.id)}
+                  className="flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-md"
+                >
+                  <Library className="w-5 h-5" />
+                  <span>Ver Ejemplares</span>
+                </Link>
+                <Link
+                  href={route('ejemplares.create', selectedLibro.id)}
+                  className="flex items-center gap-2 px-4 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors shadow-md"
+                >
+                  <PlusCircle className="w-5 h-5" />
+                  <span>Añadir Ejemplar</span>
+                </Link>
+              </div>
+            </div>
           </div>
         )}
 
@@ -391,7 +410,7 @@ export default function Index({
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredLibros.length > 0 ? (
-                  filteredLibros.map((libro) => (
+                  filteredLibros.map((libro: Libro) => (
                     <tr key={libro.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{libro.isbn}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -430,13 +449,16 @@ export default function Index({
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => handleDelete(libro.id)}
-                            className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-800/50"
-                            title="Eliminar"
+                          
+                          {/* Reemplazado el botón de eliminar por el de ejemplares */}
+                          <Link
+                            as="button"
+                            href={route('ejemplares.index', libro.id)}
+                            className="p-1.5 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-800/50"
+                            title="Gestionar Ejemplares"
                           >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            <BookCopy className="w-4 h-4" />
+                          </Link>
                         </div>
                       </td>
                     </tr>
