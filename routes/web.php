@@ -7,6 +7,7 @@ use App\Http\Controllers\CoautorController;
 use App\Http\Controllers\EditorialController;
 use App\Http\Controllers\EstanteriaController;
 use App\Http\Controllers\LibroController;
+use App\Http\Controllers\EjemplarController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -55,6 +56,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('libros/{libro}', [LibroController::class, 'update'])->name('libros.update');
     Route::patch('libros/{libro}', [LibroController::class, 'update']);
     Route::delete('libros/{libro}', [LibroController::class, 'destroy'])->name('libros.destroy');
+
+    // Rutas de Ejemplares
+    Route::get('libros/{libro}/ejemplares', [EjemplarController::class, 'index'])->name('ejemplares.index');
+    Route::get('libros/{libro}/ejemplares/create', [EjemplarController::class, 'create'])->name('ejemplares.create');
+    Route::post('libros/{libro}/ejemplares', [EjemplarController::class, 'store'])->name('ejemplares.store');
+    Route::get('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'show'])->name('ejemplares.show');
+    Route::get('libros/{libro}/ejemplares/{ejemplar}/edit', [EjemplarController::class, 'edit'])->name('ejemplares.edit');
+    Route::put('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'update'])->name('ejemplares.update');
+    Route::patch('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'update']);
+    Route::delete('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'destroy'])->name('ejemplares.destroy');
 
     // Rutas adicionales para las funciones AJAX de clasificación Dewey
     Route::get('api/categorias/{categoriaId}/subcategorias', [LibroController::class, 'getSubcategorias']);

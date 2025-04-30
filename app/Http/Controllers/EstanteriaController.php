@@ -15,14 +15,24 @@ class EstanteriaController extends Controller
     {
         $estanterias = Estanteria::all();
         
-        return Inertia::render('estanteria', [
+        return Inertia::render('Estanteria/index', [
             'estanterias' => $estanterias,
             'flash' => [
                 'success' => session('success'),
                 'error' => session('error'),
             ],
         ]);
-    } 
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        return Inertia::render('Estanteria/Create', [
+            'errors' => session('errors') ? session('errors')->getBag('default')->getMessages() : (object) [],
+        ]);
+    }
 
     /**
      * Store a newly created resource in storage.
@@ -33,9 +43,9 @@ class EstanteriaController extends Controller
             'cod_estante' => 'required|string|max:10|unique:estanterias',
             'descripcion' => 'nullable|string|max:255',
         ]);
-
+        
         Estanteria::create($validated);
-
+        
         return redirect()->route('estanterias.index')
             ->with('success', 'Estantería creada correctamente');
     }
@@ -45,9 +55,19 @@ class EstanteriaController extends Controller
      */
     public function show(Estanteria $estanteria)
     {
-        return Inertia::render('Estanteria', [
+        return Inertia::render('Estanteria/Show', [
             'estanteria' => $estanteria,
-            'estanterias' => Estanteria::all(),
+        ]);
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Estanteria $estanteria)
+    {
+        return Inertia::render('Estanteria/Edit', [
+            'estanteria' => $estanteria,
+            'errors' => session('errors') ? session('errors')->getBag('default')->getMessages() : (object) [],
         ]);
     }
 
@@ -60,9 +80,9 @@ class EstanteriaController extends Controller
             'cod_estante' => 'required|string|max:10|unique:estanterias,cod_estante,'.$estanteria->id,
             'descripcion' => 'nullable|string|max:255',
         ]);
-
+        
         $estanteria->update($validated);
-
+        
         return redirect()->route('estanterias.index')
             ->with('success', 'Estantería actualizada correctamente');
     }

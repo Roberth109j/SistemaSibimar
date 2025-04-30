@@ -9,9 +9,19 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Ejemplar extends Model
 {
     use HasFactory;
-
+    
+    /**
+     * La tabla asociada con el modelo.
+     *
+     * @var string
+     */
     protected $table = 'ejemplares';
-
+    
+    /**
+     * Los atributos que son asignables en masa.
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
         'libro_id',
         'cantidad',
@@ -19,51 +29,127 @@ class Ejemplar extends Model
         'estado',
         'observaciones'
     ];
-
-    // Enums para tipo_adquisicion
-    const TIPO_COMPRA = 'COMPRA';
-    const TIPO_REPOSICION = 'REPOSICION';
-    const TIPO_DONACION = 'DONACION';
-
-    // Enums para estado
-    const ESTADO_DISPONIBLE = 'DISPONIBLE';
-    const ESTADO_PRESTADO = 'PRESTADO';
-    const ESTADO_INACTIVO = 'INACTIVO';
-
-    // Relación con Libro
+    
+    /**
+     * Los atributos que deben ser convertidos.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'cantidad' => 'integer',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+    
+    /**
+     * Constantes para tipo_adquisicion
+     */
+    public const TIPO_COMPRA = 'COMPRA';
+    public const TIPO_REPOSICION = 'REPOSICION';
+    public const TIPO_DONACION = 'DONACION';
+    
+    /**
+     * Constantes para estado
+     */
+    public const ESTADO_DISPONIBLE = 'DISPONIBLE';
+    public const ESTADO_PRESTADO = 'PRESTADO';
+    public const ESTADO_INACTIVO = 'INACTIVO';
+    
+    /**
+     * Retorna todos los valores posibles para tipo_adquisicion
+     *
+     * @return array<string>
+     */
+    public static function tiposAdquisicion(): array
+    {
+        return [
+            self::TIPO_COMPRA,
+            self::TIPO_DONACION,
+            self::TIPO_REPOSICION,
+        ];
+    }
+    
+    /**
+     * Retorna todos los valores posibles para estado
+     *
+     * @return array<string>
+     */
+    public static function estados(): array
+    {
+        return [
+            self::ESTADO_DISPONIBLE,
+            self::ESTADO_PRESTADO,
+            self::ESTADO_INACTIVO,
+        ];
+    }
+    
+    /**
+     * Relación con Libro
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function libro(): BelongsTo
     {
         return $this->belongsTo(Libro::class);
     }
-
-    // Métodos de utilidad
+    
+    /**
+     * Comprueba si el ejemplar está disponible
+     *
+     * @return bool
+     */
     public function estaDisponible(): bool
     {
         return $this->estado === self::ESTADO_DISPONIBLE;
     }
-
+    
+    /**
+     * Comprueba si el ejemplar está prestado
+     *
+     * @return bool
+     */
     public function estaPrestado(): bool
     {
         return $this->estado === self::ESTADO_PRESTADO;
     }
-
+    
+    /**
+     * Comprueba si el ejemplar está inactivo
+     *
+     * @return bool
+     */
     public function estaInactivo(): bool
     {
         return $this->estado === self::ESTADO_INACTIVO;
     }
-
+    
+    /**
+     * Marca el ejemplar como prestado
+     *
+     * @return void
+     */
     public function marcarComoPrestado(): void
     {
         $this->estado = self::ESTADO_PRESTADO;
         $this->save();
     }
-
+    
+    /**
+     * Marca el ejemplar como disponible
+     *
+     * @return void
+     */
     public function marcarComoDisponible(): void
     {
         $this->estado = self::ESTADO_DISPONIBLE;
         $this->save();
     }
-
+    
+    /**
+     * Marca el ejemplar como inactivo
+     *
+     * @return void
+     */
     public function marcarComoInactivo(): void
     {
         $this->estado = self::ESTADO_INACTIVO;
