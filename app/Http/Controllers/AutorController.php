@@ -16,7 +16,7 @@ class AutorController extends Controller
     public function index(): Response
     {
         $autores = Autor::all();
-        return Inertia::render('autor', [
+        return Inertia::render('Autor/Index', [
             'autores' => $autores
         ]);
     }
@@ -26,7 +26,7 @@ class AutorController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('autor');
+        return Inertia::render('Autor/Create');
     }
 
     /**
@@ -34,12 +34,12 @@ class AutorController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'apellidos' => 'required|string|max:255',
             'nombres' => 'required|string|max:255',
         ]);
 
-        Autor::create($request->only(['apellidos', 'nombres']));
+        Autor::create($validated);
 
         return redirect()->route('autores.index')
             ->with('success', 'Autor creado correctamente.');
@@ -50,7 +50,7 @@ class AutorController extends Controller
      */
     public function show(Autor $autor): Response
     {
-        return Inertia::render('autor', [
+        return Inertia::render('Autor/Show', [
             'autor' => $autor->load('libros')
         ]);
     }
@@ -60,7 +60,7 @@ class AutorController extends Controller
      */
     public function edit(Autor $autor): Response
     {
-        return Inertia::render('autor', [
+        return Inertia::render('Autor/Edit', [
             'autor' => $autor
         ]);
     }
@@ -70,14 +70,29 @@ class AutorController extends Controller
      */
     public function update(Request $request, Autor $autor): RedirectResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'apellidos' => 'required|string|max:255',
             'nombres' => 'required|string|max:255',
         ]);
 
-        $autor->update($request->only(['apellidos', 'nombres']));
+        $autor->update($validated);
 
         return redirect()->route('autores.index')
             ->with('success', 'Autor actualizado correctamente.');
+    }
+
+    /**
+     * Elimina un autor de la base de datos.
+     */
+    public function destroy(Autor $autor): RedirectResponse
+    {
+        try {
+            $autor->delete();
+            return redirect()->route('autores.index')
+                ->with('success', 'Autor eliminado correctamente.');
+        } catch (\Exception $e) {
+            return redirect()->route('autores.index')
+                ->with('error', 'No se pudo eliminar el autor. Puede que tenga libros asociados.');
+        }
     }
 }
