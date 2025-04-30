@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Lector extends Model
 {
     use HasFactory;
+    // Desactivar timestamps
+    public $timestamps = false;
 
     protected $table = 'lectores';
 
