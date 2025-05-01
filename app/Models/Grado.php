@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Grado extends Model
 {
+    // Desactivar timestamps
+    public $timestamps = false;
+    
     /**
      * Obtiene la sección a la que pertenece el grado
      */
@@ -14,14 +17,17 @@ class Grado extends Model
     {
         return $this->belongsTo(Seccion::class);
     }
+    
     protected $fillable = [
-        'nombre',
+        'grado',
+        'subGrado',
         'estado',
         'seccion_id'
     ];
 
     protected $casts = [
-        'estado' => 'string'
+        'estado' => 'string',
+        'grado' => 'string'
     ];
 
     /**

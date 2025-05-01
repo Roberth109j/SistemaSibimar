@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, BookUser, NotebookPen,Navigation,GraduationCap } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -17,19 +17,19 @@ const mainNavItems: NavItem[] = [
     {
         title: 'Autores',
         href: '/autores',
-        icon: LayoutGrid,
+        icon: BookUser,
     },
 
     {
         title: 'Editoriales',
         href: '/editoriales',
-        icon: LayoutGrid,
+        icon: NotebookPen,
     },
 
     {
         title: 'Estanterias',
         href: '/estanterias',
-        icon: LayoutGrid,
+        icon: Navigation,
     },
 
     {
@@ -37,7 +37,17 @@ const mainNavItems: NavItem[] = [
         href: '/libros',
         icon: BookOpen,
     },
-    
+
+    {
+        title: 'Grados',
+        href: '/grados',
+        icon: GraduationCap,
+    },
+    {
+        title: 'Lectores',
+        href: '/lectores',
+        icon: GraduationCap,
+    },    
 ];
 
 const footerNavItems: NavItem[] = [
