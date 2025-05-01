@@ -20,7 +20,7 @@ class EditorialController extends Controller
         // Forzar una consulta fresca a la base de datos sin caché
         $editoriales = Editorial::orderBy('id')->get();
         
-        return Inertia::render('editorial', [
+        return Inertia::render('Editorial/Index', [
             'editoriales' => $editoriales
         ]);
     }
@@ -30,7 +30,7 @@ class EditorialController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('editorial');
+        return Inertia::render('Editorial/Create');
     }
 
     /**
@@ -57,7 +57,7 @@ class EditorialController extends Controller
      */
     public function show(Editorial $editorial): Response
     {
-        return Inertia::render('editorial', [
+        return Inertia::render('Editorial/Show', [
             'editorial' => $editorial->fresh()->load('libros')
         ]);
     }
@@ -67,7 +67,7 @@ class EditorialController extends Controller
      */
     public function edit(Editorial $editorial): Response
     {
-        return Inertia::render('editorial', [
+        return Inertia::render('Editorial/Edit', [
             'editorial' => $editorial->fresh()
         ]);
     }
