@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Pencil as PencilIcon, ArrowLeft, BookOpen } from 'lucide-react';
-// Importando con rutas relativas para asegurar que funciona correctamente
+// Importando componentes reutilizables
 import AppLayout from '../../layouts/app-layout';
-import AutorModal from '../../components/Autor/AutorModal';
+import Modal from '../../components/Modal';
+import Form from '../../components/Form';
+import AlertNotification from '../../components/AlertNotification';
 
 type Libro = {
   id: number;
@@ -26,19 +28,115 @@ type ShowProps = {
 };
 
 export default function Show({ auth, autor, errors = {} }: ShowProps) {
+  // Estados para manejar el modal y las alertas
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [alert, setAlert] = useState<{type: 'success' | 'error', message: string} | null>(null);
 
+  // Datos iniciales para el formulario
+  const initialData = {
+    nombres: autor.nombres,
+    apellidos: autor.apellidos
+  };
+
+  // Campos para el formulario de autores
+  const autorFields = [
+    {
+      name: 'nombres',
+      label: 'Nombres',
+      type: 'text',
+      placeholder: 'Ingrese los nombres',
+      required: true
+    },
+    {
+      name: 'apellidos',
+      label: 'Apellidos',
+      type: 'text',
+      placeholder: 'Ingrese los apellidos',
+      required: true
+    }
+  ];
+
+  // Abrir el modal de edición
   const openEditModal = () => {
     setIsModalOpen(true);
   };
 
+  // Cerrar el modal
   const closeModal = () => {
     setIsModalOpen(false);
   };
 
-  // Contenido rediseñado con nuevos colores y efectos
+  // Manejar la actualización del autor
+  const handleUpdate = (formData: any) => {
+    router.put(`/autores/${autor.id}`, formData, {
+      onSuccess: () => {
+        setIsModalOpen(false);
+        setAlert({
+          type: 'success',
+          message: 'Autor actualizado correctamente'
+        });
+        
+        // Recargar la página después de mostrar la alerta
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      },
+      onError: () => {
+        setAlert({
+          type: 'error',
+          message: 'Hubo un error al actualizar el autor'
+        });
+      }
+    });
+  };
+
+  // Cancelar y cerrar el modal
+  const handleCancel = () => {
+    closeModal();
+  };
+
+  // Botones para el footer del modal
+  const modalFooter = (
+    <>
+      <button
+        type="button"
+        onClick={closeModal}
+        className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
+          bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 
+          border border-gray-300 dark:border-gray-600
+          hover:bg-gray-50 dark:hover:bg-gray-600
+          focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200"
+      >
+        Cancelar
+      </button>
+      <button
+        type="submit"
+        form="modalForm"
+        className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
+          bg-blue-600 hover:bg-blue-700 text-white
+          focus:outline-none focus:ring-2 focus:ring-blue-500
+          disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+      >
+        Actualizar
+      </button>
+    </>
+  );
+
+  // Contenido principal
   const content = (
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6">
+      {/* Alerta de notificación */}
+      {alert && (
+        <AlertNotification
+          type={alert.type}
+          message={alert.message}
+          position="top-right"
+          autoClose={true}
+          duration={4000}
+          onClose={() => setAlert(null)}
+        />
+      )}
+
       {/* Elementos decorativos de fondo */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none fixed">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
@@ -135,14 +233,31 @@ export default function Show({ auth, autor, errors = {} }: ShowProps) {
       </div>
 
       {/* Modal para editar autor */}
-      <AutorModal
-        isOpen={isModalOpen}
+      <Modal
+        open={isModalOpen}
         onClose={closeModal}
-        initialData={{ nombres: autor.nombres, apellidos: autor.apellidos }}
-        autor={autor}
-        isEditing={true}
-        errors={errors}
-      />
+        title="Editar Autor"
+        description={`ID: ${autor.id} - ${autor.nombres} ${autor.apellidos}`}
+        titleGradient={true}
+        footer={modalFooter}
+      >
+        <div id="modalForm">
+          <Form
+            id="modalForm"
+            initialData={initialData}
+            fields={autorFields}
+            errors={errors}
+            submitUrl={`/autores/${autor.id}`}
+            method="put"
+            onCancel={handleCancel}
+            onSuccess={handleUpdate}
+            submitButtonText="Actualizar"
+            isEditing={true}
+            accentColor="amber"
+            showButtons={false} // No mostrar botones en el formulario porque ya están en el modal
+          />
+        </div>
+      </Modal>
     </div>
   );
 

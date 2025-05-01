@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Search, Eye, Pencil, Plus, Trash2, Book, CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
+import { type BreadcrumbItem } from '@/types';
 
 // Definición de tipos
 type Libro = {
@@ -29,6 +30,11 @@ type IndexProps = {
   flash?: FlashMessage;
   errors?: Record<string, string>;
 };
+
+const breadcrumbs: BreadcrumbItem[] = [
+  { title: 'Dashboard', href: '/dashboard' },
+  { title: 'Estanterías', href: '/estanterias' },
+];
 
 // COMPONENTE ALERT NOTIFICATION - MODIFICADO PARA APARECER EN UN LADO CON ANIMACIÓN
 function AlertNotification({
@@ -484,7 +490,7 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
 
   // Contenido principal
   const content = (
-    <div className="py-8 px-6 bg-slate-50 dark:bg-gray-900 min-h-screen">
+    <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
       {/* Alertas */}
       {renderAlerts()}
 
@@ -662,6 +668,7 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
           </form>
         </Modal>
 
+        
         {/* Modal para editar autor */}
         <Modal
           isOpen={isEditModalOpen}
@@ -682,8 +689,29 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
                   value={formNombres}
                   onChange={(e) => setFormNombres(e.target.value)}
                   className="block w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:ring-opacity-50
-                    border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white 
-                    placeholder-gray-400 focus:border-amber-500 transition-colors duration-200"
+            border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white 
+            placeholder-gray-400 focus:border-amber-500 transition-colors duration-200"
+                  required
+                />
+                {errors.nombres && (
+                  <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.nombres}</p>
+                )}
+              </div>
+
+              {/* Agregar el campo de apellidos que falta */}
+              <div>
+                <label htmlFor="edit_apellidos" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Apellidos
+                </label>
+                <input
+                  id="edit_apellidos"
+                  type="text"
+                  name="apellidos"
+                  value={formApellidos}
+                  onChange={(e) => setFormApellidos(e.target.value)}
+                  className="block w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:ring-opacity-50
+            border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white 
+            placeholder-gray-400 focus:border-amber-500 transition-colors duration-200"
                   required
                 />
                 {errors.apellidos && (
@@ -696,9 +724,9 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
                   type="button"
                   onClick={closeAllModals}
                   className="px-5 py-2.5 text-sm font-medium border rounded-lg shadow-sm
-                    text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 
-                    border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600
-                    focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors duration-200"
+            text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 
+            border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600
+            focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors duration-200"
                 >
                   Cancelar
                 </button>
@@ -706,9 +734,9 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
                   type="submit"
                   disabled={isProcessing}
                   className="px-5 py-2.5 text-sm font-medium text-white rounded-lg shadow-sm
-    bg-blue-600 hover:bg-blue-700  {/* AHORA USA AZUL */}
-    focus:outline-none focus:ring-2 focus:ring-blue-500
-    disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            bg-blue-600 hover:bg-blue-700  
+            focus:outline-none focus:ring-2 focus:ring-blue-500
+            disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   {isProcessing ? 'Actualizando...' : 'Actualizar'}
                 </button>
@@ -823,7 +851,7 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
   );
 
   return (
-    <AppLayout>
+    <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Gestión de Autores" />
       {content}
     </AppLayout>
