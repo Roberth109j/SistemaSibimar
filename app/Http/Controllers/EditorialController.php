@@ -9,52 +9,72 @@ use Inertia\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Database\QueryException;
 
 class EditorialController extends Controller
 {
-    /**
-     * Muestra un listado de todas las editoriales.
-     */
     public function index(): Response
     {
-        // Forzar una consulta fresca a la base de datos sin caché
         $editoriales = Editorial::orderBy('id')->get();
-        
         return Inertia::render('Editorial/Index', [
             'editoriales' => $editoriales
         ]);
     }
 
-    /**
-     * Muestra el formulario para crear una nueva editorial.
-     */
     public function create(): Response
     {
         return Inertia::render('Editorial/Create');
     }
 
-    /**
-     * Almacena una nueva editorial en la base de datos.
-     */
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'nombre' => 'required|string|max:255|unique:editoriales,nombre',
-            'ciudad' => 'nullable|string|max:255',
-            'pais' => 'nullable|string|max:255',
-        ]);
+        Log::info('Received store request data:', $request->all());
+        try {
+            $validated = $request->validate([
+                'nombre' => 'required|string|max:255|unique:editoriales,nombre',
+                'ciudad' => 'nullable|string|max:255',
+                'pais' => 'nullable|string|max:255',
+            ]);
 
-        Editorial::create($validated);
+            DB::beginTransaction();
+            $editorial = Editorial::create($validated);
+            if (!$editorial) {
+                throw new \Exception('Failed to create editorial in database.');
+            }
+            DB::commit();
 
-        // Forzar un flash de los datos actualizados
-        session()->flash('success', 'Editorial creada correctamente.');
-        
-        return redirect()->route('editoriales.index');
+            Log::info('Editorial creada correctamente', ['id' => $editorial->id, 'data' => $editorial->toArray()]);
+
+            return redirect()->route('editoriales.index')
+                ->with('success', 'Editorial creada correctamente.');
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            Log::error('Validation error creating editorial: ' . json_encode($e->errors()));
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput();
+        } catch (QueryException $e) {
+            DB::rollBack();
+            Log::error('Database error creating editorial: ' . $e->getMessage());
+            $errorMessage = 'Ha ocurrido un error al crear la editorial.';
+            if (str_contains($e->getMessage(), 'Duplicate entry')) {
+                $errorMessage = 'El nombre ya ha sido registrado.';
+            } elseif (str_contains($e->getMessage(), 'Unknown column')) {
+                $errorMessage = 'Error de estructura en la base de datos. Verifique las columnas.';
+            }
+            return redirect()->back()
+                ->withErrors(['error' => $errorMessage])
+                ->withInput();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Unexpected error creating editorial: ' . $e->getMessage());
+            return redirect()->back()
+                ->withErrors(['error' => 'Ha ocurrido un error al crear la editorial: ' . $e->getMessage()])
+                ->withInput();
+        }
     }
 
-    /**
-     * Muestra los datos de una editorial específica.
-     */
     public function show(Editorial $editorial): Response
     {
         return Inertia::render('Editorial/Show', [
@@ -62,9 +82,6 @@ class EditorialController extends Controller
         ]);
     }
 
-    /**
-     * Muestra el formulario para editar una editorial existente.
-     */
     public function edit(Editorial $editorial): Response
     {
         return Inertia::render('Editorial/Edit', [
@@ -72,64 +89,63 @@ class EditorialController extends Controller
         ]);
     }
 
-    /**
-     * Actualiza los datos de una editorial en la base de datos.
-     */
     public function update(Request $request, Editorial $editorial): RedirectResponse
     {
-        // Log para depuración
-        Log::info('Actualización de editorial - Datos recibidos:', [
-            'id' => $editorial->id,
-            'nombre_actual' => $editorial->nombre,
-            'nombre_nuevo' => $request->nombre,
-            'ciudad' => $request->ciudad,
-            'pais' => $request->pais
-        ]);
-        
-        // Validación básica
-        $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
-            'ciudad' => 'nullable|string|max:255',
-            'pais' => 'nullable|string|max:255',
-        ]);
-        
-        // Verificación manual de unicidad solo si el nombre cambia
-        if ($request->nombre !== $editorial->nombre) {
-            $exists = DB::table('editoriales')
-                ->where('nombre', $request->nombre)
-                ->where('id', '!=', $editorial->id)
-                ->exists();
-            
-            if ($exists) {
-                return redirect()->back()
-                    ->withErrors(['nombre' => 'El nombre ya ha sido registrado.'])
-                    ->withInput();
-            }
-        }
-        
-        // 1. Actualizar datos directamente usando QueryBuilder para evitar problemas con el ORM
-        DB::table('editoriales')
-            ->where('id', $editorial->id)
-            ->update([
-                'nombre' => $validated['nombre'],
-                'ciudad' => $validated['ciudad'],
-                'pais' => $validated['pais'],
-                'updated_at' => now()
+        Log::info('Received update request data:', $request->all());
+        try {
+            $validated = $request->validate([
+                'nombre' => 'required|string|max:255|unique:editoriales,nombre,' . $editorial->id,
+                'ciudad' => 'nullable|string|max:255',
+                'pais' => 'nullable|string|max:255',
             ]);
-        
-        // 2. Forzar commit (por si hay alguna transacción implícita)
-        DB::commit();
+
+            DB::beginTransaction();
+            $originalData = $editorial->toArray();
+            $updated = $editorial->update($validated);
+            $editorial->refresh();
             
-        // 3. Log post-actualización
-        Log::info('Editorial actualizada correctamente', [
-            'id' => $editorial->id,
-            'timestamp' => now()
-        ]);
-        
-        // 4. Forzar un flash de los datos actualizados
-        session()->flash('success', 'Editorial actualizada correctamente.');
-        
-        // 5. Redirigir con valor 303 para forzar una solicitud GET
-        return redirect()->route('editoriales.index', [], 303);
+            // Log whether any changes were actually made
+            $changes = array_diff_assoc($editorial->toArray(), $originalData);
+            if (!$updated || empty($changes)) {
+                Log::warning('No changes detected during update', [
+                    'original' => $originalData,
+                    'new' => $validated,
+                    'after_update' => $editorial->toArray()
+                ]);
+            } else {
+                Log::info('Editorial updated successfully, verified data:', [
+                    'id' => $editorial->id,
+                    'changes' => $changes,
+                    'after_update' => $editorial->toArray()
+                ]);
+            }
+            
+            DB::commit();
+
+            return redirect()->route('editoriales.index')
+                ->with('success', 'Editorial actualizada correctamente.');
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            Log::error('Validation error updating editorial: ' . json_encode($e->errors()));
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput();
+        } catch (QueryException $e) {
+            DB::rollBack();
+            Log::error('Database error updating editorial: ' . $e->getMessage());
+            $errorMessage = 'Ha ocurrido un error al actualizar la editorial.';
+            if (str_contains($e->getMessage(), 'Duplicate entry')) {
+                $errorMessage = 'El nombre ya ha sido registrado por otra editorial.';
+            }
+            return redirect()->back()
+                ->withErrors(['error' => $errorMessage])
+                ->withInput();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Unexpected error updating editorial: ' . $e->getMessage());
+            return redirect()->back()
+                ->withErrors(['error' => 'Ha ocurrido un error al actualizar la editorial: ' . $e->getMessage()])
+                ->withInput();
+        }
     }
 }
