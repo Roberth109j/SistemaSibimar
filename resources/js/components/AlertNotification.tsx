@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { CheckCircle, AlertCircle, InfoIcon, X } from 'lucide-react';
 
-// Definir tipos para la notificación
 export type AlertType = 'success' | 'error' | 'info' | 'warning';
 export type AlertPosition = 'top-center' | 'top-right' | 'bottom-right' | 'bottom-center';
 
@@ -15,7 +14,6 @@ export interface AlertProps {
   onClose?: () => void;
 }
 
-// Crear un contexto para manejar las alertas globalmente
 interface AlertContextType {
   showAlert: (props: AlertProps) => void;
   hideAlert: () => void;
@@ -23,12 +21,15 @@ interface AlertContextType {
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
-// Proveedor del contexto para envolver la aplicación
 export function AlertProvider({ children }: { children: React.ReactNode }) {
   const [alert, setAlert] = useState<AlertProps | null>(null);
 
   const showAlert = (props: AlertProps) => {
-    setAlert(props);
+    // Clear the current alert and show the new one after a slight delay
+    setAlert(null);
+    setTimeout(() => {
+      setAlert(props);
+    }, 100); // 100ms delay to ensure the UI updates
   };
 
   const hideAlert = () => {
@@ -43,7 +44,6 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Hook personalizado para usar el contexto
 export function useAlert() {
   const context = useContext(AlertContext);
   if (context === undefined) {
@@ -52,7 +52,6 @@ export function useAlert() {
   return context;
 }
 
-// Componente de alerta individual
 export default function AlertNotification({
   type = 'info',
   message,
@@ -66,7 +65,6 @@ export default function AlertNotification({
   const [animateOut, setAnimateOut] = useState(false);
   const animationRef = useRef<HTMLDivElement>(null);
 
-  // Inicializar animaciones solo en el cliente
   useEffect(() => {
     if (typeof window !== 'undefined' && !document.getElementById('alert-animations')) {
       const styleSheet = document.createElement("style");
@@ -93,7 +91,6 @@ export default function AlertNotification({
     }
   }, []);
 
-  // Manejar el cierre automático
   useEffect(() => {
     if (autoClose && message) {
       const timer = setTimeout(() => {
@@ -104,19 +101,16 @@ export default function AlertNotification({
     }
   }, [autoClose, duration, message]);
 
-  // Manejar el cierre con animación
   const handleClose = () => {
     setAnimateOut(true);
-    
     setTimeout(() => {
       setIsVisible(false);
-      if (onClose) onClose();
+      onClose?.();
     }, 500);
   };
 
   if (!isVisible || !message) return null;
 
-  // Configuración de colores y estilos para los diferentes tipos de alertas
   const alertStyles = {
     success: {
       light: {
@@ -176,7 +170,6 @@ export default function AlertNotification({
     }
   };
 
-  // Configuración de posición
   const positionClasses = {
     'top-center': 'fixed top-6 left-1/2 -translate-x-1/2 z-50',
     'top-right': 'fixed top-6 right-6 z-50',
@@ -184,7 +177,6 @@ export default function AlertNotification({
     'bottom-center': 'fixed bottom-6 left-1/2 -translate-x-1/2 z-50'
   };
 
-  // Animaciones según la posición
   const animationClasses = {
     'top-center': {
       enter: 'alert-slide-in-top',
@@ -204,7 +196,6 @@ export default function AlertNotification({
     }
   };
 
-  // Seleccionar el icono según el tipo
   const IconMap = {
     'success': CheckCircle,
     'error': AlertCircle,
@@ -228,7 +219,6 @@ export default function AlertNotification({
                     ${animateOut ? 'scale-95' : 'scale-100'}`}
       >
         <Icon className={`h-6 w-6 mt-0.5 mr-4 flex-shrink-0 ${styles.light.icon} ${styles.dark.icon}`} />
-        
         <div className="flex-grow">
           {title && (
             <h4 className={`text-base font-bold mb-1 ${styles.light.text} ${styles.dark.text}`}>
@@ -239,7 +229,6 @@ export default function AlertNotification({
             {message}
           </p>
         </div>
-        
         <button 
           onClick={handleClose}
           className="ml-4 flex-shrink-0 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
