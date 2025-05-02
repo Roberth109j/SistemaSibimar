@@ -31,7 +31,7 @@ export type Estado = typeof ESTADO[keyof typeof ESTADO];
 export interface Ejemplar {
   id: number;
   libro_id: number;
-  cantidad: number;
+  numEjemplar: number;
   tipo_adquisicion: TipoAdquisicion;
   estado: Estado;
   observaciones?: string | null;

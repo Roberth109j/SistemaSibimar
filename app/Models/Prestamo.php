@@ -9,14 +9,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Prestamo extends Model
 {
     use HasFactory;
+    public $timestamps = false;
 
     protected $table = 'prestamos';
+    
 
     protected $fillable = [
         'ejemplar_id',
-        'usuario_id',
+        'lector_id',
         'fecha_prestamo',
         'fecha_devolucion',
+        'fecha_devuelto',
         'estado',
         'observaciones'
     ];
@@ -32,10 +35,10 @@ class Prestamo extends Model
         return $this->belongsTo(Ejemplar::class);
     }
 
-    // Relación con Usuario
-    public function usuario(): BelongsTo
+    // Relación con Lector
+    public function lector(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Lector::class);
     }
 
     // Métodos de utilidad
