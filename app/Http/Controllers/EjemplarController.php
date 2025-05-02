@@ -62,7 +62,7 @@ class EjemplarController extends Controller
         
         // Validación con las reglas actualizadas
         $validatedData = $request->validate([
-            'cantidad' => 'required|integer|min:1',
+            'numEjemplar' => 'required|integer|min:1',
             'tipo_adquisicion' => [
                 'required',
                 Rule::in(Ejemplar::tiposAdquisicion()),
@@ -77,7 +77,7 @@ class EjemplarController extends Controller
         // Crear el ejemplar con los datos validados
         Ejemplar::create([
             'libro_id' => $libroId,
-            'cantidad' => $validatedData['cantidad'],
+            'numEjemplar' => $validatedData['numEjemplar'],
             'tipo_adquisicion' => $validatedData['tipo_adquisicion'],
             'estado' => $validatedData['estado'],
             'observaciones' => $validatedData['observaciones'] ?? null,
@@ -149,7 +149,7 @@ class EjemplarController extends Controller
         
         // Validación con las reglas actualizadas
         $validatedData = $request->validate([
-            'cantidad' => 'required|integer|min:1',
+            'numEjemplar' => 'required|integer|min:1',
             'tipo_adquisicion' => [
                 'required',
                 Rule::in(Ejemplar::tiposAdquisicion()),
@@ -163,7 +163,7 @@ class EjemplarController extends Controller
         
         // Actualizar el ejemplar con los datos validados
         $ejemplar->update([
-            'cantidad' => $validatedData['cantidad'],
+            'numEjemplar' => $validatedData['numEjemplar'],
             'tipo_adquisicion' => $validatedData['tipo_adquisicion'],
             'estado' => $validatedData['estado'],
             'observaciones' => $validatedData['observaciones'] ?? null,

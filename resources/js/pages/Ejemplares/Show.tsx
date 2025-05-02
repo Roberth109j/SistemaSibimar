@@ -82,8 +82,8 @@ export default function Show({ auth, libro, ejemplar, success }: EjemplarPagePro
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Cantidad</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{ejemplar.cantidad}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Numero del ejemplar</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{ejemplar.numEjemplar}</p>
                   </div>
                   
                   <div>

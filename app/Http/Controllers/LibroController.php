@@ -10,6 +10,7 @@ use App\Models\Seccion;
 use App\Models\CategoriaDewey;
 use App\Models\SubcategoriaDewey;
 use App\Models\TemaDewey;
+use App\Models\Ejemplar; // Agregamos la importación que faltaba
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -18,8 +19,50 @@ use Inertia\Inertia;
 class LibroController extends Controller
 {
     /**
-     * Mostrar lista de libros
+     * Buscar libro por término de búsqueda para préstamos
      */
+    public function search(Request $request)
+    {
+        $search = $request->input('search');
+
+        if (!$search) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Término de búsqueda requerido'
+            ], 400);
+        }
+
+        $libro = Libro::with([
+            'autor',
+            'editorial',
+            'seccion',
+            'temaDewey',
+            'estanteria'
+        ])
+            ->where(function ($query) use ($search) {
+                $query->where('isbn', 'like', "%{$search}%")
+                    ->orWhere('titulo', 'like', "%{$search}%");
+            })
+            ->first();
+
+        if (!$libro) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Libro no encontrado'
+            ], 404);
+        }
+
+        // Buscar los ejemplares disponibles de este libro
+        $ejemplares = Ejemplar::where('libro_id', $libro->id)
+            ->where('estado', Ejemplar::ESTADO_DISPONIBLE)
+            ->get();
+
+        return Inertia::render('Prestamos/Index', [
+            'libro' => $libro,
+            'ejemplares' => $ejemplares,
+        ]);
+    }
+
     public function index(Request $request)
     {
         $query = Libro::with(['autor', 'editorial', 'seccion', 'temaDewey', 'estanteria']);
@@ -197,8 +240,6 @@ class LibroController extends Controller
 
             $libro->save();
 
-
-
             DB::commit();
 
             return redirect()->route('libros.index')->with('success', 'Libro creado exitosamente');
@@ -365,8 +406,6 @@ class LibroController extends Controller
             $libro->estanteria_id = $request->estanteria_id;
 
             $libro->save();
-
-
 
             DB::commit();
 

@@ -24,7 +24,7 @@ class Ejemplar extends Model
      */
     protected $fillable = [
         'libro_id',
-        'cantidad',
+        'numEjemplar',
         'tipo_adquisicion',
         'estado',
         'observaciones'
@@ -36,7 +36,7 @@ class Ejemplar extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'cantidad' => 'integer',
+        'numEjemplar' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

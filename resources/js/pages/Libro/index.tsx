@@ -92,7 +92,7 @@ export default function Index({
       libro.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       libro.isbn.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (libro.autor?.apellidos && libro.autor.apellidos.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (libro.autor?.nombre && libro.autor.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
+      (libro.autor?.nombres && libro.autor.nombres.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesClase = !selectedFilters.clase || libro.clase === selectedFilters.clase;
     const matchesIdioma = !selectedFilters.idioma || libro.idioma === selectedFilters.idioma;
@@ -382,7 +382,7 @@ export default function Index({
                 >
                   <option value="">Todas las estanterías</option>
                   {estanterias.map((estanteria: any) => (
-                    <option key={estanteria.id} value={estanteria.id}>{estanteria.nombre}</option>
+                    <option key={estanteria.id} value={estanteria.id}>{estanteria.cod_estante}</option>
                   ))}
                 </select>
               </div>
@@ -419,7 +419,7 @@ export default function Index({
                         {libro.edicion && <span className="ml-1 text-gray-500 dark:text-gray-400"> (Ed. {libro.edicion})</span>}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {libro.autor ? `${libro.autor.apellidos}, ${libro.autor.nombre}` : '—'}
+                        {libro.autor ? `${libro.autor.apellidos}, ${libro.autor.nombres}` : '—'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                         {libro.editorial ? libro.editorial.nombre : '—'}
@@ -429,7 +429,7 @@ export default function Index({
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{libro.paginas}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{libro.sign_top}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {libro.estanteria ? libro.estanteria.nombre : '—'}
+                        {libro.estanteria ? libro.estanteria.cod_estante : '—'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex space-x-2">
