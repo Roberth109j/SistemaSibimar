@@ -5,7 +5,6 @@ import AppLayout from '@/layouts/app-layout';
 
 // Importar componentes reutilizables
 import Modal from '@/components/Modal';
-import Form from '@/components/Form';
 import AlertNotification from '@/components/AlertNotification';
 import { Editorial } from './types';
 
