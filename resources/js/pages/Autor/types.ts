@@ -1,14 +1,10 @@
-// Definición de tipos para el módulo de autores
+// Define el tipo para un Autor
 export type Autor = {
   id: number;
   nombres: string;
   apellidos: string;
-  libros?: Libro[];
-};
-
-export type Libro = {
-  id: number;
-  titulo: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type FlashMessage = {
@@ -16,11 +12,13 @@ export type FlashMessage = {
   error?: string;
 };
 
+// Definición del tipo BreadcrumbItem
 export type BreadcrumbItem = {
   title: string;
   href: string;
 };
 
+// Define los tipos de props comunes para los componentes relacionados con Autor
 export type AutorFormData = {
   nombres: string;
   apellidos: string;

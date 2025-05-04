@@ -13,7 +13,7 @@ export type FormField = {
 };
 
 type FormProps = {
-  initialData: { nombre: string; ciudad: string; pais: string }; // Tighten the type
+  initialData: Record<string, any>; // Cambiado para aceptar cualquier estructura de objeto
   fields: FormField[];
   errors?: Record<string, string>;
   submitUrl: string;
