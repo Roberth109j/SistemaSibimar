@@ -10,6 +10,7 @@ use App\Http\Controllers\LibroController;
 use App\Http\Controllers\EjemplarController;
 use App\Http\Controllers\GradoController;
 use App\Http\Controllers\LectorController;
+use App\Http\Controllers\PrestamoController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -51,6 +52,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('estanterias/{estanteria}', [EstanteriaController::class, 'destroy'])->name('estanterias.destroy');
 
     Route::get('libros', [LibroController::class, 'index'])->name('libros.index');
+    Route::get('libros/search', [LibroController::class, 'search'])->name('libros.search');
     Route::get('libros/create', [LibroController::class, 'create'])->name('libros.create');
     Route::post('libros', [LibroController::class, 'store'])->name('libros.store');
     Route::get('libros/{libro}', [LibroController::class, 'show'])->name('libros.show');
@@ -92,6 +94,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('lectores/{lector}', [LectorController::class, 'update'])->name('lectores.update');
     Route::patch('lectores/{lector}', [LectorController::class, 'update']);
     Route::delete('lectores/{lector}', [LectorController::class, 'destroy'])->name('lectores.destroy');
+
+    // Rutas para PrestamoController
+    Route::get('prestamos', [PrestamoController::class, 'index'])->name('prestamos.index');
+    Route::get('prestamos/create', [PrestamoController::class, 'create'])->name('prestamos.create');
+    Route::post('prestamos', [PrestamoController::class, 'store'])->name('prestamos.store');
+    Route::get('prestamos/{prestamo}', [PrestamoController::class, 'show'])->name('prestamos.show');
+    Route::get('prestamos/{prestamo}/edit', [PrestamoController::class, 'edit'])->name('prestamos.edit');
+    Route::put('prestamos/{prestamo}', [PrestamoController::class, 'update'])->name('prestamos.update');
+    Route::patch('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolver'])->name('prestamos.devolver');
+    Route::delete('prestamos/{prestamo}', [PrestamoController::class, 'destroy'])->name('prestamos.destroy');
 });
 
 require __DIR__ . '/settings.php';

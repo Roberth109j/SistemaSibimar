@@ -27,7 +27,7 @@ return new class extends Migration
             $table->date('fecha_devolucion');
 
             // Fecha real de devolución (si ya fue devuelto)
-            $table->date('fecha_devuelto');
+            $table->date('fecha_devuelto')->nullable();
 
             // Estado del préstamo
             $table->enum('estado', ['ACTIVO', 'DEVUELTO', 'VENCIDO'])->default('ACTIVO');

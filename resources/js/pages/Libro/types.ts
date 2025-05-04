@@ -7,7 +7,7 @@ export interface Autor {
 
 export interface Editorial {
   id: number;
-  nombre: string;
+  nombres: string;
 }
 
 export interface Estanteria {

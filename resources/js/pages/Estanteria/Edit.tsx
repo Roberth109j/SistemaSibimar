@@ -1,118 +1,149 @@
-import { useState, useEffect } from 'react';
-import { router } from '@inertiajs/react';
-import { X as XIcon } from 'lucide-react';
-import { type EstanteriaEditProps, type EstanteriaFormData } from './types';
+import React, { useState } from 'react';
+import { useForm } from '@inertiajs/react';
+import { Pencil } from 'lucide-react';
+import Modal from '@/components/Modal';
+import Form from '@/components/Form';
+import { Estanteria } from './types';
 
-export default function EditEstanteria({ isModal, open, onClose, estanteria, errors: initialErrors }: EstanteriaEditProps) {
-  const [formData, setFormData] = useState<EstanteriaFormData>({ cod_estante: '', descripcion: '' });
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>(initialErrors || {});
+type EditModalProps = {
+  estanteria: Estanteria;
+  onSuccess: (message: string) => void;
+  onError: (message: string) => void;
+  errors?: Record<string, string>;
+};
 
-  useEffect(() => {
-    if (open) {
-      setFormData({ cod_estante: estanteria.cod_estante, descripcion: estanteria.descripcion || '' });
+export default function EditEstanteria({ estanteria, onSuccess, onError, errors = {} }: EditModalProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Inicializamos el formulario con los datos actuales de la estantería
+  const { data, setData, put, processing, reset, errors: formErrors, setError, clearErrors } = useForm({
+    cod_estante: estanteria.cod_estante || '',
+    descripcion: estanteria.descripcion || ''
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const validFields: Array<keyof typeof data> = ['cod_estante', 'descripcion'];
+    if (validFields.includes(name as keyof typeof data)) {
+      setData(name as keyof typeof data, value);
+      console.log('Form data updated - Current state:', { ...data, [name]: value });
+    } else {
+      console.error('Invalid field name:', name);
     }
-  }, [open, estanteria]);
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-    console.log('Actualizando datos:', formData);
+  const estanteriaFields = [
+    {
+      name: 'cod_estante',
+      label: 'Código de estante',
+      type: 'text',
+      placeholder: 'Ingrese el código de estante',
+      required: true,
+      value: data.cod_estante,
+      onChange: handleChange
+    },
+    {
+      name: 'descripcion',
+      label: 'Descripción',
+      type: 'text',
+      placeholder: 'Ingrese la descripción (opcional)',
+      required: false,
+      value: data.descripcion,
+      onChange: handleChange
+    }
+  ];
 
-    router.put(`/estanterias/${estanteria.id}`, formData, {
-      preserveState: true,
+  const handleSubmit = () => {
+    clearErrors();
+    console.log('Submitting update with data:', data);
+    put(`/estanterias/${estanteria.id}`, {
       preserveScroll: true,
-      onSuccess: (page) => {
-        console.log('Éxito:', page);
-        setFormErrors({});
-        onClose();
-        setIsProcessing(false);
+      preserveState: true,
+      onSuccess: (page: any) => {
+        console.log('Success response:', page);
+        const successMessage = page.props.flash?.success || 'Estantería actualizada exitosamente';
+        onSuccess(successMessage);
+        reset();
+        clearErrors();
+        setIsOpen(false);
       },
-      onError: (errors) => {
-        console.log('Errores de validación:', errors);
-        setFormErrors(errors);
-        setIsProcessing(false);
+      onError: (errors: Record<string, string>) => {
+        console.log('Error response:', errors);
+        const hasFieldErrors = Object.keys(errors).some(key => ['cod_estante', 'descripcion'].includes(key));
+        if (hasFieldErrors) {
+          Object.keys(errors).forEach((key) => {
+            setError(key as keyof typeof data, errors[key]);
+          });
+        } else {
+          const errorMessage = errors.error || 'Ha ocurrido un error al actualizar la estantería';
+          onError(errorMessage);
+        }
       },
       onFinish: () => {
-        console.log('Solicitud finalizada');
-        setIsProcessing(false);
-      },
+        console.log('Request finished');
+      }
     });
   };
 
-  if (!open) return null;
+  const modalFooter = (
+    <>
+      <button
+        type="button"
+        onClick={() => setIsOpen(false)}
+        className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
+          bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 
+          border border-gray-300 dark:border-gray-600
+          hover:bg-gray-50 dark:hover:bg-gray-600
+          focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200"
+      >
+        Cancelar
+      </button>
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={processing}
+        className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
+          bg-blue-600 hover:bg-blue-700 text-white
+          focus:outline-none focus:ring-2 focus:ring-blue-500
+          disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+      >
+        {processing ? 'Actualizando...' : 'Actualizar'}
+      </button>
+    </>
+  );
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-md mx-auto overflow-hidden rounded-lg shadow-2xl transform transition-all duration-300 animate-fade-in-up">
-        <div className="bg-blue-600 px-6 py-4 text-white">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Editar Estantería</h2>
-            <button onClick={onClose} className="rounded-full p-1 bg-white/20 hover:bg-white/30 text-white transition-colors">
-              <XIcon className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 p-6 text-gray-900 dark:text-gray-100">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label htmlFor="cod_estante" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Código
-              </label>
-              <input
-                id="cod_estante"
-                type="text"
-                value={formData.cod_estante}
-                onChange={(e) => setFormData({ ...formData, cod_estante: e.target.value })}
-                className="block w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50
-                  border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white 
-                  placeholder-gray-400 focus:border-blue-500 transition-colors duration-200"
-                required
-                placeholder="Ingrese el código"
-              />
-              {formErrors.cod_estante && <p className="text-red-500 text-sm mt-1">{formErrors.cod_estante}</p>}
-            </div>
-            <div>
-              <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Descripción
-              </label>
-              <input
-                id="descripcion"
-                type="text"
-                value={formData.descripcion}
-                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                className="block w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50
-                  border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white 
-                  placeholder-gray-400 focus:border-blue-500 transition-colors duration-200"
-                placeholder="Ingrese la descripción"
-              />
-              {formErrors.descripcion && <p className="text-red-500 text-sm mt-1">{formErrors.descripcion}</p>}
-            </div>
-            <div className="flex justify-end gap-3 pt-5">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-5 py-2.5 text-sm font-medium border rounded-lg shadow-sm
-                  text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 
-                  border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600
-                  focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isProcessing}
-                className="px-5 py-2.5 text-sm font-medium text-white rounded-lg shadow-sm
-                  bg-blue-600 hover:bg-blue-700  
-                  focus:outline-none focus:ring-2 focus:ring-blue-500
-                  disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-              >
-                {isProcessing ? 'Actualizando...' : 'Actualizar'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+    <>
+      <button
+        onClick={() => setIsOpen(true)}
+        className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 
+                  transition-colors p-1.5 bg-amber-50 dark:bg-amber-900/30 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-800/40"
+        title="Editar"
+      >
+        <Pencil className="w-5 h-5" />
+      </button>
+      <Modal
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Editar Estantería"
+        footer={modalFooter}
+      >
+        <Form
+          initialData={data}
+          fields={estanteriaFields}
+          errors={formErrors}
+          submitUrl={`/estanterias/${estanteria.id}`}
+          method="put"
+          onCancel={() => setIsOpen(false)}
+          onSuccess={handleSubmit}
+          submitButtonText="Actualizar"
+          isEditing={true}
+          accentColor="amber"
+          showButtons={false}
+          id="edit-estanteria-form"
+          processing={processing}
+        />
+      </Modal>
+    </>
   );
 }

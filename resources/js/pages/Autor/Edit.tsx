@@ -1,124 +1,149 @@
-import { useState, useEffect } from 'react';
-import { router } from '@inertiajs/react';
-import { X as XIcon } from 'lucide-react';
-import { type AutorFormData, type AutorEditProps } from './types';
+import React, { useState } from 'react';
+import { useForm } from '@inertiajs/react';
+import { Pencil } from 'lucide-react';
+import Modal from '@/components/Modal';
+import Form from '@/components/Form';
+import { Autor } from './types';
 
-export default function EditAutor({ isModal, open, onClose, autor, errors: initialErrors }: AutorEditProps) {
-  const [formData, setFormData] = useState<AutorFormData>({ nombres: '', apellidos: '' });
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>(initialErrors || {});
+type EditModalProps = {
+  autor: Autor;
+  onSuccess: (message: string) => void;
+  onError: (message: string) => void;
+  errors?: Record<string, string>;
+};
 
-  useEffect(() => {
-    if (open) {
-      setFormData({ nombres: autor.nombres, apellidos: autor.apellidos });
+export default function EditAutor({ autor, onSuccess, onError, errors = {} }: EditModalProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Inicializamos el formulario con los datos actuales del autor
+  const { data, setData, put, processing, reset, errors: formErrors, setError, clearErrors } = useForm({
+    nombres: autor.nombres || '',
+    apellidos: autor.apellidos || ''
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const validFields: Array<keyof typeof data> = ['nombres', 'apellidos'];
+    if (validFields.includes(name as keyof typeof data)) {
+      setData(name as keyof typeof data, value);
+      console.log('Form data updated - Current state:', { ...data, [name]: value });
+    } else {
+      console.error('Invalid field name:', name);
     }
-  }, [open, autor]);
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-    console.log('Actualizando datos:', formData);
+  const autorFields = [
+    {
+      name: 'nombres',
+      label: 'Nombres',
+      type: 'text',
+      placeholder: 'Ingrese los nombres',
+      required: true,
+      value: data.nombres,
+      onChange: handleChange
+    },
+    {
+      name: 'apellidos',
+      label: 'Apellidos',
+      type: 'text',
+      placeholder: 'Ingrese los apellidos',
+      required: true,
+      value: data.apellidos,
+      onChange: handleChange
+    }
+  ];
 
-    router.put(`/autores/${autor.id}`, formData, {
-      preserveState: true,
+  const handleSubmit = () => {
+    clearErrors();
+    console.log('Submitting update with data:', data);
+    put(`/autores/${autor.id}`, {
       preserveScroll: true,
-      onSuccess: (page) => {
-        console.log('Éxito: Redirigiendo con flash', page.props.flash);
-        setFormErrors({});
-        onClose();
-        setIsProcessing(false);
-        router.visit('/autores', {
-          preserveState: true,
-          preserveScroll: true,
-          only: ['flash'],
-        });
+      preserveState: true,
+      onSuccess: (page: any) => {
+        console.log('Success response:', page);
+        const successMessage = page.props.flash?.success || 'Autor actualizado exitosamente';
+        onSuccess(successMessage);
+        reset();
+        clearErrors();
+        setIsOpen(false);
       },
-      onError: (errors) => {
-        console.log('Errores de validación:', errors);
-        setFormErrors(errors);
-        setIsProcessing(false);
+      onError: (errors: Record<string, string>) => {
+        console.log('Error response:', errors);
+        const hasFieldErrors = Object.keys(errors).some(key => ['nombres', 'apellidos'].includes(key));
+        if (hasFieldErrors) {
+          Object.keys(errors).forEach((key) => {
+            setError(key as keyof typeof data, errors[key]);
+          });
+        } else {
+          const errorMessage = errors.error || 'Ha ocurrido un error al actualizar el autor';
+          onError(errorMessage);
+        }
       },
       onFinish: () => {
-        console.log('Solicitud finalizada');
-        setIsProcessing(false);
-      },
+        console.log('Request finished');
+      }
     });
   };
 
-  if (!open) return null;
+  const modalFooter = (
+    <>
+      <button
+        type="button"
+        onClick={() => setIsOpen(false)}
+        className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
+          bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 
+          border border-gray-300 dark:border-gray-600
+          hover:bg-gray-50 dark:hover:bg-gray-600
+          focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200"
+      >
+        Cancelar
+      </button>
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={processing}
+        className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
+          bg-blue-600 hover:bg-blue-700 text-white
+          focus:outline-none focus:ring-2 focus:ring-blue-500
+          disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+      >
+        {processing ? 'Actualizando...' : 'Actualizar'}
+      </button>
+    </>
+  );
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-md mx-auto overflow-hidden rounded-lg shadow-2xl transform transition-all duration-300 animate-fade-in-up">
-        <div className="bg-blue-600 px-6 py-4 text-white">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Editar Autor</h2>
-            <button onClick={onClose} className="rounded-full p-1 bg-white/20 hover:bg-white/30 text-white transition-colors">
-              <XIcon className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 p-6 text-gray-900 dark:text-gray-100">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label htmlFor="nombres" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Nombres
-              </label>
-              <input
-                id="nombres"
-                type="text"
-                value={formData.nombres}
-                onChange={(e) => setFormData({ ...formData, nombres: e.target.value })}
-                className="block w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50
-                  border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white 
-                  placeholder-gray-400 focus:border-blue-500 transition-colors duration-200"
-                required
-                placeholder="Ingrese los nombres"
-              />
-              {formErrors.nombres && <p className="text-red-500 text-sm mt-1">{formErrors.nombres}</p>}
-            </div>
-            <div>
-              <label htmlFor="apellidos" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Apellidos
-              </label>
-              <input
-                id="apellidos"
-                type="text"
-                value={formData.apellidos}
-                onChange={(e) => setFormData({ ...formData, apellidos: e.target.value })}
-                className="block w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50
-                  border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white 
-                  placeholder-gray-400 focus:border-blue-500 transition-colors duration-200"
-                required
-                placeholder="Ingrese los apellidos"
-              />
-              {formErrors.apellidos && <p className="text-red-500 text-sm mt-1">{formErrors.apellidos}</p>}
-            </div>
-            <div className="flex justify-end gap-3 pt-5">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-5 py-2.5 text-sm font-medium border rounded-lg shadow-sm
-                  text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 
-                  border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600
-                  focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isProcessing}
-                className="px-5 py-2.5 text-sm font-medium text-white border border-transparent rounded-lg shadow-sm
-                  bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700
-                  focus:outline-none focus:ring-2 focus:ring-blue-500
-                  disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-              >
-                {isProcessing ? 'Actualizando...' : 'Actualizar'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+    <>
+      <button
+        onClick={() => setIsOpen(true)}
+        className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 
+                  transition-colors p-1.5 bg-amber-50 dark:bg-amber-900/30 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-800/40"
+        title="Editar"
+      >
+        <Pencil className="w-5 h-5" />
+      </button>
+      <Modal
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Editar Autor"
+        footer={modalFooter}
+      >
+        <Form
+          initialData={data}
+          fields={autorFields}
+          errors={formErrors}
+          submitUrl={`/autores/${autor.id}`}
+          method="put"
+          onCancel={() => setIsOpen(false)}
+          onSuccess={handleSubmit}
+          submitButtonText="Actualizar"
+          isEditing={true}
+          accentColor="amber"
+          showButtons={false}
+          id="edit-autor-form"
+          processing={processing}
+        />
+      </Modal>
+    </>
   );
 }

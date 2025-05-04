@@ -254,7 +254,7 @@ export default function Create({
                     <option value="">Seleccione un autor</option>
                     {autores.map(autor => (
                       <option key={autor.id} value={autor.id}>
-                        {`${autor.apellidos}, ${autor.nombre}`}
+                        {`${autor.nombres} ${autor.apellidos}`}
                       </option>
                     ))}
                   </select>
@@ -567,7 +567,7 @@ export default function Create({
                     <option value="">Seleccione una estantería</option>
                     {estanterias.map(estanteria => (
                       <option key={estanteria.id} value={estanteria.id}>
-                        {estanteria.nombre}
+                        {estanteria.cod_estante}
                       </option>
                     ))}
                   </select>
