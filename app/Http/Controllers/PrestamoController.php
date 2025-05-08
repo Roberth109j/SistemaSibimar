@@ -151,15 +151,26 @@ class PrestamoController extends Controller
     /**
      * Lista de préstamos activos
      */
-    public function listado()
+    public function listado(Request $request)
     {
-        $prestamos = Prestamo::with(['ejemplar.libro', 'lector'])
+        try {
+            $query = Prestamo::with(['ejemplar.libro', 'lector'])
                             ->where('estado', 'ACTIVO')
-                            ->latest()
-                            ->paginate(10);
+                            ->orderBy('fecha_prestamo', 'desc');
+
+            if ($request->has('codigo_lector')) {
+                $query->whereHas('lector', function($q) use ($request) {
+                    $q->where('codigo', $request->codigo_lector);
+                });
+            }
+
+            $prestamos = $query->paginate(10);
                             
-        return Inertia::render('Prestamos/Listado', [
-            'prestamos' => $prestamos
-        ]);
+            return Inertia::render('Prestamos/Listado', [
+                'prestamos' => $prestamos
+            ]);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error al cargar la lista de préstamos: ' . $e->getMessage());
+        }
     }
 }

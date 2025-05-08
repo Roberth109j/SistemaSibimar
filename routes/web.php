@@ -98,11 +98,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Rutas para PrestamoController
     Route::get('prestamos', [PrestamoController::class, 'index'])->name('prestamos.index');
     Route::get('prestamos/create', [PrestamoController::class, 'create'])->name('prestamos.create');
+    Route::get('prestamos/listado', [PrestamoController::class, 'listado'])->name('prestamos.listado');
+    Route::get('prestamos/devoluciones', [PrestamoController::class, 'listado'])->name('prestamos.devoluciones');
     Route::post('prestamos', [PrestamoController::class, 'store'])->name('prestamos.store');
     Route::get('prestamos/{prestamo}', [PrestamoController::class, 'show'])->name('prestamos.show');
     Route::get('prestamos/{prestamo}/edit', [PrestamoController::class, 'edit'])->name('prestamos.edit');
     Route::put('prestamos/{prestamo}', [PrestamoController::class, 'update'])->name('prestamos.update');
-    Route::patch('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolver'])->name('prestamos.devolver');
+    Route::post('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolver'])->name('prestamos.devolver');
     Route::delete('prestamos/{prestamo}', [PrestamoController::class, 'destroy'])->name('prestamos.destroy');
 });
 
