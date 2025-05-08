@@ -21,6 +21,7 @@ import { type BreadcrumbItem } from '@/types';
  * @property {string} codigo
  * @property {string} estado
  * @property {number} libro_id
+ * @property {number} numEjemplar
  */
 
 /**
@@ -303,7 +304,7 @@ export default function Index({
                     className="border rounded-lg p-4 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">Código: {ejemplar.codigo}</span>
+                      <span className="font-medium">Número de Ejemplar: {ejemplar.numEjemplar}</span>
                       <span className={`px-2 py-1 rounded text-sm ${
                         ejemplar.estado === 'DISPONIBLE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                       }`}>
@@ -427,14 +428,14 @@ export default function Index({
               </button>
             </div>
 
-            <div className="mb-6">
+{/*             <div className="mb-6">
               <h4 className="font-medium mb-2">Detalles del Libro</h4>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p><span className="font-medium">Título:</span> {selectedLibro.titulo}</p>
                 <p><span className="font-medium">ISBN:</span> {selectedLibro.isbn}</p>
                 <p><span className="font-medium">Código de Ejemplar:</span> {selectedEjemplar.codigo}</p>
               </div>
-            </div>
+            </div> */}
 
             <div className="mb-6">
               <label htmlFor="codigoLector" className="block font-medium mb-2">
