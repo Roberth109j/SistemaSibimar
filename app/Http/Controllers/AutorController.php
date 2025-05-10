@@ -17,16 +17,21 @@ class AutorController extends Controller
     {
         $autores = Autor::all();
         return Inertia::render('Autor/Index', [
-            'autores' => $autores
+            'autores' => $autores->map(function ($autor) {
+                return [
+                    'id' => $autor->id,
+                    'nombres' => $autor->nombres,
+                    'apellidos' => $autor->apellidos,
+                    'libros' => $autor->libros ? $autor->libros->map(function ($libro) {
+                        return [
+                            'id' => $libro->id,
+                            'titulo' => $libro->titulo,
+                        ];
+                    }) : [],
+                ];
+            }),
+            // Flash messages will be handled by the Inertia middleware
         ]);
-    }
-
-    /**
-     * Muestra el formulario para crear un nuevo autor.
-     */
-    public function create(): Response
-    {
-        return Inertia::render('Autor/Create');
     }
 
     /**
@@ -41,7 +46,7 @@ class AutorController extends Controller
 
         Autor::create($validated);
 
-        return redirect()->route('autores.index')
+        return redirect()->route('autores.index') // Use route redirect for consistency
             ->with('success', 'Autor creado correctamente.');
     }
 
@@ -51,17 +56,17 @@ class AutorController extends Controller
     public function show(Autor $autor): Response
     {
         return Inertia::render('Autor/Show', [
-            'autor' => $autor->load('libros')
-        ]);
-    }
-
-    /**
-     * Muestra el formulario para editar un autor existente.
-     */
-    public function edit(Autor $autor): Response
-    {
-        return Inertia::render('Autor/Edit', [
-            'autor' => $autor
+            'autor' => [
+                'id' => $autor->id,
+                'nombres' => $autor->nombres,
+                'apellidos' => $autor->apellidos,
+                'libros' => $autor->load('libros')->libros->map(function ($libro) {
+                    return [
+                        'id' => $libro->id,
+                        'titulo' => $libro->titulo,
+                    ];
+                }),
+            ],
         ]);
     }
 
@@ -77,7 +82,7 @@ class AutorController extends Controller
 
         $autor->update($validated);
 
-        return redirect()->route('autores.index')
+        return redirect()->route('autores.index') // Use route redirect for consistency
             ->with('success', 'Autor actualizado correctamente.');
     }
 
@@ -88,9 +93,10 @@ class AutorController extends Controller
     {
         try {
             $autor->delete();
-            return redirect()->route('autores.index')
+            return redirect()->route('autores.index') // Use route redirect for consistency
                 ->with('success', 'Autor eliminado correctamente.');
         } catch (\Exception $e) {
+            \Log::error('Error al eliminar autor: ' . $e->getMessage());
             return redirect()->route('autores.index')
                 ->with('error', 'No se pudo eliminar el autor. Puede que tenga libros asociados.');
         }

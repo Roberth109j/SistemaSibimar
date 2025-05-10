@@ -1,93 +1,86 @@
-import { Head, router } from '@inertiajs/react';
-import { Pencil as PencilIcon, X as XMarkIcon, Trash as TrashIcon } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
+import React, { useState } from 'react';
+import { Eye } from 'lucide-react';
+import Modal from '@/components/Modal';
+import { Estanteria } from './types';
 
-// Definición de tipos
-type Estanteria = {
-  id: number;
-  cod_estante: string;
-  descripcion: string | null;
-};
-
-type ShowEstanteriaProps = {
+type ShowModalProps = {
   estanteria: Estanteria;
 };
 
-// Constantes
-const breadcrumbs: BreadcrumbItem[] = [
-  {
-    title: 'Dashboard',
-    href: '/dashboard',
-  },
-  {
-    title: 'Estanterías',
-    href: '/estanterias',
-  },
-  {
-    title: 'Ver Estantería',
-    href: '#',
-  },
-];
+export default function ShowEstanteria({ estanteria }: ShowModalProps) {
+  const [isOpen, setIsOpen] = useState(false);
 
-export default function ShowEstanteria({ estanteria }: ShowEstanteriaProps) {
-  const handleDelete = () => {
-    if (confirm('¿Está seguro que desea eliminar esta estantería?')) {
-      router.delete(route('estanterias.destroy', estanteria.id));
-    }
-  };
-
-  return (
-    <AppLayout breadcrumbs={breadcrumbs}>
-      <Head title={`Estantería: ${estanteria.cod_estante}`} />
-      <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border bg-white dark:bg-gray-800 p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold">Detalles de la Estantería</h2>
-            <div className="flex gap-2">
-              <a
-                href={route('estanterias.edit', estanteria.id)}
-                className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
-              >
-                <PencilIcon className="w-5 h-5" />
-              </a>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-              >
-                <TrashIcon className="w-5 h-5" />
-              </button>
-              <a
-                href={route('estanterias.index')}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                <XMarkIcon className="w-6 h-6" />
-              </a>
+  const content = (
+    <div className="space-y-6">
+      <div className="overflow-hidden bg-white dark:bg-gray-800 shadow-md rounded-lg">
+        <div className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 px-6 py-5">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 flex items-center justify-center h-14 w-14 rounded-full bg-blue-500 dark:bg-blue-600 text-white shadow-lg">
+              <span className="text-xl font-bold">{estanteria.id}</span>
+            </div>
+            <div className="ml-5">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {estanteria.cod_estante}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">ID: {estanteria.id}</p>
             </div>
           </div>
-
-          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
-            <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-              <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-300">ID</dt>
-                <dd className="mt-1 text-lg text-gray-900 dark:text-gray-100">{estanteria.id}</dd>
-              </div>
-              
-              <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-300">Código de Estante</dt>
-                <dd className="mt-1 text-lg text-gray-900 dark:text-gray-100">{estanteria.cod_estante}</dd>
-              </div>
-              
-              <div className="sm:col-span-2">
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-300">Descripción</dt>
-                <dd className="mt-1 text-lg text-gray-900 dark:text-gray-100">
-                  {estanteria.descripcion || '—'}
-                </dd>
-              </div>
-            </dl>
-          </div>
+        </div>
+        <div className="px-6 py-5">
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
+            <div className="sm:col-span-1">
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Código de Estante
+              </dt>
+              <dd className="mt-2 text-base text-gray-900 dark:text-white font-medium">
+                {estanteria.cod_estante}
+              </dd>
+            </div>
+            <div className="sm:col-span-1">
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Descripción
+              </dt>
+              <dd className="mt-2 text-base text-gray-900 dark:text-white font-medium">
+                {estanteria.descripcion || '-'}
+              </dd>
+            </div>
+          </dl>
         </div>
       </div>
-    </AppLayout>
+    </div>
+  );
+
+  const modalFooter = (
+    <button
+      onClick={() => setIsOpen(false)}
+      className="px-5 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 
+          rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 
+          hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 
+          focus:ring-blue-500 transition-colors"
+    >
+      Cerrar
+    </button>
+  );
+
+  return (
+    <>
+      <button
+        onClick={() => setIsOpen(true)}
+        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 
+                  transition-colors p-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/40"
+        title="Ver detalles"
+      >
+        <Eye className="w-5 h-5" />
+      </button>
+      <Modal
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Detalles de la Estantería"
+        description={`ID: ${estanteria.id} - ${estanteria.cod_estante}`}
+        footer={modalFooter}
+      >
+        {content}
+      </Modal>
+    </>
   );
 }
