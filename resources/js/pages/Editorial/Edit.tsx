@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Pencil } from 'lucide-react';
 import Modal from '@/components/Modal';
@@ -15,11 +15,21 @@ type EditModalProps = {
 export default function EditEditorial({ editorial, onSuccess, onError, errors = {} }: EditModalProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const { data, setData, put, processing, reset, errors: formErrors, setError, clearErrors } = useForm({
+  const { data, setData, put, processing, errors: formErrors, setError, clearErrors, reset } = useForm({
     nombre: editorial.nombre,
     ciudad: editorial.ciudad || '',
     pais: editorial.pais || ''
   });
+
+  // Sync form data with updated editorial prop
+  useEffect(() => {
+    setData({
+      nombre: editorial.nombre,
+      ciudad: editorial.ciudad || '',
+      pais: editorial.pais || ''
+    });
+    clearErrors();
+  }, [editorial, setData, clearErrors]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -72,7 +82,12 @@ export default function EditEditorial({ editorial, onSuccess, onError, errors = 
         console.log('Success response:', page);
         const successMessage = page.props.flash?.success || 'Editorial actualizada exitosamente';
         onSuccess(successMessage);
-        reset();
+        // Reset form with updated editorial data
+        setData({
+          nombre: editorial.nombre,
+          ciudad: editorial.ciudad || '',
+          pais: editorial.pais || ''
+        });
         clearErrors();
         setIsOpen(false);
       },

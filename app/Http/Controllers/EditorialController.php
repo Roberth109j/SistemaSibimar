@@ -122,8 +122,10 @@ class EditorialController extends Controller
             
             DB::commit();
 
+            // Return updated editorial data to refresh frontend props
             return redirect()->route('editoriales.index')
-                ->with('success', 'Editorial actualizada correctamente.');
+                ->with('success', 'Editorial actualizada correctamente.')
+                ->with('editoriales', Editorial::orderBy('id')->get()); // Refresh editoriales list
         } catch (ValidationException $e) {
             DB::rollBack();
             Log::error('Validation error updating editorial: ' . json_encode($e->errors()));
