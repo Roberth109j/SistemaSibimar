@@ -109,10 +109,11 @@ function AlertNotification({
   );
 }
 
-const Index = ({ auth, editoriales, flash, errors = {} }: IndexProps) => {
+const Index = ({ auth, editoriales: initialEditoriales, flash, errors = {} }: IndexProps) => {
   const page = usePage();
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [editoriales, setEditoriales] = useState<Editorial[]>(initialEditoriales);
 
   const [alerts, setAlerts] = useState<{
     success: string | null;
@@ -123,6 +124,11 @@ const Index = ({ auth, editoriales, flash, errors = {} }: IndexProps) => {
     error: null,
     timestamp: 0
   });
+
+  // Sync editoriales with props
+  useEffect(() => {
+    setEditoriales(initialEditoriales);
+  }, [initialEditoriales]);
 
   useEffect(() => {
     if (flash) {
