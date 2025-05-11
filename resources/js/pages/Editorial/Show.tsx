@@ -39,18 +39,18 @@ export default function ShowEditorial({ editorial }: ShowModalProps) {
             </div>
             <div className="sm:col-span-1">
               <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                Ciudad
-              </dt>
-              <dd className="mt-2 text-base text-gray-900 dark:text-white font-medium">
-                {editorial.ciudad || '-'}
-              </dd>
-            </div>
-            <div className="sm:col-span-1">
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
                 País
               </dt>
               <dd className="mt-2 text-base text-gray-900 dark:text-white font-medium">
                 {editorial.pais || '-'}
+              </dd>
+            </div>
+            <div className="sm:col-span-1">
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Ciudad
+              </dt>
+              <dd className="mt-2 text-base text-gray-900 dark:text-white font-medium">
+                {editorial.ciudad || '-'}
               </dd>
             </div>
           </dl>
@@ -111,7 +111,6 @@ export default function ShowEditorial({ editorial }: ShowModalProps) {
         open={isOpen}
         onClose={() => setIsOpen(false)}
         title="Detalles de la Editorial"
-        description={`ID: ${editorial.id} - ${editorial.nombre}`}
         footer={modalFooter}
       >
         {content}

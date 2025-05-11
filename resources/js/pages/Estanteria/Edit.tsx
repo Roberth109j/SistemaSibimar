@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Pencil } from 'lucide-react';
 import Modal from '@/components/Modal';
@@ -12,20 +12,33 @@ type EditModalProps = {
   errors?: Record<string, string>;
 };
 
+type FormData = {
+  cod_estante: string;
+  descripcion: string;
+};
+
 export default function EditEstanteria({ estanteria, onSuccess, onError, errors = {} }: EditModalProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Inicializamos el formulario con los datos actuales de la estantería
-  const { data, setData, put, processing, reset, errors: formErrors, setError, clearErrors } = useForm({
+  const { data, setData, put, processing, errors: formErrors, setError, clearErrors, reset } = useForm<FormData>({
     cod_estante: estanteria.cod_estante || '',
     descripcion: estanteria.descripcion || ''
   });
 
+  // Sync form data with updated estanteria prop
+  useEffect(() => {
+    setData({
+      cod_estante: estanteria.cod_estante || '',
+      descripcion: estanteria.descripcion || ''
+    });
+    clearErrors();
+  }, [estanteria, setData, clearErrors]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    const validFields: Array<keyof typeof data> = ['cod_estante', 'descripcion'];
-    if (validFields.includes(name as keyof typeof data)) {
-      setData(name as keyof typeof data, value);
+    
+    if (name === 'cod_estante' || name === 'descripcion') {
+      setData(name, value);
       console.log('Form data updated - Current state:', { ...data, [name]: value });
     } else {
       console.error('Invalid field name:', name);
@@ -34,22 +47,28 @@ export default function EditEstanteria({ estanteria, onSuccess, onError, errors 
 
   const estanteriaFields = [
     {
-      name: 'cod_estante',
+      name: 'cod_estante' as const,
       label: 'Código de estante',
       type: 'text',
       placeholder: 'Ingrese el código de estante',
       required: true,
       value: data.cod_estante,
-      onChange: handleChange
+      onChange: handleChange,
+      labelClassName: 'text-left block w-full', // Clase para alinear a la izquierda
+      inputClassName: 'text-left', // Clase para alinear a la izquierda
+      containerClassName: 'text-left mb-4', // Clase para alinear el contenedor a la izquierda
     },
     {
-      name: 'descripcion',
+      name: 'descripcion' as const,
       label: 'Descripción',
       type: 'text',
       placeholder: 'Ingrese la descripción (opcional)',
       required: false,
       value: data.descripcion,
-      onChange: handleChange
+      onChange: handleChange,
+      labelClassName: 'text-left block w-full', // Clase para alinear a la izquierda
+      inputClassName: 'text-left', // Clase para alinear a la izquierda
+      containerClassName: 'text-left mb-4', // Clase para alinear el contenedor a la izquierda
     }
   ];
 
@@ -63,18 +82,24 @@ export default function EditEstanteria({ estanteria, onSuccess, onError, errors 
         console.log('Success response:', page);
         const successMessage = page.props.flash?.success || 'Estantería actualizada exitosamente';
         onSuccess(successMessage);
-        reset();
+        // Reset form with updated estanteria data
+        setData({
+          cod_estante: estanteria.cod_estante || '',
+          descripcion: estanteria.descripcion || ''
+        });
         clearErrors();
         setIsOpen(false);
       },
       onError: (errors: Record<string, string>) => {
         console.log('Error response:', errors);
-        const hasFieldErrors = Object.keys(errors).some(key => ['cod_estante', 'descripcion'].includes(key));
-        if (hasFieldErrors) {
-          Object.keys(errors).forEach((key) => {
-            setError(key as keyof typeof data, errors[key]);
-          });
-        } else {
+        if (errors.cod_estante) {
+          setError('cod_estante', errors.cod_estante);
+        }
+        if (errors.descripcion) {
+          setError('descripcion', errors.descripcion);
+        }
+        
+        if (!errors.cod_estante && !errors.descripcion && errors.error) {
           const errorMessage = errors.error || 'Ha ocurrido un error al actualizar la estantería';
           onError(errorMessage);
         }
@@ -85,11 +110,17 @@ export default function EditEstanteria({ estanteria, onSuccess, onError, errors 
     });
   };
 
+  const handleCancel = () => {
+    reset();
+    clearErrors();
+    setIsOpen(false);
+  };
+
   const modalFooter = (
     <>
       <button
         type="button"
-        onClick={() => setIsOpen(false)}
+        onClick={handleCancel}
         className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
           bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 
           border border-gray-300 dark:border-gray-600
@@ -124,25 +155,27 @@ export default function EditEstanteria({ estanteria, onSuccess, onError, errors 
       </button>
       <Modal
         open={isOpen}
-        onClose={() => setIsOpen(false)}
+        onClose={handleCancel}
         title="Editar Estantería"
         footer={modalFooter}
       >
-        <Form
-          initialData={data}
-          fields={estanteriaFields}
-          errors={formErrors}
-          submitUrl={`/estanterias/${estanteria.id}`}
-          method="put"
-          onCancel={() => setIsOpen(false)}
-          onSuccess={handleSubmit}
-          submitButtonText="Actualizar"
-          isEditing={true}
-          accentColor="amber"
-          showButtons={false}
-          id="edit-estanteria-form"
-          processing={processing}
-        />
+        <div className="w-full text-left">
+          <Form
+            initialData={data}
+            fields={estanteriaFields}
+            errors={formErrors}
+            submitUrl={`/estanterias/${estanteria.id}`}
+            method="put"
+            onCancel={handleCancel}
+            onSuccess={handleSubmit}
+            submitButtonText="Actualizar"
+            isEditing={true}
+            accentColor="amber"
+            showButtons={false}
+            id="edit-estanteria-form"
+            processing={processing}
+          />
+        </div>
       </Modal>
     </>
   );

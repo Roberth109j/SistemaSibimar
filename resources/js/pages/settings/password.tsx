@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Password settings',
+        title: 'Configuración de la contraseña',
         href: '/settings/password',
     },
 ];
@@ -50,11 +50,11 @@ export default function Password() {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Profile settings" />
+            <Head title="Configuración de la cuenta" />
 
             <SettingsLayout>
                 <div className="space-y-6">
-                    <HeadingSmall title="Update password" description="Ensure your account is using a long, random password to stay secure" />
+                    <HeadingSmall title="Actualización de la contraseña" description="Utilice una contraseña única para mantener la seguridad de su cuenta" />
 
                     <form onSubmit={updatePassword} className="space-y-6">
                         <div className="grid gap-2">
