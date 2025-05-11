@@ -15,13 +15,13 @@ export default function CreateEditorial({ onSuccess, onError, errors = {} }: Cre
 
   const { data, setData, post, processing, reset, errors: formErrors, setError, clearErrors } = useForm({
     nombre: '',
-    ciudad: '',
-    pais: ''
+    pais: '',
+    ciudad: ''
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    const validFields: Array<keyof typeof data> = ['nombre', 'ciudad', 'pais'];
+    const validFields: Array<keyof typeof data> = ['nombre', 'pais', 'ciudad'];
     if (validFields.includes(name as keyof typeof data)) {
       setData(name as keyof typeof data, value);
       console.log('Form data updated - Current state:', { ...data, [name]: value });
@@ -41,6 +41,16 @@ export default function CreateEditorial({ onSuccess, onError, errors = {} }: Cre
       onChange: handleChange
     },
     {
+      name: 'pais',
+      label: 'País',
+      type: 'text',
+      placeholder: 'Ingrese el país',
+      required: false,
+      value: data.pais,
+      onChange: handleChange
+    },
+    
+    {
       name: 'ciudad',
       label: 'Ciudad',
       type: 'text',
@@ -49,15 +59,6 @@ export default function CreateEditorial({ onSuccess, onError, errors = {} }: Cre
       value: data.ciudad,
       onChange: handleChange
     },
-    {
-      name: 'pais',
-      label: 'País',
-      type: 'text',
-      placeholder: 'Ingrese el país',
-      required: false,
-      value: data.pais,
-      onChange: handleChange
-    }
   ];
 
   const handleSubmit = () => {

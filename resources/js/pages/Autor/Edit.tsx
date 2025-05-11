@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Pencil } from 'lucide-react';
 import Modal from '@/components/Modal';
@@ -15,11 +15,19 @@ type EditModalProps = {
 export default function EditAutor({ autor, onSuccess, onError, errors = {} }: EditModalProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Inicializamos el formulario con los datos actuales del autor
-  const { data, setData, put, processing, reset, errors: formErrors, setError, clearErrors } = useForm({
+  const { data, setData, put, processing, errors: formErrors, setError, clearErrors, reset } = useForm({
     nombres: autor.nombres || '',
     apellidos: autor.apellidos || ''
   });
+
+  // Sync form data with updated autor prop
+  useEffect(() => {
+    setData({
+      nombres: autor.nombres || '',
+      apellidos: autor.apellidos || ''
+    });
+    clearErrors();
+  }, [autor, setData, clearErrors]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -63,7 +71,11 @@ export default function EditAutor({ autor, onSuccess, onError, errors = {} }: Ed
         console.log('Success response:', page);
         const successMessage = page.props.flash?.success || 'Autor actualizado exitosamente';
         onSuccess(successMessage);
-        reset();
+        // Reset form with updated autor data
+        setData({
+          nombres: autor.nombres || '',
+          apellidos: autor.apellidos || ''
+        });
         clearErrors();
         setIsOpen(false);
       },

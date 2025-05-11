@@ -17,23 +17,23 @@ export default function EditEditorial({ editorial, onSuccess, onError, errors = 
 
   const { data, setData, put, processing, errors: formErrors, setError, clearErrors, reset } = useForm({
     nombre: editorial.nombre,
-    ciudad: editorial.ciudad || '',
-    pais: editorial.pais || ''
+    pais: editorial.pais || '',
+    ciudad: editorial.ciudad || ''
   });
 
   // Sync form data with updated editorial prop
   useEffect(() => {
     setData({
       nombre: editorial.nombre,
-      ciudad: editorial.ciudad || '',
-      pais: editorial.pais || ''
+      pais: editorial.pais || '',
+      ciudad: editorial.ciudad || ''
     });
     clearErrors();
   }, [editorial, setData, clearErrors]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    const validFields: Array<keyof typeof data> = ['nombre', 'ciudad', 'pais'];
+    const validFields: Array<keyof typeof data> = ['nombre', 'pais', 'ciudad'];
     if (validFields.includes(name as keyof typeof data)) {
       setData(name as keyof typeof data, value);
       console.log('Form data updated - Current state:', { ...data, [name]: value });
@@ -53,21 +53,21 @@ export default function EditEditorial({ editorial, onSuccess, onError, errors = 
       onChange: handleChange
     },
     {
-      name: 'ciudad',
-      label: 'Ciudad',
-      type: 'text',
-      placeholder: 'Ingrese la ciudad',
-      required: false,
-      value: data.ciudad,
-      onChange: handleChange
-    },
-    {
       name: 'pais',
       label: 'País',
       type: 'text',
       placeholder: 'Ingrese el país',
       required: false,
       value: data.pais,
+      onChange: handleChange
+    },
+    {
+      name: 'ciudad',
+      label: 'Ciudad',
+      type: 'text',
+      placeholder: 'Ingrese la ciudad',
+      required: false,
+      value: data.ciudad,
       onChange: handleChange
     }
   ];
