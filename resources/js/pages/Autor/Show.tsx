@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Eye } from 'lucide-react';
-import { BookOpen } from 'lucide-react';
 import Modal from '@/components/Modal';
 import { Autor } from './types';
 
@@ -77,7 +76,6 @@ export default function ShowAutor({ autor }: ShowModalProps) {
         open={isOpen}
         onClose={() => setIsOpen(false)}
         title="Detalles del Autor"
-        description={`ID: ${autor.id} - ${autor.nombres} ${autor.apellidos}`}
         footer={modalFooter}
       >
         {content}
