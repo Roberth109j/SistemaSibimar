@@ -136,13 +136,33 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
   }, [flash, page.props.flash]);
 
   const filteredAutores = searchTerm
-    ? autores.filter(
-      autor =>
-        autor.nombres.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        autor.apellidos.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    : autores;
+    ? autores.filter(autor => {
+      // Convert search term and author data to lowercase for case-insensitive comparison
+      const search = searchTerm.toLowerCase().trim();
+      const firstName = autor.nombres.toLowerCase();
+      const lastName = autor.apellidos.toLowerCase();
+      const fullName = `${firstName} ${lastName}`;
+      const reversedFullName = `${lastName} ${firstName}`;
 
+      // Check if search term exists in the full name (both orders)
+      if (fullName.includes(search) || reversedFullName.includes(search)) {
+        return true;
+      }
+
+      // If search has multiple words, check if they match individual parts
+      if (search.includes(' ')) {
+        const searchTerms = search.split(' ').filter(term => term.length > 0);
+
+        // Check if each search term is found in either first name or last name
+        return searchTerms.every(term =>
+          firstName.includes(term) || lastName.includes(term)
+        );
+      }
+
+      // Fall back to the original simple search
+      return firstName.includes(search) || lastName.includes(search);
+    })
+    : autores;
   const showAlert = (type: 'success' | 'error', message: string) => {
     console.log(`Showing alert: ${type} - ${message}`);
     setAlerts(prev => ({
