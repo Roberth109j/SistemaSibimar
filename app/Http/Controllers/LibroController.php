@@ -10,10 +10,11 @@ use App\Models\Seccion;
 use App\Models\CategoriaDewey;
 use App\Models\SubcategoriaDewey;
 use App\Models\TemaDewey;
-use App\Models\Ejemplar; // Agregamos la importación que faltaba
+use App\Models\Ejemplar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class LibroController extends Controller
@@ -31,7 +32,7 @@ class LibroController extends Controller
                 'message' => 'Término de búsqueda requerido'
             ], 400);
         }
-
+        
         $libro = Libro::with([
             'autor',
             'editorial',
@@ -65,31 +66,42 @@ class LibroController extends Controller
 
     public function index(Request $request)
     {
-        $query = Libro::with(['autor', 'editorial', 'seccion', 'temaDewey', 'estanteria']);
+        // Query base con relaciones necesarias
+        $query = Libro::with(['autor', 'editorial', 'seccion', 'temaDewey', 'estanteria'])
+            ->select(['libros.*', 
+                     \DB::raw("(SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = 'DISPONIBLE') as ejemplares_count")]);    
 
-        // Filtros
-        if ($request->has('titulo')) {
-            $query->where('titulo', 'like', '%' . $request->titulo . '%');
+        // Aplicar filtros en el backend (mucho más eficiente)
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('titulo', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('isbn', 'like', '%' . $searchTerm . '%')
+                  ->orWhereHas('autor', function($authorQuery) use ($searchTerm) {
+                      $authorQuery->where('nombres', 'like', '%' . $searchTerm . '%')
+                                  ->orWhere('apellidos', 'like', '%' . $searchTerm . '%');
+                  });
+            });
         }
 
-        if ($request->has('isbn')) {
-            $query->where('isbn', 'like', '%' . $request->isbn . '%');
-        }
-
-        if ($request->has('autor_id') && $request->autor_id) {
-            $query->where('autor_id', $request->autor_id);
-        }
-
-        if ($request->has('clase') && $request->clase) {
+        if ($request->filled('clase')) {
             $query->where('clase', $request->clase);
         }
 
-        if ($request->has('seccion_id') && $request->seccion_id) {
-            $query->where('seccion_id', $request->seccion_id);
+        if ($request->filled('idioma')) {
+            $query->where('idioma', $request->idioma);
         }
 
-        $libros = $query->paginate(10);
+        if ($request->filled('estanteria')) {
+            $query->where('estanteria_id', $request->estanteria);
+        }
 
+        // Paginación optimizada
+        $libros = $query->orderBy('id')
+                       ->paginate(10)
+                       ->withQueryString(); // Mantiene los filtros en la URL
+
+        // Datos para filtros (solo los necesarios)
         $clases = [
             Libro::CLASE_LIBRO,
             Libro::CLASE_CARTILLA,
@@ -107,17 +119,32 @@ class LibroController extends Controller
             Libro::IDIOMA_OTRO,
         ];
 
-        // Cargar autores para los filtros - utilizando apellidos (plural)
-        $autores = Autor::orderBy('apellidos')->get();
-        $secciones = Seccion::all();
+        // Solo cargar datos de filtros cuando son necesarios
+        $autores = Autor::select(['id', 'nombres', 'apellidos'])
+                        ->orderBy('apellidos')
+                        ->get();
+                        
+        $estanterias = Estanteria::select(['id', 'cod_estante'])
+                                ->orderBy('cod_estante')
+                                ->get();
+                                
+        $secciones = Seccion::select(['id', 'nombre'])
+                           ->orderBy('nombre')
+                           ->get();
+                           
+        $categoriasDewey = CategoriaDewey::select(['id', 'nombre', 'codigo'])
+                                       ->orderBy('codigo')
+                                       ->get();
 
         return Inertia::render('Libro/index', [
-            'libros' => $libros,
+            'libros' => $libros, // Objeto paginado de Laravel
             'clases' => $clases,
             'idiomas' => $idiomas,
             'autores' => $autores,
+            'estanterias' => $estanterias,
             'secciones' => $secciones,
-            'filters' => $request->all(['titulo', 'isbn', 'autor_id', 'clase', 'seccion_id'])
+            'categoriasDewey' => $categoriasDewey,
+            'filters' => $request->only(['search', 'clase', 'idioma', 'estanteria'])
         ]);
     }
 
@@ -166,8 +193,23 @@ class LibroController extends Controller
      */
     public function store(Request $request)
     {
+        // Log para debugging
+        Log::info('Datos recibidos para crear libro:', $request->all());
+
+        // ⚠️ ESTA LÍNEA ES CRÍTICA - debe estar ANTES de la validación
+        if ($request->has('estanteria_id') && $request->estanteria_id === '') {
+            $request->merge(['estanteria_id' => null]);
+        }
+        
+        // Debug adicional
+        Log::info('Después de procesar estanteria_id:', [
+            'estanteria_id' => $request->estanteria_id,
+            'type' => gettype($request->estanteria_id)
+        ]);
+
         $validator = Validator::make($request->all(), [
-            'isbn' => 'required|unique:libros,isbn',
+            'estanteria_id' => 'nullable|exists:estanterias,id',
+            'isbn' => 'required|string|unique:libros,isbn',
             'titulo' => 'required|string|max:255',
             'seccion_id' => 'required|exists:secciones,id',
             'autor_id' => 'required|exists:autores,id',
@@ -187,37 +229,75 @@ class LibroController extends Controller
                 Libro::IDIOMA_FRANCES,
                 Libro::IDIOMA_OTRO,
             ]),
-            'paginas' => 'required|integer|min:1',
+            'paginas' => 'nullable|integer|min:1',
             'tema_id' => 'required|exists:temas_dewey,id',
-            'estanteria_id' => 'required|exists:estanterias,id',
+            // CORREGIDO: nullable debe ir antes de exists
+            'estanteria_id' => 'nullable|exists:estanterias,id',
             'tomo' => 'nullable|integer|min:1',
             'edicion' => 'nullable|string|max:50',
             'anio' => 'nullable|integer|min:1000|max:' . (date('Y') + 1),
-            'fecha_ingreso' => 'required|date',
+            'fecha_ingreso' => 'required|date|before_or_equal:today',
             'precio' => 'nullable|numeric|min:0',
-            'edad_recomendada' => 'nullable|integer|min:1|max:100',
+            'edad_recomendada' => 'nullable|integer|min:0|max:100',
             'contenido' => 'nullable|string',
-
+        ], [
+            // Mensajes personalizados de error
+            'isbn.required' => 'El ISBN es obligatorio.',
+            'isbn.unique' => 'Este ISBN ya está registrado en el sistema.',
+            'titulo.required' => 'El título es obligatorio.',
+            'seccion_id.required' => 'Debe seleccionar una sección.',
+            'seccion_id.exists' => 'La sección seleccionada no es válida.',
+            'autor_id.required' => 'Debe seleccionar un autor.',
+            'autor_id.exists' => 'El autor seleccionado no es válido.',
+            'editorial_id.required' => 'Debe seleccionar una editorial.',
+            'editorial_id.exists' => 'La editorial seleccionada no es válida.',
+            'clase.required' => 'Debe seleccionar una clase.',
+            'clase.in' => 'La clase seleccionada no es válida.',
+            'idioma.required' => 'Debe seleccionar un idioma.',
+            'idioma.in' => 'El idioma seleccionado no es válido.',
+            'paginas.integer' => 'El número de páginas debe ser un número entero.',
+            'paginas.min' => 'El número de páginas debe ser mayor a 0.',
+            'tema_id.required' => 'Debe seleccionar un tema Dewey.',
+            'tema_id.exists' => 'El tema Dewey seleccionado no es válido.',
+            'estanteria_id.exists' => 'La estantería seleccionada no es válida.',
+            'fecha_ingreso.required' => 'La fecha de ingreso es obligatoria.',
+            'fecha_ingreso.date' => 'La fecha de ingreso debe ser una fecha válida.',
+            'fecha_ingreso.before_or_equal' => 'La fecha de ingreso no puede ser futura.',
+            'precio.numeric' => 'El precio debe ser un número válido.',
+            'precio.min' => 'El precio no puede ser negativo.',
+            'edad_recomendada.integer' => 'La edad recomendada debe ser un número entero.',
+            'edad_recomendada.min' => 'La edad recomendada no puede ser negativa.',
+            'edad_recomendada.max' => 'La edad recomendada no puede ser mayor a 100 años.',
+            'anio.integer' => 'El año debe ser un número entero.',
+            'anio.min' => 'El año debe ser mayor a 1000.',
+            'anio.max' => 'El año no puede ser mayor al año actual.',
         ]);
 
         if ($validator->fails()) {
+            Log::warning('Errores de validación al crear libro:', $validator->errors()->toArray());
             return redirect()->back()
                 ->withErrors($validator)
-                ->withInput();
+                ->withInput()
+                ->with('error', 'Por favor, corrija los errores en el formulario.');
         }
-
-        // Obtener datos del autor para crear la signatura topográfica - usando apellidos (plural)
-        $autor = Autor::find($request->autor_id);
-        $temaDewey = TemaDewey::find($request->tema_id);
-
-        // Generar signatura topográfica - usando apellidos (plural)
-        $signTop = $temaDewey->codigo . '.' .
-            strtoupper(substr($autor->apellidos, 0, 1)) . '.' .
-            strtoupper(substr($request->titulo, 0, 1));
 
         try {
             DB::beginTransaction();
 
+            // Obtener datos del autor para crear la signatura topográfica
+            $autor = Autor::find($request->autor_id);
+            $temaDewey = TemaDewey::find($request->tema_id);
+
+            if (!$autor || !$temaDewey) {
+                throw new \Exception('No se encontraron los datos del autor o tema Dewey.');
+            }
+
+            // Generar signatura topográfica
+            $signTop = $temaDewey->codigo . '.' .
+                strtoupper(substr($autor->apellidos, 0, 1)) . '.' .
+                strtoupper(substr($request->titulo, 0, 1));
+
+            // Crear el libro
             $libro = new Libro();
             $libro->isbn = $request->isbn;
             $libro->titulo = $request->titulo;
@@ -233,19 +313,32 @@ class LibroController extends Controller
             $libro->precio = $request->precio;
             $libro->idioma = $request->idioma;
             $libro->edad_recomendada = $request->edad_recomendada;
-            $libro->paginas = $request->paginas;
+            $libro->paginas = $request->paginas ?: 1;
             $libro->tema_id = $request->tema_id;
             $libro->sign_top = $signTop;
-            $libro->estanteria_id = $request->estanteria_id;
+            
+            // NUEVA LÓGICA: Manejo mejorado de estantería
+            $libro->estanteria_id = $request->estanteria_id; // Ya es null si no se proporcionó
 
             $libro->save();
 
             DB::commit();
 
-            return redirect()->route('libros.index')->with('success', 'Libro creado exitosamente');
+            Log::info('Libro creado exitosamente:', ['libro_id' => $libro->id, 'titulo' => $libro->titulo]);
+
+            return redirect()->route('libros.index')
+                ->with('success', 'El libro "' . $libro->titulo . '" ha sido registrado correctamente.');
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error al crear el libro: ' . $e->getMessage())->withInput();
+            Log::error('Error al crear libro:', [
+                'error' => $e->getMessage(),
+                'request_data' => $request->all()
+            ]);
+            
+            return redirect()->back()
+                ->with('error', 'Error al crear el libro: ' . $e->getMessage())
+                ->withInput();
         }
     }
 
@@ -260,6 +353,10 @@ class LibroController extends Controller
             'seccion',
             'estanteria',
             'temaDewey.subcategoria.categoria'
+        ])->loadCount([
+            'ejemplares as ejemplares_count' => function ($query) {
+                $query->where('estado', Ejemplar::ESTADO_DISPONIBLE);
+            }
         ]);
 
         return Inertia::render('Libro/Show', [
@@ -268,31 +365,42 @@ class LibroController extends Controller
         ]);
     }
 
-
     /**
      * Mostrar formulario de edición
      */
     public function edit($id)
     {
-        $libro = Libro::findOrFail($id);
-
-        // Obtener el tema, subcategoría y categoría Dewey del libro
-        $temaDewey = TemaDewey::find($libro->tema_id);
-        $subcategoriaDewey = SubcategoriaDewey::find($temaDewey->subcategoria_id);
-        $categoriaDewey = CategoriaDewey::find($subcategoriaDewey->categoria_id);
-
-        // Obtener todas las subcategorías de esta categoría
-        $subcategorias = SubcategoriaDewey::where('categoria_id', $categoriaDewey->id)->get();
-
-        // Obtener todos los temas de esta subcategoría
-        $temas = TemaDewey::where('subcategoria_id', $subcategoriaDewey->id)->get();
+        $libro = Libro::with([
+            'temaDewey.subcategoria.categoria',
+            'autor',
+            'editorial',
+            'seccion',
+            'estanteria'
+        ])->findOrFail($id);
 
         // Datos para el formulario - usando apellidos (plural)
         $autores = Autor::orderBy('apellidos')->get();
         $editoriales = Editorial::orderBy('nombre')->get();
         $estanterias = Estanteria::all();
         $secciones = Seccion::all();
-        $categoriasDewey = CategoriaDewey::all();
+        $categoriasDewey = CategoriaDewey::orderBy('codigo')->get();
+
+        // Inicializar variables para la cascada Dewey
+        $subcategoriasDewey = [];
+        $temasDewey = [];
+
+        // Si el libro tiene tema_dewey, cargar subcategorías y temas relacionados
+        if ($libro->temaDewey && $libro->temaDewey->subcategoria) {
+            // Cargar todas las subcategorías de la categoría actual
+            $subcategoriasDewey = SubcategoriaDewey::where('categoria_id', $libro->temaDewey->subcategoria->categoria_id)
+                ->orderBy('codigo')
+                ->get();
+            
+            // Cargar todos los temas de la subcategoría actual
+            $temasDewey = TemaDewey::where('subcategoria_id', $libro->temaDewey->subcategoria_id)
+                ->orderBy('codigo')
+                ->get();
+        }
 
         $clases = [
             Libro::CLASE_LIBRO,
@@ -313,16 +421,13 @@ class LibroController extends Controller
 
         return Inertia::render('Libro/Edit', [
             'libro' => $libro,
-            'temaDewey' => $temaDewey,
-            'subcategoriaDewey' => $subcategoriaDewey,
-            'categoriaDewey' => $categoriaDewey,
-            'subcategorias' => $subcategorias,
-            'temas' => $temas,
             'autores' => $autores,
             'editoriales' => $editoriales,
             'estanterias' => $estanterias,
             'secciones' => $secciones,
             'categoriasDewey' => $categoriasDewey,
+            'subcategoriasDewey' => $subcategoriasDewey,
+            'temasDewey' => $temasDewey,
             'clases' => $clases,
             'idiomas' => $idiomas
         ]);
@@ -335,8 +440,16 @@ class LibroController extends Controller
     {
         $libro = Libro::findOrFail($id);
 
+        // Log para debugging
+        Log::info('Datos recibidos para actualizar libro:', $request->all());
+
+        // NUEVA LÓGICA: Procesar estanteria_id antes de la validación
+        if ($request->has('estanteria_id') && $request->estanteria_id === '') {
+            $request->merge(['estanteria_id' => null]);
+        }
+
         $validator = Validator::make($request->all(), [
-            'isbn' => 'required|unique:libros,isbn,' . $id,
+            'isbn' => 'required|string|unique:libros,isbn,' . $id,
             'titulo' => 'required|string|max:255',
             'seccion_id' => 'required|exists:secciones,id',
             'autor_id' => 'required|exists:autores,id',
@@ -356,78 +469,117 @@ class LibroController extends Controller
                 Libro::IDIOMA_FRANCES,
                 Libro::IDIOMA_OTRO,
             ]),
-            'paginas' => 'required|integer|min:1',
+            'paginas' => 'nullable|integer|min:1',
             'tema_id' => 'required|exists:temas_dewey,id',
-            'estanteria_id' => 'required|exists:estanterias,id',
+            // CORREGIDO: nullable debe ir antes de exists
+            'estanteria_id' => 'nullable|exists:estanterias,id',
             'tomo' => 'nullable|integer|min:1',
             'edicion' => 'nullable|string|max:50',
             'anio' => 'nullable|integer|min:1000|max:' . (date('Y') + 1),
-            'fecha_ingreso' => 'required|date',
+            'fecha_ingreso' => 'required|date|before_or_equal:today',
             'precio' => 'nullable|numeric|min:0',
-            'edad_recomendada' => 'nullable|integer|min:1|max:100',
+            'edad_recomendada' => 'nullable|integer|min:0|max:100',
             'contenido' => 'nullable|string',
+        ], [
+            // Mensajes personalizados de error (mismo que store)
+            'isbn.required' => 'El ISBN es obligatorio.',
+            'isbn.unique' => 'Este ISBN ya está registrado en el sistema.',
+            'titulo.required' => 'El título es obligatorio.',
+            'seccion_id.required' => 'Debe seleccionar una sección.',
+            'seccion_id.exists' => 'La sección seleccionada no es válida.',
+            'autor_id.required' => 'Debe seleccionar un autor.',
+            'autor_id.exists' => 'El autor seleccionado no es válido.',
+            'editorial_id.required' => 'Debe seleccionar una editorial.',
+            'editorial_id.exists' => 'La editorial seleccionada no es válida.',
+            'clase.required' => 'Debe seleccionar una clase.',
+            'clase.in' => 'La clase seleccionada no es válida.',
+            'idioma.required' => 'Debe seleccionar un idioma.',
+            'idioma.in' => 'El idioma seleccionado no es válido.',
+            'paginas.integer' => 'El número de páginas debe ser un número entero.',
+            'paginas.min' => 'El número de páginas debe ser mayor a 0.',
+            'tema_id.required' => 'Debe seleccionar un tema Dewey.',
+            'tema_id.exists' => 'El tema Dewey seleccionado no es válido.',
+            'estanteria_id.exists' => 'La estantería seleccionada no es válida.',
+            'fecha_ingreso.required' => 'La fecha de ingreso es obligatoria.',
+            'fecha_ingreso.date' => 'La fecha de ingreso debe ser una fecha válida.',
+            'fecha_ingreso.before_or_equal' => 'La fecha de ingreso no puede ser futura.',
+            'precio.numeric' => 'El precio debe ser un número válido.',
+            'precio.min' => 'El precio no puede ser negativo.',
+            'edad_recomendada.integer' => 'La edad recomendada debe ser un número entero.',
+            'edad_recomendada.min' => 'La edad recomendada no puede ser negativa.',
+            'edad_recomendada.max' => 'La edad recomendada no puede ser mayor a 100 años.',
         ]);
 
         if ($validator->fails()) {
+            Log::warning('Errores de validación al actualizar libro:', $validator->errors()->toArray());
             return redirect()->back()
                 ->withErrors($validator)
-                ->withInput();
+                ->withInput()
+                ->with('error', 'Por favor, corrija los errores en el formulario.');
         }
-
-        // Obtener datos del autor para crear la signatura topográfica - usando apellidos (plural)
-        $autor = Autor::find($request->autor_id);
-        $temaDewey = TemaDewey::find($request->tema_id);
-
-        // Generar signatura topográfica - usando apellidos (plural)
-        $signTop = $temaDewey->codigo . '.' .
-            strtoupper(substr($autor->apellidos, 0, 1)) . '.' .
-            strtoupper(substr($request->titulo, 0, 1));
 
         try {
             DB::beginTransaction();
 
-            $libro->isbn = $request->isbn;
-            $libro->titulo = $request->titulo;
-            $libro->contenido = $request->contenido;
-            $libro->seccion_id = $request->seccion_id;
-            $libro->autor_id = $request->autor_id;
-            $libro->editorial_id = $request->editorial_id;
-            $libro->clase = $request->clase;
-            $libro->tomo = $request->tomo;
-            $libro->edicion = $request->edicion;
-            $libro->anio = $request->anio;
-            $libro->fecha_ingreso = $request->fecha_ingreso;
-            $libro->precio = $request->precio;
-            $libro->idioma = $request->idioma;
-            $libro->edad_recomendada = $request->edad_recomendada;
-            $libro->paginas = $request->paginas;
-            $libro->tema_id = $request->tema_id;
-            $libro->sign_top = $signTop;
-            $libro->estanteria_id = $request->estanteria_id;
+            // Obtener datos del autor y tema para regenerar la signatura topográfica
+            $autor = Autor::find($request->autor_id);
+            $temaDewey = TemaDewey::find($request->tema_id);
 
-            $libro->save();
+            if (!$autor || !$temaDewey) {
+                throw new \Exception('No se encontraron los datos del autor o tema Dewey.');
+            }
+
+            // Regenerar signatura topográfica con los nuevos datos
+            $signTop = $temaDewey->codigo . '.' .
+                strtoupper(substr($autor->apellidos, 0, 1)) . '.' .
+                strtoupper(substr($request->titulo, 0, 1));
+
+            // Preparar datos para actualización
+            $updateData = [
+                'isbn' => $request->isbn,
+                'titulo' => $request->titulo,
+                'contenido' => $request->contenido,
+                'seccion_id' => $request->seccion_id,
+                'autor_id' => $request->autor_id,
+                'editorial_id' => $request->editorial_id,
+                'clase' => $request->clase,
+                'tomo' => $request->tomo,
+                'edicion' => $request->edicion,
+                'anio' => $request->anio,
+                'fecha_ingreso' => $request->fecha_ingreso,
+                'precio' => $request->precio,
+                'idioma' => $request->idioma,
+                'edad_recomendada' => $request->edad_recomendada,
+                'paginas' => $request->paginas ?: 1,
+                'tema_id' => $request->tema_id,
+                'sign_top' => $signTop,
+                // NUEVA LÓGICA: Manejo simplificado de estantería
+                'estanteria_id' => $request->estanteria_id, // Ya es null si no se proporcionó
+            ];
+
+            // Actualizar todos los campos del libro
+            $libro->update($updateData);
 
             DB::commit();
 
-            return redirect()->route('libros.index')->with('success', 'Libro actualizado exitosamente');
+            Log::info('Libro actualizado exitosamente:', ['libro_id' => $libro->id, 'titulo' => $libro->titulo]);
+
+            // Redirigir con mensaje de éxito
+            return redirect()->route('libros.index')
+                ->with('success', 'El libro "' . $libro->titulo . '" ha sido modificado correctamente.');
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error al actualizar el libro: ' . $e->getMessage())->withInput();
-        }
-    }
-
-    /**
-     * Eliminar libro
-     */
-    public function destroy($id)
-    {
-        try {
-            $libro = Libro::findOrFail($id);
-            $libro->delete();
-
-            return redirect()->route('libros.index')->with('success', 'Libro eliminado exitosamente');
-        } catch (\Exception $e) {
-            return redirect()->route('libros.index')->with('error', 'Error al eliminar el libro: ' . $e->getMessage());
+            
+            Log::error('Error al actualizar libro:', [
+                'error' => $e->getMessage(),
+                'libro_id' => $id,
+                'request_data' => $request->all()
+            ]);
+            
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Error al actualizar el libro: ' . $e->getMessage());
         }
     }
 
@@ -436,11 +588,16 @@ class LibroController extends Controller
      */
     public function getSubcategorias($categoriaId)
     {
-        $subcategorias = SubcategoriaDewey::where('categoria_id', $categoriaId)
-            ->orderBy('codigo')
-            ->get();
+        try {
+            $subcategorias = SubcategoriaDewey::where('categoria_id', $categoriaId)
+                ->orderBy('codigo')
+                ->get();
 
-        return response()->json($subcategorias);
+            return response()->json($subcategorias);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener subcategorías:', ['error' => $e->getMessage(), 'categoria_id' => $categoriaId]);
+            return response()->json(['error' => 'Error al cargar subcategorías'], 500);
+        }
     }
 
     /**
@@ -448,10 +605,15 @@ class LibroController extends Controller
      */
     public function getTemas($subcategoriaId)
     {
-        $temas = TemaDewey::where('subcategoria_id', $subcategoriaId)
-            ->orderBy('codigo')
-            ->get();
+        try {
+            $temas = TemaDewey::where('subcategoria_id', $subcategoriaId)
+                ->orderBy('codigo')
+                ->get();
 
-        return response()->json($temas);
+            return response()->json($temas);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener temas:', ['error' => $e->getMessage(), 'subcategoria_id' => $subcategoriaId]);
+            return response()->json(['error' => 'Error al cargar temas'], 500);
+        }
     }
 }
