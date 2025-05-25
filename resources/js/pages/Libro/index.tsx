@@ -1,325 +1,406 @@
-import { useState, useEffect } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
-import { Link } from '@inertiajs/react';
-
-import {
-  Search,
-  PlusCircle,
-  Eye,
-  Edit,
-  Filter,
-  BookOpen,
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle,
-  AlertCircle,
-  X,
-  BookCopy,
-  Library
-} from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Search, CheckCircle, AlertCircle, X, Filter, BookOpen, PlusCircle, Eye, Pencil } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { type LibroPageProps, type Libro } from './types';
+import { BreadcrumbItem, LibroPageProps} from './types';
 
-// Constantes
-const breadcrumbs: BreadcrumbItem[] = [
-  {
-    title: 'Dashboard',
-    href: '/dashboard',
-  },
-  {
-    title: 'Libros',
-    href: '/libros',
-  },
-];
+// --- Componente AlertNotification Mejorado ---
+interface AlertNotificationProps {
+  type: 'success' | 'error';
+  message: string;
+  className?: string;
+  autoClose?: boolean;
+  duration?: number;
+  onClose?: () => void;
+}
 
-export default function Index({
+function AlertNotification({
+  type,
+  message,
+  className = '',
+  autoClose = true,
+  duration = 6000, // Aumentado a 6 segundos
+  onClose,
+}: AlertNotificationProps) {
+  const [isVisible, setIsVisible] = useState<boolean>(true);
+  const [animateOut, setAnimateOut] = useState<boolean>(false);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [remainingTime, setRemainingTime] = useState<number>(duration);
+  const startTimeRef = useRef<number>(Date.now());
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Función para iniciar el temporizador
+  const startTimer = useCallback(() => {
+    if (!autoClose || !message) return;
+
+    startTimeRef.current = Date.now();
+    timerRef.current = setTimeout(() => {
+      setAnimateOut(true);
+      hideTimerRef.current = setTimeout(() => {
+        setIsVisible(false);
+        onClose?.();
+      }, 500);
+    }, remainingTime);
+  }, [autoClose, message, remainingTime, onClose]);
+
+  // Función para pausar el temporizador
+  const pauseTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+      const elapsed = Date.now() - startTimeRef.current;
+      setRemainingTime(prev => Math.max(0, prev - elapsed));
+      setIsPaused(true);
+    }
+  }, []);
+
+  // Función para reanudar el temporizador
+  const resumeTimer = useCallback(() => {
+    if (isPaused && remainingTime > 0) {
+      setIsPaused(false);
+      startTimer();
+    }
+  }, [isPaused, remainingTime, startTimer]);
+
+  // Función para cerrar manualmente
+  const handleClose = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    setAnimateOut(true);
+    setTimeout(() => {
+      setIsVisible(false);
+      onClose?.();
+    }, 300);
+  }, [onClose]);
+
+  // Efecto principal - solo se ejecuta una vez cuando cambia el mensaje
+  useEffect(() => {
+    if (!message) return;
+
+    // Resetear estados
+    setIsVisible(true);
+    setAnimateOut(false);
+    setIsPaused(false);
+    setRemainingTime(duration);
+
+    // Iniciar temporizador después de un pequeño delay para evitar re-renders inmediatos
+    const initTimer = setTimeout(() => {
+      startTimer();
+    }, 100);
+
+    return () => {
+      clearTimeout(initTimer);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, [message]); // Solo depende del mensaje, no de otros props
+
+  // Cleanup al desmontar
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, []);
+
+  if (!isVisible || !message) return null;
+
+  const colors = {
+    success: {
+      bg: 'bg-green-50 dark:bg-green-900/20',
+      border: 'border-green-400 dark:border-green-500',
+      text: 'text-green-800 dark:text-green-200',
+      icon: 'text-green-500 dark:text-green-400'
+    },
+    error: {
+      bg: 'bg-red-50 dark:bg-red-900/20',
+      border: 'border-red-400 dark:border-red-500',
+      text: 'text-red-800 dark:text-red-200',
+      icon: 'text-red-500 dark:text-red-400'
+    }
+  };
+
+  const Icon = type === 'success' ? CheckCircle : AlertCircle;
+
+  return (
+    <div 
+      className={`fixed top-6 right-6 z-50 max-w-md transition-all duration-500 ease-in-out transform ${
+        animateOut ? 'opacity-0 translate-x-full scale-95' : 'opacity-100 translate-x-0 scale-100'
+      } ${className}`}
+      onMouseEnter={pauseTimer}
+      onMouseLeave={resumeTimer}
+    >
+      <div
+        className={`rounded-xl shadow-2xl border-l-4 backdrop-blur-sm
+                    ${colors[type].border} ${colors[type].bg}
+                    flex items-start p-4 transition-all duration-300 
+                    hover:shadow-xl hover:-translate-y-1`}
+      >
+        <Icon className={`h-6 w-6 mt-0.5 mr-3 flex-shrink-0 ${colors[type].icon}`} />
+        <div className="flex-grow">
+          <p className={`text-sm font-semibold ${colors[type].text} leading-relaxed`}>
+            {message}
+          </p>
+          {autoClose && (
+            <div className="mt-2">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1">
+                <div 
+                  className={`h-1 rounded-full transition-all duration-100 ${
+                    type === 'success' ? 'bg-green-500' : 'bg-red-500'
+                  }`}
+                  style={{
+                    width: `${(remainingTime / duration) * 100}%`,
+                    transition: isPaused ? 'none' : `width ${remainingTime}ms linear`
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+        <button
+          onClick={handleClose}
+          className="ml-3 flex-shrink-0 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 
+                     focus:outline-none transition-colors p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+          title="Cerrar"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- Componente de Paginación ---
+interface PaginationProps {
+  links: Array<{
+    url: string | null;
+    label: string;
+    active: boolean;
+  }>;
+}
+
+const Pagination: React.FC<PaginationProps> = ({ links }) => {
+  return (
+    <nav className="flex justify-center py-2">
+      <div className="flex items-center space-x-0.5">
+        {links.map((link, index) => {
+          // Detectar si es "Previous" o "Next"
+          const isPrev = link.label.includes('Previous') || link.label.includes('&laquo;');
+          const isNext = link.label.includes('Next') || link.label.includes('&raquo;');
+          
+          return (
+            <Link
+              key={index}
+              href={link.url || '#'}
+              className={`
+                inline-flex items-center justify-center min-w-[32px] h-8 px-2.5 text-sm font-medium
+                transition-all duration-200 ease-in-out
+                ${link.active
+                  ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 border border-blue-600 dark:border-blue-500'
+                  : link.url
+                    ? 'bg-gray-50 text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-white border border-gray-200 dark:border-gray-600'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500 border border-gray-200 dark:border-gray-600'
+                }
+                ${index === 0 ? 'rounded-l-md' : ''}
+                ${index === links.length - 1 ? 'rounded-r-md' : ''}
+                ${!link.url ? 'pointer-events-none' : ''}
+                ${isPrev || isNext ? 'px-3' : ''}
+              `}
+              dangerouslySetInnerHTML={{ __html: link.label }}
+            />
+          );
+        })}
+      </div>
+    </nav>
+  );
+};
+
+// --- Componente Index Principal ---
+const Index: React.FC<LibroPageProps> = ({
   auth,
   libros,
   clases,
   idiomas,
-  filters = {},
-  autores = [],
-  editoriales = [],
   estanterias = [],
-  secciones = [],
-  categoriasDewey = [],
-}: LibroPageProps) {
-  const { errors = {}, flash = {} } = usePage().props as any;
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  filters: initialFilters = {},
+  flash,
+  errors = {}
+}) => {
+  const page = usePage();
+  const [searchTerm, setSearchTerm] = useState<string>(initialFilters.search || '');
+  const [showFilters, setShowFilters] = useState<boolean>(false);
   const [selectedFilters, setSelectedFilters] = useState({
-    clase: '',
-    idioma: '',
-    editorial: '',
-    estanteria: ''
-  });
-  const [selectedLibro, setSelectedLibro] = useState<Libro | null>(null);
-  const [view, setView] = useState('list');
-  const [notification, setNotification] = useState({
-    show: false,
-    type: '',
-    message: ''
+    clase: initialFilters.clase || '',
+    idioma: initialFilters.idioma || '',
+    estanteria: initialFilters.estanteria || ''
   });
 
-  // Mostrar notificaciones de flash
+  // Estado mejorado para alertas
+  const [alerts, setAlerts] = useState<{
+    success: string | null;
+    error: string | null;
+    timestamp: number;
+  }>({
+    success: null,
+    error: null,
+    timestamp: 0
+  });
+
+  // Ref para controlar si ya se procesó el flash message
+  const flashProcessedRef = useRef<string>('');
+
+  // UseEffect mejorado para manejar flash messages
   useEffect(() => {
-    if (flash?.success) {
-      setNotification({
-        show: true,
-        type: 'success',
-        message: flash.success
-      });
-    } else if (flash?.error) {
-      setNotification({
-        show: true,
-        type: 'error',
-        message: flash.error
-      });
+    if (flash) {
+      const flashKey = `${flash.success || ''}-${flash.error || ''}`;
+      
+      // Solo procesar si es un mensaje nuevo
+      if (flashKey && flashKey !== flashProcessedRef.current) {
+        flashProcessedRef.current = flashKey;
+        
+        setAlerts({
+          success: flash.success || null,
+          error: flash.error || null,
+          timestamp: Date.now()
+        });
+      }
     }
-
-    // Auto-ocultar después de 5 segundos
-    const timer = setTimeout(() => {
-      setNotification(prev => ({ ...prev, show: false }));
-    }, 5000);
-
-    return () => clearTimeout(timer);
   }, [flash]);
 
-  // Aplicar filtros a los libros
-  const filteredLibros = libros.data.filter((libro: Libro) => {
-    const matchesSearch = !searchTerm ||
-      libro.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      libro.isbn.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (libro.autor?.apellidos && libro.autor.apellidos.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (libro.autor?.nombres && libro.autor.nombres.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Función para cerrar alertas manualmente
+  const handleCloseAlert = useCallback((type: 'success' | 'error') => {
+    setAlerts(prev => ({
+      ...prev,
+      [type]: null
+    }));
+  }, []);
 
-    const matchesClase = !selectedFilters.clase || libro.clase === selectedFilters.clase;
-    const matchesIdioma = !selectedFilters.idioma || libro.idioma === selectedFilters.idioma;
-    const matchesEditorial = !selectedFilters.editorial ||
-      (libro.editorial && libro.editorial.id.toString() === selectedFilters.editorial);
-    const matchesEstanteria = !selectedFilters.estanteria ||
-      (libro.estanteria && libro.estanteria.id.toString() === selectedFilters.estanteria);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
-    return matchesSearch && matchesClase && matchesIdioma && matchesEditorial && matchesEstanteria;
-  });
+  const applyFilters = (currentSearchTerm: string, currentSelectedFilters: typeof selectedFilters): void => {
+    const params = new URLSearchParams();
+    if (currentSearchTerm) params.set('search', currentSearchTerm);
+    if (currentSelectedFilters.clase) params.set('clase', currentSelectedFilters.clase);
+    if (currentSelectedFilters.idioma) params.set('idioma', currentSelectedFilters.idioma);
+    if (currentSelectedFilters.estanteria) params.set('estanteria', currentSelectedFilters.estanteria);
 
-  // Funciones de acción
-  const handleShowLibro = (libro: Libro) => {
-    setSelectedLibro(libro);
-    setView('show');
-  };
-
-  const handleEditLibro = (libro: Libro) => {
-    router.get(route('libros.edit', libro.id));
-  };
-
-  const handleEjemplaresLibro = (libro: Libro) => {
-    router.get(route('ejemplares.index', libro.id));
-  };
-
-  const resetFilters = () => {
-    setSelectedFilters({
-      clase: '',
-      idioma: '',
-      editorial: '',
-      estanteria: ''
+    router.get(`/libros?${params.toString()}`, {}, {
+      preserveState: true,
+      preserveScroll: true,
     });
   };
 
-  return (
-    <AppLayout
-      title="Gestión de Libros"
-      breadcrumbs={breadcrumbs}
-      renderHeader={() => (
-        <h2 className="text-xl font-semibold leading-tight text-gray-800">
-          Gestión de Libros
-        </h2>
-      )}
-    >
-      <Head title="Gestión de Libros" />
+  const handleSearch = (value: string): void => {
+    setSearchTerm(value);
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    const timeout = setTimeout(() => {
+      applyFilters(value, selectedFilters);
+    }, 500);
+    setSearchTimeout(timeout);
+  };
 
-      {/* Notificación */}
-      {notification.show && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center justify-between min-w-72 p-4 rounded-lg shadow-lg ${notification.type === 'success' ? 'bg-green-50 border-l-4 border-green-500' : 'bg-red-50 border-l-4 border-red-500'
-          }`}>
-          <div className="flex items-center">
-            {notification.type === 'success' ? (
-              <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-            ) : (
-              <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
-            )}
-            <p className={notification.type === 'success' ? 'text-green-700' : 'text-red-700'}>
-              {notification.message}
-            </p>
-          </div>
-          <button
-            onClick={() => setNotification(prev => ({ ...prev, show: false }))}
-            className="ml-4 text-gray-500 hover:text-gray-700"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+  const handleFilterChange = (filterType: string, value: string): void => {
+    const newFilters = { ...selectedFilters, [filterType]: value };
+    setSelectedFilters(newFilters);
+    applyFilters(searchTerm, newFilters);
+  };
 
-      <div className="flex flex-col gap-6">
-        {/* Vista de detalles */}
-        {view === 'show' && selectedLibro && (
-          <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border bg-white dark:bg-gray-800 p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold">Detalles del Libro</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleEditLibro(selectedLibro)}
-                  className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
-                >
-                  <Edit className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => setView('list')}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
+  const resetFilters = (): void => {
+    setSearchTerm('');
+    setSelectedFilters({
+      clase: '',
+      idioma: '',
+      estanteria: ''
+    });
+    router.get('/libros', {}, {
+      preserveState: true,
+      preserveScroll: true,
+    });
+  };
 
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
-              <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-300">ISBN</dt>
-                  <dd className="mt-1 text-lg text-gray-900 dark:text-gray-100">{selectedLibro.isbn}</dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-300">Título</dt>
-                  <dd className="mt-1 text-lg text-gray-900 dark:text-gray-100">{selectedLibro.titulo}</dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-300">Autor</dt>
-                  <dd className="mt-1 text-lg text-gray-900 dark:text-gray-100">
-                    {selectedLibro.autor ? `${selectedLibro.autor.apellidos}, ${selectedLibro.autor.nombre}` : '—'}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-300">Editorial</dt>
-                  <dd className="mt-1 text-lg text-gray-900 dark:text-gray-100">
-                    {selectedLibro.editorial ? selectedLibro.editorial.nombre : '—'}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-300">Clase</dt>
-                  <dd className="mt-1 text-lg text-gray-900 dark:text-gray-100">{selectedLibro.clase}</dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-300">Idioma</dt>
-                  <dd className="mt-1 text-lg text-gray-900 dark:text-gray-100">{selectedLibro.idioma}</dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-300">Páginas</dt>
-                  <dd className="mt-1 text-lg text-gray-900 dark:text-gray-100">{selectedLibro.paginas}</dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-300">Signatura Topográfica</dt>
-                  <dd className="mt-1 text-lg text-gray-900 dark:text-gray-100">{selectedLibro.sign_top}</dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-300">Estantería</dt>
-                  <dd className="mt-1 text-lg text-gray-900 dark:text-gray-100">
-                    {selectedLibro.estanteria ? selectedLibro.estanteria.nombre : '—'}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-300">Sección</dt>
-                  <dd className="mt-1 text-lg text-gray-900 dark:text-gray-100">
-                    {selectedLibro.seccion ? selectedLibro.seccion.nombre : '—'}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-
-            {selectedLibro.contenido && (
-              <div className="mt-8">
-                <h3 className="text-xl font-medium mb-4">Contenido del Libro</h3>
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">{selectedLibro.contenido}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Botón para gestionar ejemplares */}
-            <div className="mt-8">
-              <h3 className="text-xl font-medium mb-4">Gestión de Ejemplares</h3>
-              <div className="flex space-x-3">
-                <Link
-                  href={route('ejemplares.index', selectedLibro.id)}
-                  className="flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-md"
-                >
-                  <Library className="w-5 h-5" />
-                  <span>Ver Ejemplares</span>
-                </Link>
-                <Link
-                  href={route('ejemplares.create', selectedLibro.id)}
-                  className="flex items-center gap-2 px-4 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors shadow-md"
-                >
-                  <PlusCircle className="w-5 h-5" />
-                  <span>Añadir Ejemplar</span>
-                </Link>
-              </div>
-            </div>
-          </div>
+  // Función mejorada para renderizar alertas
+  const renderAlerts = (): React.ReactElement => {
+    return (
+      <>
+        {alerts.success && (
+          <AlertNotification
+            key={`success-${alerts.timestamp}`}
+            type="success"
+            message={alerts.success}
+            duration={6000} // 6 segundos
+            onClose={() => handleCloseAlert('success')}
+          />
         )}
+        {alerts.error && (
+          <AlertNotification
+            key={`error-${alerts.timestamp}`}
+            type="error"
+            message={alerts.error}
+            duration={8000} // 8 segundos para errores
+            onClose={() => handleCloseAlert('error')}
+          />
+        )}
+      </>
+    );
+  };
 
-        {/* Cabecera */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-gradient-to-r from-indigo-600 to-purple-600 p-6 rounded-xl shadow-lg">
-          <div className="flex items-center gap-3">
-            <BookOpen className="h-10 w-10 text-white" />
-            <h1 className="text-3xl font-bold text-white">
-              Gestión de Libros
-            </h1>
-          </div>
+  const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Dashboard', href: '/dashboard' },
+    { title: 'Libros', href: '/libros' },
+  ];
 
-          <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
-            <div className="relative flex-grow">
+  const content = (
+    <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
+      {renderAlerts()}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none fixed">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
+        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
+      </div>
+      <div className="max-w-full mx-auto relative z-10">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            Gestión de Libros
+          </h1>
+          <div className="flex gap-4">
+            <div className="relative">
               <input
                 type="text"
                 placeholder="Buscar por título, ISBN o autor..."
-                className="w-full pl-10 pr-4 py-2.5 text-gray-700 bg-white rounded-lg border-none focus:ring-2 focus:ring-indigo-300 shadow-md"
+                className="w-64 pl-10 py-2.5 pr-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700
+                           text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                           shadow-sm transition-all duration-200"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearch(e.target.value)}
               />
               <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             </div>
 
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-indigo-600 font-medium rounded-lg hover:bg-gray-50 transition shadow-md"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition shadow-sm border border-gray-300 dark:border-gray-700"
             >
               <Filter className="w-5 h-5" />
               <span>Filtros</span>
             </button>
 
-            <button
-              onClick={() => router.get(route('libros.create'))}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition shadow-md"
+            <Link
+              href={route('libros.create')}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white
+                px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg
+                transform hover:-translate-y-0.5"
             >
               <PlusCircle className="w-5 h-5" />
               <span>Nuevo Libro</span>
-            </button>
+            </Link>
           </div>
         </div>
 
         {/* Panel de filtros */}
         {showFilters && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-md border border-gray-100 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-md border border-gray-100 dark:border-gray-700 mb-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Filtros avanzados</h3>
               <button
@@ -330,13 +411,13 @@ export default function Index({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Clase</label>
                 <select
                   className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
                   value={selectedFilters.clase}
-                  onChange={(e) => setSelectedFilters({ ...selectedFilters, clase: e.target.value })}
+                  onChange={(e) => handleFilterChange('clase', e.target.value)}
                 >
                   <option value="">Todas las clases</option>
                   {clases.map((clase: string) => (
@@ -350,7 +431,7 @@ export default function Index({
                 <select
                   className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
                   value={selectedFilters.idioma}
-                  onChange={(e) => setSelectedFilters({ ...selectedFilters, idioma: e.target.value })}
+                  onChange={(e) => handleFilterChange('idioma', e.target.value)}
                 >
                   <option value="">Todos los idiomas</option>
                   {idiomas.map((idioma: string) => (
@@ -360,25 +441,11 @@ export default function Index({
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Editorial</label>
-                <select
-                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
-                  value={selectedFilters.editorial}
-                  onChange={(e) => setSelectedFilters({ ...selectedFilters, editorial: e.target.value })}
-                >
-                  <option value="">Todas las editoriales</option>
-                  {editoriales.map((editorial: any) => (
-                    <option key={editorial.id} value={editorial.id}>{editorial.nombre}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Estantería</label>
                 <select
                   className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
                   value={selectedFilters.estanteria}
-                  onChange={(e) => setSelectedFilters({ ...selectedFilters, estanteria: e.target.value })}
+                  onChange={(e) => handleFilterChange('estanteria', e.target.value)}
                 >
                   <option value="">Todas las estanterías</option>
                   {estanterias.map((estanteria: any) => (
@@ -391,73 +458,85 @@ export default function Index({
         )}
 
         {/* Tabla de libros */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[900px] table-fixed">
+              <colgroup>
+                <col className="w-16" />
+                <col className="w-32" />
+                <col className="w-48" />
+                <col className="w-44" />
+                <col className="w-24" />
+                <col className="w-24" />
+                <col className="w-20" />
+                <col className="w-32" />
+              </colgroup>
               <thead>
-                <tr className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">ISBN</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Título</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Autor</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Editorial</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Clase</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Idioma</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Páginas</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sign. Top.</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estantería</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
+                <tr className="bg-gray-50 dark:bg-gray-700">
+                  <th className="px-3 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">N°</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">ISBN</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Título</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Autor</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sign. Top.</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estantería</th>
+                  <th className="px-3 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ej.Disp</th>
+                  <th className="px-4 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredLibros.length > 0 ? (
-                  filteredLibros.map((libro: Libro) => (
-                    <tr key={libro.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{libro.isbn}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {libro.titulo}
-                        {libro.tomo && <span className="ml-1 text-gray-500 dark:text-gray-400"> (Tomo {libro.tomo})</span>}
-                        {libro.edicion && <span className="ml-1 text-gray-500 dark:text-gray-400"> (Ed. {libro.edicion})</span>}
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                {libros.data.length > 0 ? (
+                  libros.data.map((libro: any, index: number) => (
+                    <tr key={libro.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="px-3 py-3 whitespace-nowrap text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
+                        {(libros.current_page - 1) * libros.per_page + index + 1}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {libro.autor ? `${libro.autor.apellidos}, ${libro.autor.nombres}` : '—'}
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">{libro.isbn}</td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
+                        <div className="truncate" title={libro.titulo}>
+                          {libro.titulo}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {libro.editorial ? libro.editorial.nombre : '—'}
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
+                        <div className="truncate" title={libro.autor ? `${libro.autor.nombres} ${libro.autor.apellidos}` : '-'}>
+                          {libro.autor ? `${libro.autor.nombres} ${libro.autor.apellidos}` : '-'}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{libro.clase}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{libro.idioma}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{libro.paginas}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{libro.sign_top}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {libro.estanteria ? libro.estanteria.cod_estante : '—'}
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 text-sm">{libro.sign_top || '-'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 text-sm">
+                        {libro.estanteria ? libro.estanteria.cod_estante : '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex space-x-2">
+                      <td className="px-3 py-3 whitespace-nowrap text-center text-gray-700 dark:text-gray-300">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100">
+                          {libro.ejemplares_count || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex justify-center space-x-2">
                           <Link
-                            as="button"
                             href={route('libros.show', libro.id)}
-                            className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-800/50"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 
+                                      transition-colors p-1 bg-blue-50 dark:bg-blue-900/30 rounded hover:bg-blue-100 dark:hover:bg-blue-800/40"
                             title="Ver detalles"
                           >
                             <Eye className="w-4 h-4" />
                           </Link>
-
-                          <button
-                            onClick={() => handleEditLibro(libro)}
-                            className="p-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-800/50"
-                            title="Editar"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
                           
-                          {/* Reemplazado el botón de eliminar por el de ejemplares */}
                           <Link
-                            as="button"
-                            href={route('ejemplares.index', libro.id)}
-                            className="p-1.5 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-800/50"
-                            title="Gestionar Ejemplares"
+                            href={route('libros.edit', libro.id)}
+                            className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 
+                                      transition-colors p-1 bg-amber-50 dark:bg-amber-900/30 rounded hover:bg-amber-100 dark:hover:bg-amber-800/40"
+                            title="Editar libro"
                           >
-                            <BookCopy className="w-4 h-4" />
+                            <Pencil className="w-4 h-4" />
+                          </Link>
+                          
+                          <Link
+                            href={route('ejemplares.index', libro.id)}
+                            className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300
+                                      transition-colors p-1 bg-purple-50 dark:bg-purple-900/30 rounded hover:bg-purple-100 dark:hover:bg-purple-800/40"
+                            title="Ejemplares"
+                          >
+                            <BookOpen className="w-4 h-4" />
                           </Link>
                         </div>
                       </td>
@@ -465,67 +544,31 @@ export default function Index({
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={10} className="px-6 py-10 text-center">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <Search className="w-10 h-10 text-gray-400 dark:text-gray-500" />
-                        <p className="text-gray-600 dark:text-gray-400">No se encontraron libros con los criterios de búsqueda.</p>
-                        {(Object.values(selectedFilters).some(v => v !== '') || searchTerm) && (
-                          <button
-                            onClick={() => {
-                              setSearchTerm('');
-                              resetFilters();
-                            }}
-                            className="mt-2 text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 font-medium"
-                          >
-                            Limpiar búsqueda y filtros
-                          </button>
-                        )}
-                      </div>
+                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                      No hay libros disponibles
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
-
           {/* Paginación */}
-          {libros.links && libros.links.length > 3 && (
-            <div className="px-6 py-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex flex-wrap justify-center gap-2">
-                {libros.links.map((link: any, i: number) => {
-                  // Personalizamos algunos botones de paginación
-                  let content = link.label;
-                  if (link.label.includes('Previous')) {
-                    content = <ChevronLeft className="w-4 h-4" />;
-                  } else if (link.label.includes('Next')) {
-                    content = <ChevronRight className="w-4 h-4" />;
-                  }
-
-                  return (
-                    <button
-                      key={i}
-                      className={`flex items-center justify-center w-10 h-10 rounded-lg ${link.active
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-white text-gray-700 border border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600'
-                        } ${!link.url ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-gray-600'}`}
-                      onClick={() => link.url && router.visit(link.url)}
-                      disabled={!link.url}
-                      title={link.label.replace(/&laquo;|&raquo;/g, '')}
-                    >
-                      {typeof content === 'string' ? (
-                        <span dangerouslySetInnerHTML={{ __html: content }} />
-                      ) : content}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-3 text-center text-sm text-gray-500 dark:text-gray-400">
-                Mostrando {libros.from || 0} a {libros.to || 0} de {libros.total} registros
-              </div>
+          {libros.total > libros.per_page && (
+            <div className="bg-gray-50 dark:bg-gray-800">
+              <Pagination links={libros.links} />
             </div>
           )}
         </div>
       </div>
+    </div>
+  );
+
+  return (
+    <AppLayout breadcrumbs={breadcrumbs}>
+      <Head title="Gestión de Libros" />
+      {content}
     </AppLayout>
   );
-}
+};
+
+export default Index;

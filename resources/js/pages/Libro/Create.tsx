@@ -1,10 +1,14 @@
+// pages/libros/create.tsx
 import { useState } from 'react';
 import { Head, router, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
+import GeneralInfoSection from './FormCreate/GeneralInfoSection';
+import ClasificacionSection from './FormCreate/ClasificacionSection';
+import DetallesSection from './FormCreate/DetallesSection';
 import { type BreadcrumbItem } from '@/types';
 import { type LibroPageProps } from './types';
+import { BookOpen, BookmarkIcon, Info } from 'lucide-react';
 
-// Constantes
 const breadcrumbs: BreadcrumbItem[] = [
   {
     title: 'Dashboard',
@@ -29,108 +33,54 @@ export default function Create({
   secciones = [],
   categoriasDewey = [],
 }: LibroPageProps) {
-  // Estados para la clasificación Dewey dinámica
-  const [selectedCategoriaId, setSelectedCategoriaId] = useState<number | null>(null);
-  const [selectedSubcategoriaId, setSelectedSubcategoriaId] = useState<number | null>(null);
-  const [loadedSubcategorias, setLoadedSubcategorias] = useState([]);
-  const [loadedTemas, setLoadedTemas] = useState([]);
-  const [selectedCoautores, setSelectedCoautores] = useState<number[]>([]);
+  const [activeSection, setActiveSection] = useState('general');
+  
+  // Estados para mantener los datos de clasificación entre secciones
+  const [clasificacionState, setClasificacionState] = useState({
+    categoriaId: null as number | null,
+    subcategoriaId: null as number | null,
+    subcategorias: [] as any[],
+    temas: [] as any[]
+  });
 
-  // Formulario con Inertia
   const form = useForm({
     isbn: '',
     titulo: '',
     contenido: '',
-    seccion_id: secciones[0]?.id || '',
+    seccion_id: '',
     autor_id: '',
     editorial_id: '',
-    clase: clases[0] || '',
+    clase: '',
     tomo: '',
     edicion: '',
     anio: '',
     fecha_ingreso: new Date().toISOString().split('T')[0],
     precio: '',
-    idioma: idiomas[0] || '',
+    idioma: '',
     edad_recomendada: '',
-    paginas: '1',
+    paginas: '',
     tema_id: '',
-    estanteria_id: '',
-    coautores: [] as number[],
+    estanteria_id: '', // Campo opcional
   });
-
-  // Funciones para la clasificación Dewey
-  const loadSubcategorias = async (categoriaId: number) => {
-    try {
-      const response = await fetch(`/api/categorias/${categoriaId}/subcategorias`);
-      const data = await response.json();
-      setLoadedSubcategorias(data);
-      setSelectedSubcategoriaId(null);
-      setLoadedTemas([]);
-      form.setData('tema_id', '');
-    } catch (error) {
-      console.error('Error al cargar subcategorías:', error);
-    }
-  };
-
-  const loadTemas = async (subcategoriaId: number) => {
-    try {
-      const response = await fetch(`/api/subcategorias/${subcategoriaId}/temas`);
-      const data = await response.json();
-      setLoadedTemas(data);
-      form.setData('tema_id', '');
-    } catch (error) {
-      console.error('Error al cargar temas:', error);
-    }
-  };
-
-  // Manejadores de eventos
-  const handleCategoriaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const categoriaId = parseInt(e.target.value);
-    setSelectedCategoriaId(categoriaId || null);
-
-    if (categoriaId) {
-      loadSubcategorias(categoriaId);
-    } else {
-      setLoadedSubcategorias([]);
-      setSelectedSubcategoriaId(null);
-      setLoadedTemas([]);
-    }
-  };
-
-  const handleSubcategoriaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const subcategoriaId = parseInt(e.target.value);
-    setSelectedSubcategoriaId(subcategoriaId || null);
-
-    if (subcategoriaId) {
-      loadTemas(subcategoriaId);
-    } else {
-      setLoadedTemas([]);
-    }
-  };
-
-  const handleCoautoresChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const options = Array.from(e.target.selectedOptions);
-    const selectedValues = options.map(option => parseInt(option.value));
-    setSelectedCoautores(selectedValues);
-    form.setData('coautores', selectedValues);
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validar campos requeridos con mensajes específicos
+    // Validar campos requeridos
     const camposRequeridos = {
       isbn: 'ISBN',
       titulo: 'Título',
       autor_id: 'Autor Principal',
       editorial_id: 'Editorial',
       seccion_id: 'Sección',
-      tema_id: 'Tema',
-      estanteria_id: 'Estantería'
+      tema_id: 'Tema Dewey',
+      clase: 'Clase',
+      idioma: 'Idioma',
+      fecha_ingreso: 'Fecha de Ingreso'
     };
 
     const camposFaltantes = Object.entries(camposRequeridos)
-      .filter(([key]) => !form.data[key as keyof typeof form.data])
+      .filter(([key]) => !form.data[key as keyof typeof form.data] || form.data[key as keyof typeof form.data] === '')
       .map(([, label]) => label);
 
     if (camposFaltantes.length > 0) {
@@ -141,42 +91,72 @@ export default function Create({
 
     // Validar formato de ISBN (13 dígitos)
     const isbnRegex = /^\d{13}$/;
-    if (!isbnRegex.test(form.data.isbn)) {
+    if (!isbnRegex.test(form.data.isbn.replace(/[^0-9]/g, ''))) {
       alert('El ISBN debe contener exactamente 13 dígitos');
       return;
     }
 
-    // Mostrar indicador de carga
-    const submitButton = document.querySelector('button[type="submit"]');
-    if (submitButton) {
-      submitButton.setAttribute('disabled', 'true');
-      submitButton.textContent = 'Guardando...';
+    // Validaciones adicionales
+    if (form.data.fecha_ingreso && new Date(form.data.fecha_ingreso) > new Date()) {
+      alert('La fecha de ingreso no puede ser futura');
+      return;
     }
 
+    if (form.data.paginas && parseInt(form.data.paginas) <= 0) {
+      alert('El número de páginas debe ser mayor a 0');
+      return;
+    }
+
+    if (form.data.precio && parseFloat(form.data.precio) < 0) {
+      alert('El precio no puede ser negativo');
+      return;
+    }
+
+    if (form.data.edad_recomendada && parseInt(form.data.edad_recomendada) < 0) {
+      alert('La edad recomendada no puede ser negativa');
+      return;
+    }
+
+    if (form.data.anio && (parseInt(form.data.anio) < 1000 || parseInt(form.data.anio) > new Date().getFullYear())) {
+      alert(`El año debe estar entre 1000 y ${new Date().getFullYear()}`);
+      return;
+    }
+
+    // Enviar formulario - SIN router.visit() para permitir que la notificación se muestre
     form.post(route('libros.store'), {
       onSuccess: () => {
-        // Redirigir a la lista de libros
-        router.visit(route('libros.index'));
+        // Dejar que Inertia maneje la redirección naturalmente
+        // El backend ya redirige con redirect()->route('libros.index')->with('success', ...)
+        console.log('Libro creado exitosamente');
       },
       onError: (errors) => {
-        // Mostrar errores específicos del servidor
+        console.error('Errores del servidor:', errors);
         const errorMessages = Object.values(errors).join('\n');
         if (errorMessages) {
           alert('Se encontraron los siguientes errores:\n' + errorMessages);
-        }
-
-        // Restaurar el botón
-        if (submitButton) {
-          submitButton.removeAttribute('disabled');
-          submitButton.textContent = 'Guardar';
         }
       }
     });
   };
 
+  // Función para manejar cambios de estado en la sección de clasificación
+  const handleClasificacionStateChange = (state: {
+    categoriaId: number | null;
+    subcategoriaId: number | null;
+    subcategorias: any[];
+    temas: any[];
+  }) => {
+    setClasificacionState(state);
+  };
+
+  const sections = [
+    { id: 'general', label: 'Información General', icon: <BookOpen className="w-5 h-5" /> },
+    { id: 'clasificacion', label: 'Clasificación', icon: <BookmarkIcon className="w-5 h-5" /> },
+    { id: 'detalles', label: 'Detalles Adicionales', icon: <Info className="w-5 h-5" /> }
+  ];
+
   return (
     <AppLayout
-      title="Crear Libro"
       breadcrumbs={breadcrumbs}
       renderHeader={() => (
         <h2 className="text-xl font-semibold leading-tight text-gray-800">
@@ -186,407 +166,115 @@ export default function Create({
     >
       <Head title="Crear Libro" />
 
-      <div className="py-12">
+      <div className="py-6">
         <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
+          {/* Header con título y barra de navegación por secciones */}
+          <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg mb-6">
+            <div className="p-6 bg-gradient-to-r from-blue-600 to-indigo-700">
+              <h1 className="text-2xl font-bold text-white mb-2">Registrar Nuevo Libro</h1>
+              <p className="text-blue-100">Complete los campos para agregar un nuevo libro al catálogo</p>
+            </div>
+            
+            {/* Navegación entre secciones */}
+            <div className="flex flex-wrap border-b border-gray-200 dark:border-gray-700">
+              {sections.map((section) => (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`flex items-center px-4 py-3 font-medium text-sm focus:outline-none transition-colors ${
+                    activeSection === section.id
+                      ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
+                      : 'text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <span className="mr-2">{section.icon}</span>
+                  {section.label}
+                </button>
+              ))}
+            </div>
+            
+            {/* Indicador de progreso */}
+            <div className="px-6 py-2 bg-gray-50 dark:bg-gray-700">
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                <span className="mr-2">Progreso:</span>
+                <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-2 mr-4">
+                  <div 
+                    className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: activeSection === 'general' ? '33%' : 
+                             activeSection === 'clasificacion' ? '66%' : '100%'
+                    }}
+                  ></div>
+                </div>
+                <span className="text-xs font-medium">
+                  {activeSection === 'general' ? '1/3' : 
+                   activeSection === 'clasificacion' ? '2/3' : '3/3'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Formulario */}
           <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              {/* Información básica */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="isbn" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    ISBN
-                  </label>
-                  <input
-                    type="text"
-                    id="isbn"
-                    value={form.data.isbn}
-                    onChange={e => form.setData('isbn', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  {form.errors.isbn && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.isbn}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="titulo" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Título
-                  </label>
-                  <input
-                    type="text"
-                    id="titulo"
-                    value={form.data.titulo}
-                    onChange={e => form.setData('titulo', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  {form.errors.titulo && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.titulo}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="contenido" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Contenido
-                  </label>
-                  <textarea
-                    type="text"
-                    id="contenido"
-                    value={form.data.contenido}
-                    onChange={e => form.setData('contenido', e.target.value)}
-                    rows={4}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  {form.errors.contenido && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.contenido}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="autor_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Autor Principal
-                  </label>
-                  <select
-                    id="autor_id"
-                    value={form.data.autor_id}
-                    onChange={e => form.setData('autor_id', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  >
-                    <option value="">Seleccione un autor</option>
-                    {autores.map(autor => (
-                      <option key={autor.id} value={autor.id}>
-                        {`${autor.nombres} ${autor.apellidos}`}
-                      </option>
-                    ))}
-                  </select>
-                  {form.errors.autor_id && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.autor_id}</p>
-                  )}
-                </div>
-
-                {/*                 <div>
-                  <label htmlFor="coautores" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Coautores
-                  </label>
-                  <select
-                    id="coautores"
-                    multiple
-                    value={selectedCoautores}
-                    onChange={handleCoautoresChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  >
-                    {autores.map(autor => (
-                      <option key={autor.id} value={autor.id}>
-                        {`${autor.apellidos}, ${autor.nombre}`}
-                      </option>
-                    ))}
-                  </select>
-                  {form.errors.coautores && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.coautores}</p>
-                  )}
-                </div> */}
-
-                <div>
-                  <label htmlFor="editorial_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Editorial
-                  </label>
-                  <select
-                    id="editorial_id"
-                    value={form.data.editorial_id}
-                    onChange={e => form.setData('editorial_id', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  >
-                    <option value="">Seleccione una editorial</option>
-                    {editoriales.map(editorial => (
-                      <option key={editorial.id} value={editorial.id}>
-                        {editorial.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  {form.errors.editorial_id && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.editorial_id}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="seccion_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Sección
-                  </label>
-                  <select
-                    id="seccion_id"
-                    value={form.data.seccion_id}
-                    onChange={e => form.setData('seccion_id', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  >
-                    <option value="">Seleccione una sección</option>
-                    {secciones.map(seccion => (
-                      <option key={seccion.id} value={seccion.id}>
-                        {seccion.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  {form.errors.seccion_id && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.seccion_id}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="clase" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Clase
-                  </label>
-                  <select
-                    id="clase"
-                    value={form.data.clase}
-                    onChange={e => form.setData('clase', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  >
-                    {clases.map(clase => (
-                      <option key={clase} value={clase}>
-                        {clase}
-                      </option>
-                    ))}
-                  </select>
-                  {form.errors.clase && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.clase}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="idioma" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Idioma
-                  </label>
-                  <select
-                    id="idioma"
-                    value={form.data.idioma}
-                    onChange={e => form.setData('idioma', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  >
-                    {idiomas.map(idioma => (
-                      <option key={idioma} value={idioma}>
-                        {idioma}
-                      </option>
-                    ))}
-                  </select>
-                  {form.errors.idioma && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.idioma}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="tomo" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Tomo
-                  </label>
-                  <input
-                    type="number"
-                    id="tomo"
-                    min="1"
-                    value={form.data.tomo}
-                    onChange={e => form.setData('tomo', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  {form.errors.tomo && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.tomo}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="edicion" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Edición
-                  </label>
-                  <input
-                    type="text"
-                    id="edicion"
-                    value={form.data.edicion}
-                    onChange={e => form.setData('edicion', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  {form.errors.edicion && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.edicion}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="anio" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Año de Publicación
-                  </label>
-                  <input
-                    type="number"
-                    id="anio"
-                    min="1000"
-                    max={new Date().getFullYear()}
-                    value={form.data.anio}
-                    onChange={e => form.setData('anio', e.target.value)}
-                    placeholder="Ej: 2023"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  {form.errors.anio && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.anio}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="fecha_ingreso" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Fecha de Ingreso
-                  </label>
-                  <input
-                    type="date"
-                    id="fecha_ingreso"
-                    value={form.data.fecha_ingreso}
-                    onChange={e => form.setData('fecha_ingreso', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  {form.errors.fecha_ingreso && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.fecha_ingreso}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="precio" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Precio
-                  </label>
-                  <input
-                    type="number"
-                    id="precio"
-                    step="0.01"
-                    min="0"
-                    value={form.data.precio}
-                    onChange={e => form.setData('precio', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  {form.errors.precio && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.precio}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="edad_recomendada" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Edad Recomendada
-                  </label>
-                  <input
-                    type="number"
-                    id="edad_recomendada"
-                    min="0"
-                    value={form.data.edad_recomendada}
-                    onChange={e => form.setData('edad_recomendada', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  {form.errors.edad_recomendada && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.edad_recomendada}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="paginas" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Número de Páginas
-                  </label>
-                  <input
-                    type="number"
-                    id="paginas"
-                    min="1"
-                    value={form.data.paginas}
-                    onChange={e => form.setData('paginas', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  {form.errors.paginas && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.paginas}</p>
-                  )}
-                </div>
-
-                {/* Clasificación Dewey */}
-                <div>
-                  <label htmlFor="categoria" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Categoría Dewey
-                  </label>
-                  <select
-                    id="categoria"
-                    value={selectedCategoriaId || ''}
-                    onChange={handleCategoriaChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  >
-                    <option value="">Seleccione una categoría</option>
-                    {categoriasDewey.map(categoria => (
-                      <option key={categoria.id} value={categoria.id}>
-                        {categoria.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="subcategoria" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Subcategoría Dewey
-                  </label>
-                  <select
-                    id="subcategoria"
-                    value={selectedSubcategoriaId || ''}
-                    onChange={handleSubcategoriaChange}
-                    disabled={!selectedCategoriaId}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  >
-                    <option value="">Seleccione una subcategoría</option>
-                    {loadedSubcategorias.map(subcategoria => (
-                      <option key={subcategoria.id} value={subcategoria.id}>
-                        {subcategoria.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="tema_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Tema Dewey
-                  </label>
-                  <select
-                    id="tema_id"
-                    value={form.data.tema_id}
-                    onChange={e => form.setData('tema_id', e.target.value)}
-                    disabled={!selectedSubcategoriaId}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  >
-                    <option value="">Seleccione un tema</option>
-                    {loadedTemas.map(tema => (
-                      <option key={tema.id} value={tema.id}>
-                        {tema.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  {form.errors.tema_id && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.tema_id}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="estanteria_id" className="block text-sm font-medium text-gray-700 dark:text-black-300">
-                    Estantería
-                  </label>
-                  <select
-                    id="estanteria_id"
-                    value={form.data.estanteria_id}
-                    onChange={e => form.setData('estanteria_id', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-                  >
-                    <option value="">Seleccione una estantería</option>
-                    {estanterias.map(estanteria => (
-                      <option key={estanteria.id} value={estanteria.id}>
-                        {estanteria.cod_estante}
-                      </option>
-                    ))}
-                  </select>
-                  {form.errors.estanteria_id && (
-                    <p className="mt-1 text-sm text-red-600">{form.errors.estanteria_id}</p>
-                  )}
-                </div>
-
-                <div className="col-span-2">
-                  <button
-                    type="submit"
-                    disabled={form.processing}
-                    className="w-full md:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                  >
-                    {form.processing ? 'Guardando...' : 'Guardar Libro'}
-                  </button>
+            <form onSubmit={handleSubmit} className="p-6">
+              {activeSection === 'general' && (
+                <GeneralInfoSection
+                  form={form}
+                  autores={autores}
+                  editoriales={editoriales}
+                  secciones={secciones}
+                  clases={clases}
+                  idiomas={idiomas}
+                  estanterias={estanterias}
+                  onNext={() => setActiveSection('clasificacion')}
+                />
+              )}
+              
+              {activeSection === 'clasificacion' && (
+                <ClasificacionSection
+                  form={form}
+                  categoriasDewey={categoriasDewey}
+                  onPrev={() => setActiveSection('general')}
+                  onNext={() => setActiveSection('detalles')}
+                  // Props para mantener estado
+                  initialCategoriaId={clasificacionState.categoriaId}
+                  initialSubcategoriaId={clasificacionState.subcategoriaId}
+                  initialSubcategorias={clasificacionState.subcategorias}
+                  initialTemas={clasificacionState.temas}
+                  onStateChange={handleClasificacionStateChange}
+                />
+              )}
+              
+              {activeSection === 'detalles' && (
+                <DetallesSection
+                  form={form}
+                  onPrev={() => setActiveSection('clasificacion')}
+                  onSubmit={handleSubmit}
+                />
+              )}
+            </form>
+          </div>
+          
+          {/* Información de ayuda */}
+          <div className="mt-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <Info className="h-5 w-5 text-blue-400" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  Información importante
+                </h3>
+                <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Los campos marcados con <span className="text-red-500">*</span> son obligatorios</li>
+                    <li>Puede navegar entre secciones sin perder los datos ingresados</li>
+                    <li>La estantería es opcional y puede asignarse posteriormente</li>
+                    <li>Asegúrese de completar todos los campos antes de guardar</li>
+                  </ul>
                 </div>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       </div>
