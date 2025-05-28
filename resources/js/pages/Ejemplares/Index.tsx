@@ -1,5 +1,6 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
+import { Eye, Pencil } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem, EjemplarPageProps, ESTADO } from './types';
 
@@ -28,7 +29,6 @@ export default function Index({ auth, libro, ejemplares = [], success }: Ejempla
 
   return (
     <AppLayout
-      title={`Ejemplares - ${libro.titulo}`}
       breadcrumbs={breadcrumbs}
       renderHeader={() => (
         <h2 className="text-xl font-semibold leading-tight text-gray-800">
@@ -65,18 +65,16 @@ export default function Index({ auth, libro, ejemplares = [], success }: Ejempla
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
-{/*                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th> */}
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Numero del ejemplar</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tipo Adquisición</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Observaciones</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
+                        <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                       {ejemplares.map((ejemplar) => (
                         <tr key={ejemplar.id}>
-                          {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{ejemplar.id}</td> */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{ejemplar.numEjemplar}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">{ejemplar.tipo_adquisicion}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -95,19 +93,23 @@ export default function Index({ auth, libro, ejemplares = [], success }: Ejempla
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                             {ejemplar.observaciones || '-'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex space-x-2">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex justify-center space-x-2">
                               <Link 
                                 href={route('ejemplares.show', [libro.id, ejemplar.id])}
-                                className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 
+                                          transition-colors p-1 bg-blue-50 dark:bg-blue-900/30 rounded hover:bg-blue-100 dark:hover:bg-blue-800/40"
+                                title="Ver detalles"
                               >
-                                Ver
+                                <Eye className="w-4 h-4" />
                               </Link>
                               <Link 
                                 href={route('ejemplares.edit', [libro.id, ejemplar.id])}
-                                className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300"
+                                className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 
+                                          transition-colors p-1 bg-amber-50 dark:bg-amber-900/30 rounded hover:bg-amber-100 dark:hover:bg-amber-800/40"
+                                title="Editar ejemplar"
                               >
-                                Editar
+                                <Pencil className="w-4 h-4" />
                               </Link>
                             </div>
                           </td>
