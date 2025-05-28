@@ -3,35 +3,37 @@ import { useForm } from '@inertiajs/react';
 import { Pencil } from 'lucide-react';
 import Modal from '@/components/Modal';
 import Form from '@/components/Form';
-import { Autor } from './types';
+import { Editorial } from './types';
 
 type EditModalProps = {
-  autor: Autor;
+  editorial: Editorial;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
   errors?: Record<string, string>;
 };
 
-export default function EditAutor({ autor, onSuccess, onError, errors = {} }: EditModalProps) {
+export default function EditEditorial({ editorial, onSuccess, onError, errors = {} }: EditModalProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const { data, setData, put, processing, errors: formErrors, setError, clearErrors, reset } = useForm({
-    nombres: autor.nombres || '',
-    apellidos: autor.apellidos || ''
+    nombre: editorial.nombre,
+    pais: editorial.pais || '',
+    ciudad: editorial.ciudad || ''
   });
 
-  // Sync form data with updated autor prop
+  // Sync form data with updated editorial prop
   useEffect(() => {
     setData({
-      nombres: autor.nombres || '',
-      apellidos: autor.apellidos || ''
+      nombre: editorial.nombre,
+      pais: editorial.pais || '',
+      ciudad: editorial.ciudad || ''
     });
     clearErrors();
-  }, [autor, setData, clearErrors]);
+  }, [editorial, setData, clearErrors]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    const validFields: Array<keyof typeof data> = ['nombres', 'apellidos'];
+    const validFields: Array<keyof typeof data> = ['nombre', 'pais', 'ciudad'];
     if (validFields.includes(name as keyof typeof data)) {
       setData(name as keyof typeof data, value);
       console.log('Form data updated - Current state:', { ...data, [name]: value });
@@ -40,23 +42,32 @@ export default function EditAutor({ autor, onSuccess, onError, errors = {} }: Ed
     }
   };
 
-  const autorFields = [
+  const editorialFields = [
     {
-      name: 'nombres',
-      label: 'Nombres',
+      name: 'nombre',
+      label: 'Nombre',
       type: 'text',
-      placeholder: 'Ingrese los nombres',
+      placeholder: 'Ingrese el nombre',
       required: true,
-      value: data.nombres,
+      value: data.nombre,
       onChange: handleChange
     },
     {
-      name: 'apellidos',
-      label: 'Apellidos',
+      name: 'pais',
+      label: 'País',
       type: 'text',
-      placeholder: 'Ingrese los apellidos',
-      required: true,
-      value: data.apellidos,
+      placeholder: 'Ingrese el país',
+      required: false,
+      value: data.pais,
+      onChange: handleChange
+    },
+    {
+      name: 'ciudad',
+      label: 'Ciudad',
+      type: 'text',
+      placeholder: 'Ingrese la ciudad',
+      required: false,
+      value: data.ciudad,
       onChange: handleChange
     }
   ];
@@ -64,30 +75,31 @@ export default function EditAutor({ autor, onSuccess, onError, errors = {} }: Ed
   const handleSubmit = () => {
     clearErrors();
     console.log('Submitting update with data:', data);
-    put(`/autores/${autor.id}`, {
+    put(`/editoriales/${editorial.id}`, {
       preserveScroll: true,
       preserveState: true,
       onSuccess: (page: any) => {
         console.log('Success response:', page);
-        const successMessage = page.props.flash?.success || 'Autor actualizado exitosamente';
+        const successMessage = page.props.flash?.success || 'Editorial actualizada exitosamente';
         onSuccess(successMessage);
-        // Reset form with updated autor data
+        // Reset form with updated editorial data
         setData({
-          nombres: autor.nombres || '',
-          apellidos: autor.apellidos || ''
+          nombre: editorial.nombre,
+          ciudad: editorial.ciudad || '',
+          pais: editorial.pais || ''
         });
         clearErrors();
         setIsOpen(false);
       },
       onError: (errors: Record<string, string>) => {
         console.log('Error response:', errors);
-        const hasFieldErrors = Object.keys(errors).some(key => ['nombres', 'apellidos'].includes(key));
+        const hasFieldErrors = Object.keys(errors).some(key => ['nombre', 'ciudad', 'pais'].includes(key));
         if (hasFieldErrors) {
           Object.keys(errors).forEach((key) => {
             setError(key as keyof typeof data, errors[key]);
           });
         } else {
-          const errorMessage = errors.error || 'Ha ocurrido un error al actualizar el autor';
+          const errorMessage = errors.error || 'Ha ocurrido un error al actualizar la editorial';
           onError(errorMessage);
         }
       },
@@ -137,22 +149,22 @@ export default function EditAutor({ autor, onSuccess, onError, errors = {} }: Ed
       <Modal
         open={isOpen}
         onClose={() => setIsOpen(false)}
-        title="Editar Autor"
+        title="Editar Editorial"
         footer={modalFooter}
       >
         <Form
           initialData={data}
-          fields={autorFields}
+          fields={editorialFields}
           errors={formErrors}
-          submitUrl={`/autores/${autor.id}`}
+          submitUrl={`/editoriales/${editorial.id}`}
           method="put"
           onCancel={() => setIsOpen(false)}
           onSuccess={handleSubmit}
           submitButtonText="Actualizar"
           isEditing={true}
-          accentColor="amber"
+          accentColor="blue"
           showButtons={false}
-          id="edit-autor-form"
+          id="edit-editorial-form"
           processing={processing}
         />
       </Modal>

@@ -10,19 +10,18 @@ type CreateModalProps = {
   errors?: Record<string, string>;
 };
 
-export default function CreateGrado({ onSuccess, onError, errors = {} }: CreateModalProps) {
+export default function CreateEditorial({ onSuccess, onError, errors = {} }: CreateModalProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const { data, setData, post, processing, reset, errors: formErrors, setError, clearErrors } = useForm({
-    grado: '',
-    subGrado: '',
-    estado: 'ACTIVO',
-    seccion_id: '',
+    nombre: '',
+    pais: '',
+    ciudad: ''
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    const validFields: Array<keyof typeof data> = ['grado', 'subGrado', 'estado', 'seccion_id'];
+    const validFields: Array<keyof typeof data> = ['nombre', 'pais', 'ciudad'];
     if (validFields.includes(name as keyof typeof data)) {
       setData(name as keyof typeof data, value);
       console.log('Form data updated - Current state:', { ...data, [name]: value });
@@ -31,77 +30,45 @@ export default function CreateGrado({ onSuccess, onError, errors = {} }: CreateM
     }
   };
 
-  const gradoFields = [
+  const editorialFields = [
     {
-      name: 'grado',
-      label: 'Grado',
-      type: 'select',
-      placeholder: 'Seleccione un grado',
-      required: true,
-      value: data.grado,
-      onChange: handleChange,
-      options: [
-        { value: '', label: 'Seleccione un grado' },
-        { value: 'Prescolar', label: 'Prescolar' },
-        { value: 'Primero', label: 'Primero' },
-        { value: 'Segundo', label: 'Segundo' },
-        { value: 'Tercero', label: 'Tercero' },
-        { value: 'Cuarto', label: 'Cuarto' },
-        { value: 'Quinto', label: 'Quinto' },
-        { value: 'Sexto', label: 'Sexto' },
-        { value: 'Séptimo', label: 'Séptimo' },
-        { value: 'Octavo', label: 'Octavo' },
-        { value: 'Noveno', label: 'Noveno' },
-        { value: 'Décimo', label: 'Décimo' },
-        { value: 'Once', label: 'Once' },
-      ],
-    },
-    {
-      name: 'subGrado',
-      label: 'Sub Grado',
+      name: 'nombre',
+      label: 'Nombre',
       type: 'text',
-      placeholder: 'Ingrese el sub grado',
+      placeholder: 'Ingrese el nombre',
+      required: true,
+      value: data.nombre,
+      onChange: handleChange
+    },
+    {
+      name: 'pais',
+      label: 'País',
+      type: 'text',
+      placeholder: 'Ingrese el país',
       required: false,
-      value: data.subGrado,
-      onChange: handleChange,
+      value: data.pais,
+      onChange: handleChange
     },
+    
     {
-      name: 'estado',
-      label: 'Estado',
-      type: 'select',
-      placeholder: 'Seleccione el estado',
-      required: true,
-      value: data.estado,
-      onChange: handleChange,
-      options: [
-        { value: 'ACTIVO', label: 'Activo' },
-        { value: 'INACTIVO', label: 'Inactivo' },
-      ],
-    },
-    {
-      name: 'seccion_id',
-      label: 'Sección',
-      type: 'select',
-      placeholder: 'Seleccione una sección',
-      required: true,
-      value: data.seccion_id,
-      onChange: handleChange,
-      options: [
-        { value: '', label: 'Seleccione una sección' },
-        { value: '1', label: 'Primaria' },
-        { value: '2', label: 'Bachillerato' },
-      ],
+      name: 'ciudad',
+      label: 'Ciudad',
+      type: 'text',
+      placeholder: 'Ingrese la ciudad',
+      required: false,
+      value: data.ciudad,
+      onChange: handleChange
     },
   ];
 
   const handleSubmit = () => {
     clearErrors();
     console.log('Submitting form with data:', data);
-    post('/grados', {
+    post('/editoriales', {
       preserveScroll: true,
       onSuccess: (page: any) => {
         console.log('Success response:', page);
-        const successMessage = page.props.flash?.success || 'Grado creado exitosamente';
+        const successMessage = page.props.flash?.success || 'Editorial creada exitosamente';
         onSuccess(successMessage);
         reset();
         clearErrors();
@@ -109,19 +76,19 @@ export default function CreateGrado({ onSuccess, onError, errors = {} }: CreateM
       },
       onError: (errors: Record<string, string>) => {
         console.log('Error response:', errors);
-        const hasFieldErrors = Object.keys(errors).some(key => ['grado', 'subGrado', 'estado', 'seccion_id'].includes(key));
+        const hasFieldErrors = Object.keys(errors).some(key => ['nombre', 'ciudad', 'pais'].includes(key));
         if (hasFieldErrors) {
           Object.keys(errors).forEach((key) => {
             setError(key as keyof typeof data, errors[key]);
           });
         } else {
-          const errorMessage = errors.error || 'Ha ocurrido un error al crear el grado';
+          const errorMessage = errors.error || 'Ha ocurrido un error al crear la editorial';
           onError(errorMessage);
         }
       },
       onFinish: () => {
         console.log('Request finished');
-      },
+      }
     });
   };
 
@@ -161,20 +128,20 @@ export default function CreateGrado({ onSuccess, onError, errors = {} }: CreateM
                   transform hover:-translate-y-0.5"
       >
         <Plus className="w-5 h-5" />
-        <span>Nuevo Grado</span>
+        <span>Nueva Editorial</span>
       </button>
       <Modal
         open={isOpen}
         onClose={() => setIsOpen(false)}
-        title="Crear Nuevo Grado"
+        title="Crear Nueva Editorial"
         description="Complete los campos para continuar"
         footer={modalFooter}
       >
         <Form
           initialData={data}
-          fields={gradoFields}
+          fields={editorialFields}
           errors={formErrors}
-          submitUrl="/grados"
+          submitUrl="/editoriales"
           method="post"
           onCancel={() => setIsOpen(false)}
           onSuccess={handleSubmit}
@@ -182,7 +149,7 @@ export default function CreateGrado({ onSuccess, onError, errors = {} }: CreateM
           isEditing={false}
           accentColor="blue"
           showButtons={false}
-          id="create-grado-form"
+          id="create-editorial-form"
           processing={processing}
         />
       </Modal>

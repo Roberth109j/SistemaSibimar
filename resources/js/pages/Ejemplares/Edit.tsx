@@ -228,7 +228,7 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
                     </button>
                     <div className="flex items-center space-x-2">
                       <a
-                        href={route('ejemplares.show', [libro.id, ejemplar.id])}
+                        href={route('ejemplares.index', [libro.id, ejemplar.id])}
                         className="px-4 py-2 bg-gray-300 text-gray-800 dark:bg-gray-600 dark:text-white rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
                       >
                         Cancelar
