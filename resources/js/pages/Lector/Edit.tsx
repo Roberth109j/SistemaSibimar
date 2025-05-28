@@ -6,10 +6,6 @@ import { type BreadcrumbItem } from '@/types';
 // Constantes
 const breadcrumbs: BreadcrumbItem[] = [
   {
-    title: 'Dashboard',
-    href: '/dashboard',
-  },
-  {
     title: 'Lectores',
     href: '/lectores',
   },

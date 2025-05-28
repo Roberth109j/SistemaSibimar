@@ -6,10 +6,6 @@ import { useState } from 'react';
 
 const breadcrumbs = [
   {
-    title: 'Dashboard',
-    href: '/dashboard',
-  },
-  {
     title: 'Préstamos',
     href: '/prestamos',
   },

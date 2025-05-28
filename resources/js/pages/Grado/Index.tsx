@@ -18,7 +18,6 @@ type IndexProps = {
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
-  { title: 'Dashboard', href: '/dashboard' },
   { title: 'Grados', href: '/grados' },
 ];
 

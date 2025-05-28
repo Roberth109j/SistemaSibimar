@@ -92,10 +92,6 @@ function AlertNotification({
 // Definir las migas de pan (breadcrumbs)
 const getBreadcrumbs = (libroId: number, libroTitulo: string) => [
   {
-    title: 'Dashboard',
-    href: '/dashboard',
-  },
-  {
     title: 'Libros',
     href: '/libros',
   },

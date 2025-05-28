@@ -1,314 +1,146 @@
 
+# Sistema de Gestión de Biblioteca Maridiaz 📚
+
+## Descripción General
+Sistema web para la gestión y administración de la biblioteca Maridiaz. Permite gestionar libros, lectores, préstamos y devoluciones de manera eficiente, facilitando el control y seguimiento del material bibliográfico.
+
+## Funcionalidades Principales
+
+### 🔐 Autenticación y Gestión de Usuarios
+- Registro e inicio de sesión seguro
+- Gestión de roles y permisos
+- Panel de administración personalizado
+
+### 📚 Gestión de Libros
+- Registro y actualización de libros
+- Catalogación por sistema Dewey
+- Control de ejemplares
+- Gestión de autores y editoriales
+- Organización por estanterías y secciones
+
+### 👥 Gestión de Lectores
+- Registro de lectores por grados
+- Historial de préstamos
+- Estado y seguimiento de préstamos activos
+- Gestión de sanciones y restricciones
+
+### 📋 Préstamos y Devoluciones
+- Sistema de préstamos y renovaciones
+- Control de fechas de vencimiento
+- Notificaciones de devolución
+- Registro histórico de movimientos
+
+### 🔍 Búsqueda y Filtrado
+- Búsqueda avanzada de libros
+- Filtros por categorías Dewey
+- Búsqueda de lectores por grado
+- Reportes y estadísticas
+
+## Tecnologías Utilizadas
+
+### Frontend
+- React.js con TypeScript
+- Tailwind CSS para estilos
+- Lucide React para iconos
+- Shadcn UI para componentes
+
+### Backend
+- Laravel (PHP)
+- MySQL para base de datos
+- API RESTful
+
+### Herramientas de Desarrollo
+- Vite.js
+- ESLint
+- Prettier
+- PHP CS Fixer
+
+## Requisitos de Instalación
+
+### Requisitos Previos
+- PHP >= 8.0
+- Node.js >= 16.0
+- Composer
+- MySQL
+
+### Dependencias Principales
+```json
+{
+  "dependencies": {
+    "@inertiajs/react": "^1.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "lucide-react": "^0.x.x",
+    "tailwindcss": "^3.x.x"
+  }
+}
 ```
-gestionBibliotecaMaridiaz
-├─ .editorconfig
-├─ .prettierignore
-├─ .prettierrc
-├─ app
-│  ├─ Http
-│  │  ├─ Controllers
-│  │  │  ├─ Auth
-│  │  │  │  ├─ AuthenticatedSessionController.php
-│  │  │  │  ├─ ConfirmablePasswordController.php
-│  │  │  │  ├─ EmailVerificationNotificationController.php
-│  │  │  │  ├─ EmailVerificationPromptController.php
-│  │  │  │  ├─ NewPasswordController.php
-│  │  │  │  ├─ PasswordResetLinkController.php
-│  │  │  │  ├─ RegisteredUserController.php
-│  │  │  │  └─ VerifyEmailController.php
-│  │  │  ├─ AutorController.php
-│  │  │  ├─ Controller.php
-│  │  │  ├─ EditorialController.php
-│  │  │  ├─ EjemplarController.php
-│  │  │  ├─ EstanteriaController.php
-│  │  │  ├─ GradoController.php
-│  │  │  ├─ LectorController.php
-│  │  │  ├─ LibroController.php
-│  │  │  ├─ PrestamoController.php
-│  │  │  └─ Settings
-│  │  │     ├─ PasswordController.php
-│  │  │     └─ ProfileController.php
-│  │  ├─ Middleware
-│  │  │  ├─ HandleAppearance.php
-│  │  │  └─ HandleInertiaRequests.php
-│  │  └─ Requests
-│  │     ├─ Auth
-│  │     │  └─ LoginRequest.php
-│  │     └─ Settings
-│  │        └─ ProfileUpdateRequest.php
-│  ├─ Models
-│  │  ├─ Autor.php
-│  │  ├─ CategoriaDewey.php
-│  │  ├─ Editorial.php
-│  │  ├─ Ejemplar.php
-│  │  ├─ Estanteria.php
-│  │  ├─ Grado.php
-│  │  ├─ Lector.php
-│  │  ├─ Libro.php
-│  │  ├─ Prestamo.php
-│  │  ├─ Seccion.php
-│  │  ├─ SubcategoriaDewey.php
-│  │  ├─ TemaDewey.php
-│  │  └─ User.php
-│  └─ Providers
-│     └─ AppServiceProvider.php
-├─ artisan
-├─ bootstrap
-│  ├─ app.php
-│  ├─ cache
-│  │  ├─ packages.php
-│  │  └─ services.php
-│  └─ providers.php
-├─ components.json
-├─ composer.json
-├─ composer.lock
-├─ config
-│  ├─ app.php
-│  ├─ auth.php
-│  ├─ cache.php
-│  ├─ database.php
-│  ├─ filesystems.php
-│  ├─ inertia.php
-│  ├─ logging.php
-│  ├─ mail.php
-│  ├─ permission.php
-│  ├─ queue.php
-│  ├─ services.php
-│  └─ session.php
-├─ database
-│  ├─ factories
-│  │  └─ UserFactory.php
-│  ├─ migrations
-│  │  ├─ 2025_04_17_000000_create_secciones_table.php
-│  │  ├─ 2025_04_17_000001_create_jobs_table.php
-│  │  ├─ 2025_04_17_000002_create_cache_table.php
-│  │  ├─ 2025_04_17_000003_create_users_table.php
-│  │  ├─ 2025_04_17_000004_create_autores_table.php
-│  │  ├─ 2025_04_17_000006_create_categorias_dewey_table.php
-│  │  ├─ 2025_04_17_000007_create_subcategorias_dewey_table.php
-│  │  ├─ 2025_04_17_000008_create_temas_dewey_table.php
-│  │  ├─ 2025_04_17_000011_create_editoriales_table.php
-│  │  ├─ 2025_04_17_000012_create_grados_table.php
-│  │  ├─ 2025_04_17_000014_create_estanterias_table.php
-│  │  ├─ 2025_04_17_145120_create_permission_tables.php
-│  │  ├─ 2025_04_17_160008_create_libros_table.php
-│  │  ├─ 2025_04_17_192912_create_ejemplares_table.php
-│  │  ├─ 2025_04_17_224935_create_lectores_table.php
-│  │  └─ 2025_04_18_005953_create_prestamos_table.php
-│  └─ seeders
-│     ├─ CategoriasSeeder.php
-│     ├─ DatabaseSeeder.php
-│     ├─ RolesSeeder.php
-│     ├─ SeccionSeeder.php
-│     ├─ SubCategoriasSeeder.php
-│     ├─ TemaSeeder.php
-│     └─ UserSeeder.php
-├─ eslint.config.js
-├─ package-lock.json
-├─ package.json
-├─ phpunit.xml
-├─ public
-│  ├─ .htaccess
-│  ├─ favicon.ico
-│  ├─ IMG
-│  │  ├─ Bilbioteca.JPEG
-│  │  ├─ escudo.png
-│  │  └─ logo2.png
-│  ├─ index.php
-│  ├─ logo.svg
-│  └─ robots.txt
-├─ resources
-│  ├─ css
-│  │  └─ app.css
-│  ├─ js
-│  │  ├─ app.tsx
-│  │  ├─ components
-│  │  │  ├─ AlertNotification.tsx
-│  │  │  ├─ app-content.tsx
-│  │  │  ├─ app-header.tsx
-│  │  │  ├─ app-logo-icon.tsx
-│  │  │  ├─ app-logo.tsx
-│  │  │  ├─ app-shell.tsx
-│  │  │  ├─ app-sidebar-header.tsx
-│  │  │  ├─ app-sidebar.tsx
-│  │  │  ├─ appearance-dropdown.tsx
-│  │  │  ├─ appearance-tabs.tsx
-│  │  │  ├─ breadcrumbs.tsx
-│  │  │  ├─ delete-user.tsx
-│  │  │  ├─ Form.tsx
-│  │  │  ├─ heading-small.tsx
-│  │  │  ├─ heading.tsx
-│  │  │  ├─ icon.tsx
-│  │  │  ├─ input-error.tsx
-│  │  │  ├─ Modal.tsx
-│  │  │  ├─ nav-footer.tsx
-│  │  │  ├─ nav-main.tsx
-│  │  │  ├─ nav-user.tsx
-│  │  │  ├─ Pagination.tsx
-│  │  │  ├─ text-link.tsx
-│  │  │  ├─ TextArea.tsx
-│  │  │  ├─ ui
-│  │  │  │  ├─ alert.tsx
-│  │  │  │  ├─ avatar.tsx
-│  │  │  │  ├─ badge.tsx
-│  │  │  │  ├─ breadcrumb.tsx
-│  │  │  │  ├─ button.tsx
-│  │  │  │  ├─ card.tsx
-│  │  │  │  ├─ checkbox.tsx
-│  │  │  │  ├─ collapsible.tsx
-│  │  │  │  ├─ dialog.tsx
-│  │  │  │  ├─ dropdown-menu.tsx
-│  │  │  │  ├─ icon.tsx
-│  │  │  │  ├─ input.tsx
-│  │  │  │  ├─ label.tsx
-│  │  │  │  ├─ navigation-menu.tsx
-│  │  │  │  ├─ placeholder-pattern.tsx
-│  │  │  │  ├─ select.tsx
-│  │  │  │  ├─ separator.tsx
-│  │  │  │  ├─ sheet.tsx
-│  │  │  │  ├─ sidebar.tsx
-│  │  │  │  ├─ skeleton.tsx
-│  │  │  │  ├─ table.tsx
-│  │  │  │  ├─ toggle-group.tsx
-│  │  │  │  ├─ toggle.tsx
-│  │  │  │  └─ tooltip.tsx
-│  │  │  ├─ user-info.tsx
-│  │  │  └─ user-menu-content.tsx
-│  │  ├─ hooks
-│  │  │  ├─ use-appearance.tsx
-│  │  │  ├─ use-initials.tsx
-│  │  │  ├─ use-mobile-navigation.ts
-│  │  │  └─ use-mobile.tsx
-│  │  ├─ layouts
-│  │  │  ├─ app
-│  │  │  │  ├─ app-header-layout.tsx
-│  │  │  │  └─ app-sidebar-layout.tsx
-│  │  │  ├─ app-layout.tsx
-│  │  │  ├─ auth
-│  │  │  │  ├─ auth-card-layout.tsx
-│  │  │  │  ├─ auth-simple-layout.tsx
-│  │  │  │  └─ auth-split-layout.tsx
-│  │  │  ├─ auth-layout.tsx
-│  │  │  └─ settings
-│  │  │     └─ layout.tsx
-│  │  ├─ lib
-│  │  │  └─ utils.ts
-│  │  ├─ pages
-│  │  │  ├─ auth
-│  │  │  │  ├─ confirm-password.tsx
-│  │  │  │  ├─ forgot-password.tsx
-│  │  │  │  ├─ login.tsx
-│  │  │  │  ├─ register.tsx
-│  │  │  │  ├─ reset-password.tsx
-│  │  │  │  └─ verify-email.tsx
-│  │  │  ├─ Autor
-│  │  │  │  ├─ Create.tsx
-│  │  │  │  ├─ Edit.tsx
-│  │  │  │  ├─ Index.tsx
-│  │  │  │  ├─ Show.tsx
-│  │  │  │  └─ types.ts
-│  │  │  ├─ dashboard.tsx
-│  │  │  ├─ Editorial
-│  │  │  │  ├─ Create.tsx
-│  │  │  │  ├─ Edit.tsx
-│  │  │  │  ├─ Index.tsx
-│  │  │  │  ├─ Show.tsx
-│  │  │  │  └─ types.ts
-│  │  │  ├─ Ejemplares
-│  │  │  │  ├─ Create.tsx
-│  │  │  │  ├─ Edit.tsx
-│  │  │  │  ├─ Index.tsx
-│  │  │  │  ├─ Show.tsx
-│  │  │  │  └─ types.ts
-│  │  │  ├─ Estanteria
-│  │  │  │  ├─ Create.tsx
-│  │  │  │  ├─ Edit.tsx
-│  │  │  │  ├─ index.tsx
-│  │  │  │  ├─ Show.tsx
-│  │  │  │  └─ types.ts
-│  │  │  ├─ Grado
-│  │  │  │  ├─ Create.tsx
-│  │  │  │  ├─ Edit.tsx
-│  │  │  │  ├─ Index.tsx
-│  │  │  │  ├─ Show.tsx
-│  │  │  │  └─ types.ts
-│  │  │  ├─ Lector
-│  │  │  │  ├─ Index.tsx
-│  │  │  │  └─ types.ts
-│  │  │  ├─ Libro
-│  │  │  │  ├─ Create.tsx
-│  │  │  │  ├─ Edit.tsx
-│  │  │  │  ├─ index.tsx
-│  │  │  │  ├─ Show.tsx
-│  │  │  │  └─ types.ts
-│  │  │  ├─ Prestamos
-│  │  │  │  ├─ Devoluciones.tsx
-│  │  │  │  ├─ Index.tsx
-│  │  │  │  ├─ Listado.tsx
-│  │  │  │  └─ types.ts
-│  │  │  ├─ settings
-│  │  │  │  ├─ appearance.tsx
-│  │  │  │  ├─ password.tsx
-│  │  │  │  └─ profile.tsx
-│  │  │  └─ welcome.tsx
-│  │  ├─ ssr.tsx
-│  │  └─ types
-│  │     ├─ global.d.ts
-│  │     ├─ index.d.ts
-│  │     └─ vite-env.d.ts
-│  └─ views
-│     └─ app.blade.php
-├─ routes
-│  ├─ auth.php
-│  ├─ console.php
-│  ├─ settings.php
-│  └─ web.php
-├─ storage
-│  ├─ app
-│  │  ├─ private
-│  │  └─ public
-│  ├─ framework
-│  │  ├─ cache
-│  │  │  └─ data
-│  │  ├─ sessions
-│  │  ├─ testing
-│  │  └─ views
-│  │     ├─ 074299469b5758feda7827cbfd1a1d04.php
-│  │     ├─ 1226c2cb2d03041ce16720c5a57d1ae9.php
-│  │     ├─ 1e535aeb541b15c124a897697a7ff52e.php
-│  │     ├─ 2d68cec29034e72c8dab728c2c27e9be.php
-│  │     ├─ 3b8aa8684eb2c10f1c0781b4b3e5c84a.php
-│  │     ├─ 509e3f4beb349b368bd1dea8114422ab.php
-│  │     ├─ 522ab8f1865f59c6bd2e53040ec047fd.php
-│  │     ├─ 6eab8f88c9fd2b470c74b294dbb63d08.php
-│  │     ├─ 838ebe204a6b03ac2e9e5b7e40504389.php
-│  │     ├─ 99001cf51b9ffe0aa93409ba69178f95.php
-│  │     ├─ 9b8bdda92de6e56b166fcf7f79581a4d.php
-│  │     ├─ a7da216b58bbd9fbc32d5d8161aeed19.php
-│  │     ├─ ae73aca1d3f00f874a1744dcd976eb53.php
-│  │     ├─ b3b290b19635b827a69cc09e15b74e6a.php
-│  │     ├─ c30ee2acb9a92481de15ecae0d022461.php
-│  │     ├─ c92ca60b5d8cdd0e304af72e20070b66.php
-│  │     ├─ c9b77ce6d03e9a3b0e44ea57a825d81c.php
-│  │     └─ f33741ce5863c0d52ef5d0a31a6c45f6.php
-│  └─ logs
-│     └─ laravel.log
-├─ tests
-│  ├─ Feature
-│  │  ├─ Auth
-│  │  │  ├─ AuthenticationTest.php
-│  │  │  ├─ EmailVerificationTest.php
-│  │  │  ├─ PasswordConfirmationTest.php
-│  │  │  ├─ PasswordResetTest.php
-│  │  │  └─ RegistrationTest.php
-│  │  ├─ DashboardTest.php
-│  │  └─ Settings
-│  │     ├─ PasswordUpdateTest.php
-│  │     └─ ProfileUpdateTest.php
-│  ├─ TestCase.php
-│  └─ Unit
-│     └─ ExampleTest.php
-├─ tsconfig.json
-└─ vite.config.ts
+
+## Instalación y Configuración
+
+1. **Clonar el Repositorio**
+   ```bash
+   git clone https://github.com/yourusername/gestionBibliotecaMaridiaz.git
+   cd gestionBibliotecaMaridiaz
+   ```
+
+2. **Instalar Dependencias de PHP**
+   ```bash
+   composer install
+   ```
+
+3. **Instalar Dependencias de Node.js**
+   ```bash
+   npm install
+   ```
+
+4. **Configurar el Entorno**
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+
+5. **Configurar la Base de Datos**
+   - Crear base de datos MySQL
+   - Actualizar credenciales en .env
+   ```bash
+   php artisan migrate
+   ```
+
+6. **Compilar Assets**
+   ```bash
+   npm run dev
+   ```
+
+7. **Iniciar el Servidor**
+   ```bash
+   php artisan serve
+   ```
+
+## Estructura del Proyecto
 
 ```
+gestionBibliotecaMaridiaz/
+├── app/                 # Lógica de la aplicación
+├── resources/
+│   ├── js/             # Componentes React
+│   │   ├── pages/      # Páginas de la aplicación
+│   │   └── components/ # Componentes reutilizables
+│   └── views/          # Vistas blade
+├── routes/             # Definición de rutas
+├── database/          # Migraciones y seeders
+└── public/            # Archivos públicos
+```
+
+## Contribución
+1. Crear un fork del repositorio
+2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit de los cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abrir un Pull Request
+
+## Autoría
+Desarrollado por el equipo de desarrollo de la Biblioteca Maridiaz
+
+## Licencia
+Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE.md](LICENSE.md) para más detalles.

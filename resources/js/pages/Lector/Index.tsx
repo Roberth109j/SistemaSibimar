@@ -25,10 +25,6 @@ import { type LectorPageProps, type Lector } from './types';
 // Constantes
 const breadcrumbs: BreadcrumbItem[] = [
   {
-    title: 'Dashboard',
-    href: '/dashboard',
-  },
-  {
     title: 'Lectores',
     href: '/lectores',
   },
@@ -618,8 +614,8 @@ export default function Index({
                             key={i}
                             onClick={() => {
                               // Extrae el número de página de la URL
-                              const url = new URL(link.url, window.location.origin);
-                              const page = url.searchParams.get('page') || 1;
+                              const url = link.url ? new URL(link.url, window.location.origin) : null;
+                              const page = url?.searchParams.get('page') || 1;
 
                               // Navega manteniendo todos los filtros
                               router.get(route('lectores.index'), {
