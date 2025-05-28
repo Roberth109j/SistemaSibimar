@@ -94,7 +94,6 @@ export default function Create({ auth, libro, tiposAdquisicion, estados }: Ejemp
 
   return (
     <AppLayout
-      title="Registrar Ejemplar"
       breadcrumbs={breadcrumbs}
       renderHeader={() => (
         <h2 className="text-xl font-semibold leading-tight text-gray-800">
@@ -195,7 +194,7 @@ export default function Create({ auth, libro, tiposAdquisicion, estados }: Ejemp
                     <button
                       type="submit"
                       disabled={form.processing}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled biopacidad-50"
                     >
                       {form.processing ? 'Guardando...' : 'Guardar Ejemplar'}
                     </button>

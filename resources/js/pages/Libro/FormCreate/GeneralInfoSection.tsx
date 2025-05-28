@@ -80,9 +80,9 @@ export default function GeneralInfoSection({
     form.setData('estanteria_id', processedValue);
   };
 
-  const renderFormField = (id: string, label: string, required: boolean = false, children: React.ReactNode) => (
-    <div className="col-span-1 md:col-span-2 lg:col-span-1">
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+  const renderFormField = (id: string, label: string, required: boolean = false, children: React.ReactNode, colSpan: string = "col-span-1") => (
+    <div className={colSpan}>
+      <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {children}
@@ -104,46 +104,50 @@ export default function GeneralInfoSection({
         </p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* ISBN */}
+      {/* Grid mejorado con mejor distribución */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {/* ISBN - Ancho completo en móvil, medio en tablet, tercio en desktop */}
         {renderFormField('isbn', 'ISBN', true, 
-          <div className="mt-1 relative rounded-md shadow-sm">
+          <div className="relative rounded-md shadow-sm">
             <input
               type="text"
               id="isbn"
               value={form.data.isbn}
               onChange={e => form.setData('isbn', e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
               placeholder="9780123456789"
               maxLength={13}
             />
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <span className="text-gray-400 sm:text-sm">
+              <span className="text-gray-400 text-xs">
                 13 dígitos
               </span>
             </div>
-          </div>
+          </div>,
+          "col-span-1 md:col-span-1 xl:col-span-1"
         )}
         
-        {/* Título */}
+        {/* Título - Span de 2 columnas en desktop para darle más espacio */}
         {renderFormField('titulo', 'Título', true, 
           <input
             type="text"
             id="titulo"
             value={form.data.titulo}
             onChange={e => form.setData('titulo', e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
             placeholder="Ingrese el título del libro"
-          />
+          />,
+          "col-span-1 md:col-span-1 xl:col-span-2"
         )}
         
+        {/* Segunda fila - 3 campos con mejor distribución */}
         {/* Autor Principal */}
         {renderFormField('autor_id', 'Autor Principal', true, 
           <select
             id="autor_id"
             value={form.data.autor_id}
             onChange={e => form.setData('autor_id', e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
           >
             <option value="">Seleccione un autor</option>
             {autores.map(autor => (
@@ -151,7 +155,8 @@ export default function GeneralInfoSection({
                 {`${autor.nombres} ${autor.apellidos}`}
               </option>
             ))}
-          </select>
+          </select>,
+          "col-span-1 md:col-span-1 xl:col-span-1"
         )}
         
         {/* Editorial */}
@@ -160,7 +165,7 @@ export default function GeneralInfoSection({
             id="editorial_id"
             value={form.data.editorial_id}
             onChange={e => form.setData('editorial_id', e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
           >
             <option value="">Seleccione una editorial</option>
             {editoriales.map(editorial => (
@@ -168,7 +173,8 @@ export default function GeneralInfoSection({
                 {editorial.nombre}
               </option>
             ))}
-          </select>
+          </select>,
+          "col-span-1 md:col-span-1 xl:col-span-1"
         )}
         
         {/* Sección */}
@@ -177,7 +183,7 @@ export default function GeneralInfoSection({
             id="seccion_id"
             value={form.data.seccion_id}
             onChange={e => form.setData('seccion_id', e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
           >
             <option value="">Seleccione una sección</option>
             {secciones.map(seccion => (
@@ -185,16 +191,18 @@ export default function GeneralInfoSection({
                 {seccion.nombre}
               </option>
             ))}
-          </select>
+          </select>,
+          "col-span-1 md:col-span-1 xl:col-span-1"
         )}
         
+        {/* Tercera fila - 3 campos */}
         {/* Clase */}
         {renderFormField('clase', 'Clase', true, 
           <select
             id="clase"
             value={form.data.clase}
             onChange={e => form.setData('clase', e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
           >
             <option value="">Seleccione una clase</option>
             {clases.map(clase => (
@@ -202,7 +210,8 @@ export default function GeneralInfoSection({
                 {clase}
               </option>
             ))}
-          </select>
+          </select>,
+          "col-span-1 md:col-span-1 xl:col-span-1"
         )}
         
         {/* Idioma */}
@@ -211,7 +220,7 @@ export default function GeneralInfoSection({
             id="idioma"
             value={form.data.idioma}
             onChange={e => form.setData('idioma', e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
           >
             <option value="">Seleccione un idioma</option>
             {idiomas.map(idioma => (
@@ -219,16 +228,17 @@ export default function GeneralInfoSection({
                 {idioma}
               </option>
             ))}
-          </select>
+          </select>,
+          "col-span-1 md:col-span-1 xl:col-span-1"
         )}
         
-        {/* Estantería - Campo opcional - CORREGIDO */}
+        {/* Estantería - Campo opcional */}
         {renderFormField('estanteria_id', 'Estantería', false, 
           <select
             id="estanteria_id"
             value={form.data.estanteria_id || ''} // Asegurar que nunca sea undefined
             onChange={e => handleEstanteriaChange(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
           >
             <option value="">Seleccione una estantería (opcional)</option>
             {estanterias.map(estanteria => (
@@ -236,33 +246,34 @@ export default function GeneralInfoSection({
                 {estanteria.cod_estante}
               </option>
             ))}
-          </select>
+          </select>,
+          "col-span-1 md:col-span-1 xl:col-span-1"
         )}
-        
-        {/* Contenido - Span completo */}
-        <div className="col-span-1 md:col-span-2 lg:col-span-3">
-          <label htmlFor="contenido" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Contenido
-          </label>
-          <textarea
-            id="contenido"
-            value={form.data.contenido || ''} // Asegurar que nunca sea undefined
-            onChange={e => form.setData('contenido', e.target.value)}
-            rows={4}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
-            placeholder="Describa el contenido del libro..."
-          />
-          {form.errors.contenido && (
-            <p className="mt-1 text-sm text-red-600">{form.errors.contenido}</p>
-          )}
-        </div>
+      </div>
+
+      {/* Contenido - Campo de texto amplio que ocupa todo el ancho */}
+      <div className="mt-6">
+        <label htmlFor="contenido" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Contenido
+        </label>
+        <textarea
+          id="contenido"
+          value={form.data.contenido || ''} // Asegurar que nunca sea undefined
+          onChange={e => form.setData('contenido', e.target.value)}
+          rows={4}
+          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
+          placeholder="Describa el contenido del libro..."
+        />
+        {form.errors.contenido && (
+          <p className="mt-1 text-sm text-red-600">{form.errors.contenido}</p>
+        )}
       </div>
       
       <div className="flex justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
         <button
           type="button"
           onClick={handleCancel}
-          className="px-4 py-2 border border-gray-300 text-gray-700 dark:border-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+          className="px-4 py-2 border border-gray-300 text-gray-700 dark:border-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm"
         >
           <X className="w-4 h-4" />
           Cancelar
@@ -271,7 +282,7 @@ export default function GeneralInfoSection({
         <button
           type="button"
           onClick={handleNext}
-          className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
         >
           Siguiente: Clasificación
         </button>

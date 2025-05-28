@@ -36,7 +36,6 @@ export default function Show({ auth, libro, ejemplar, success }: EjemplarPagePro
 
   return (
     <AppLayout
-      title={`Detalles del Ejemplar #${ejemplar.id}`}
       breadcrumbs={breadcrumbs}
       renderHeader={() => (
         <h2 className="text-xl font-semibold leading-tight text-gray-800">

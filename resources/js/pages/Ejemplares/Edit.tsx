@@ -127,7 +127,6 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
 
   return (
     <AppLayout
-      title="Editar Ejemplar"
       breadcrumbs={breadcrumbs}
       renderHeader={() => (
         <h2 className="text-xl font-semibold leading-tight text-gray-800">
@@ -144,7 +143,7 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="numEjemplar" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  numEjemplar
+                    numEjemplar
                   </label>
                   <input
                     type="number"
