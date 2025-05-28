@@ -348,7 +348,6 @@ const Index: React.FC<LibroPageProps> = ({
   };
 
   const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
     { title: 'Libros', href: '/libros' },
   ];
 
