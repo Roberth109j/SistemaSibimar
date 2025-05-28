@@ -1,103 +1,147 @@
-// create.tsx
-import React from 'react';
-import { Head, useForm, Link } from '@inertiajs/react';
-import { X as XMarkIcon } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
+import React, { useState } from 'react';
+import { useForm } from '@inertiajs/react';
+import { Plus } from 'lucide-react';
+import Modal from '@/components/Modal';
+import Form from '@/components/Form';
 
-type CreateProps = {
-  auth: {
-    user: any;
-  };
+type CreateModalProps = {
+  onSuccess: (message: string) => void;
+  onError: (message: string) => void;
   errors?: Record<string, string>;
 };
 
-export default function Create({ auth, errors = {} }: CreateProps) {
-  const form = useForm({
-    apellidos: '',
+export default function CreateAutor({ onSuccess, onError, errors = {} }: CreateModalProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const { data, setData, post, processing, reset, errors: formErrors, setError, clearErrors } = useForm({
     nombres: '',
+    apellidos: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    form.post('/autores');
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const validFields: Array<keyof typeof data> = ['nombres', 'apellidos'];
+    if (validFields.includes(name as keyof typeof data)) {
+      setData(name as keyof typeof data, value);
+      console.log('Form data updated - Current state:', { ...data, [name]: value });
+    } else {
+      console.error('Invalid field name:', name);
+    }
   };
 
-  // Contenido original
-  const content = (
+  const autorFields = [
+    {
+      name: 'nombres',
+      label: 'Nombres',
+      type: 'text',
+      placeholder: 'Ingrese los nombres',
+      required: true,
+      value: data.nombres,
+      onChange: handleChange
+    },
+    {
+      name: 'apellidos',
+      label: 'Apellidos',
+      type: 'text',
+      placeholder: 'Ingrese los apellidos',
+      required: true,
+      value: data.apellidos,
+      onChange: handleChange
+    }
+  ];
+
+  const handleSubmit = () => {
+    clearErrors();
+    console.log('Submitting form with data:', data);
+    post('/autores', {
+      preserveScroll: true,
+      onSuccess: (page: any) => {
+        console.log('Success response:', page);
+        const successMessage = page.props.flash?.success || 'Autor creado exitosamente';
+        onSuccess(successMessage);
+        reset();
+        clearErrors();
+        setIsOpen(false);
+      },
+      onError: (errors: Record<string, string>) => {
+        console.log('Error response:', errors);
+        const hasFieldErrors = Object.keys(errors).some(key => ['nombres', 'apellidos'].includes(key));
+        if (hasFieldErrors) {
+          Object.keys(errors).forEach((key) => {
+            setError(key as keyof typeof data, errors[key]);
+          });
+        } else {
+          const errorMessage = errors.error || 'Ha ocurrido un error al crear el autor';
+          onError(errorMessage);
+        }
+      },
+      onFinish: () => {
+        console.log('Request finished');
+      }
+    });
+  };
+
+  const modalFooter = (
     <>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-white">Crear Nuevo Autor</h1>
-        <Link
-          href="/autores"
-          className="text-gray-400 hover:text-white"
-        >
-          <XMarkIcon className="w-6 h-6" />
-        </Link>
-      </div>
-      
-      <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-        <form onSubmit={handleSubmit} className="space-y-6 max-w-xl">
-          <div>
-            <label htmlFor="apellidos" className="block text-sm font-medium text-gray-300 mb-1">
-              Apellidos
-            </label>
-            <input
-              id="apellidos"
-              type="text"
-              name="apellidos"
-              value={form.data.apellidos}
-              onChange={(e) => form.setData('apellidos', e.target.value)}
-              className="block w-full rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-500 focus:ring-opacity-50"
-              required
-            />
-            {errors.apellidos && (
-              <p className="mt-2 text-sm text-red-400">{errors.apellidos}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="nombres" className="block text-sm font-medium text-gray-300 mb-1">
-              Nombres
-            </label>
-            <input
-              id="nombres"
-              type="text"
-              name="nombres"
-              value={form.data.nombres}
-              onChange={(e) => form.setData('nombres', e.target.value)}
-              className="block w-full rounded-md border-gray-600 bg-gray-700 text-white shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-500 focus:ring-opacity-50"
-              required
-            />
-            {errors.nombres && (
-              <p className="mt-2 text-sm text-red-400">{errors.nombres}</p>
-            )}
-          </div>
-
-          <div className="flex justify-end pt-5">
-            <Link
-              href="/autores"
-              className="mr-3 px-4 py-2 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Cancelar
-            </Link>
-            <button
-              type="submit"
-              disabled={form.processing}
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              Guardar
-            </button>
-          </div>
-        </form>
-      </div>
+      <button
+        type="button"
+        onClick={() => setIsOpen(false)}
+        className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
+          bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 
+          border border-gray-300 dark:border-gray-600
+          hover:bg-gray-50 dark:hover:bg-gray-600
+          focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200"
+      >
+        Cancelar
+      </button>
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={processing}
+        className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
+          bg-blue-500 hover:bg-blue-600 text-white
+          focus:outline-none focus:ring-2 focus:ring-blue-500
+          disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+      >
+        {processing ? 'Guardando...' : 'Guardar'}
+      </button>
     </>
   );
 
-  // Corregido: eliminando el prop user
   return (
-    <AppLayout>
-      <Head title="Crear Autor" />
-      {content}
-    </AppLayout>
+    <>
+      <button
+        onClick={() => setIsOpen(true)}
+        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white 
+                  px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg
+                  transform hover:-translate-y-0.5"
+      >
+        <Plus className="w-5 h-5" />
+        <span>Nuevo Autor</span>
+      </button>
+      <Modal
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Crear Nuevo Autor"
+        description="Complete los campos para continuar"
+        footer={modalFooter}
+      >
+        <Form
+          initialData={data}
+          fields={autorFields}
+          errors={formErrors}
+          submitUrl="/autores"
+          method="post"
+          onCancel={() => setIsOpen(false)}
+          onSuccess={handleSubmit}
+          submitButtonText="Guardar"
+          isEditing={false}
+          accentColor="blue"
+          showButtons={false}
+          id="create-autor-form"
+          processing={processing}
+        />
+      </Modal>
+    </>
   );
 }

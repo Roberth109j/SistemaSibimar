@@ -3,9 +3,9 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Search, CheckCircle, AlertCircle, X } from 'lucide-react';
 import AppLayout from '../../layouts/app-layout';
 import { type BreadcrumbItem } from './types';
-import CreateAutor from './Create';
-import EditAutor from './Edit';
-import ShowAutor from './Show';
+import CreateEditorial from './Create';
+import EditEditorial from './Edit';
+import ShowEditorial from './Show';
 import Pagination from '../../components/Pagination';
 
 type Libro = {
@@ -13,12 +13,11 @@ type Libro = {
   titulo: string;
 };
 
-type Autor = {
+type Editorial = {
   id: number;
-  nombres: string;
-  apellidos: string;
-  created_at?: string;
-  updated_at?: string;
+  nombre: string;
+  ciudad: string | null;
+  pais: string | null;
   libros?: Libro[];
 };
 
@@ -31,14 +30,14 @@ type IndexProps = {
   auth: {
     user: any;
   };
-  autores: Autor[];
+  editoriales: Editorial[];
   flash?: FlashMessage;
   errors?: Record<string, string>;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: 'Dashboard', href: '/dashboard' },
-  { title: 'Autores', href: '/autores' },
+  { title: 'Editoriales', href: '/editoriales' },
 ];
 
 function AlertNotification({
@@ -110,10 +109,11 @@ function AlertNotification({
   );
 }
 
-const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
+const Index = ({ auth, editoriales: initialEditoriales, flash, errors = {} }: IndexProps) => {
   const page = usePage();
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [editoriales, setEditoriales] = useState<Editorial[]>(initialEditoriales);
 
   const [alerts, setAlerts] = useState<{
     success: string | null;
@@ -125,6 +125,11 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
     timestamp: 0
   });
 
+  // Sync editoriales with props
+  useEffect(() => {
+    setEditoriales(initialEditoriales);
+  }, [initialEditoriales]);
+
   useEffect(() => {
     if (flash) {
       setAlerts({
@@ -135,34 +140,15 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
     }
   }, [flash, page.props.flash]);
 
-  const filteredAutores = searchTerm
-    ? autores.filter(autor => {
-      // Convert search term and author data to lowercase for case-insensitive comparison
-      const search = searchTerm.toLowerCase().trim();
-      const firstName = autor.nombres.toLowerCase();
-      const lastName = autor.apellidos.toLowerCase();
-      const fullName = `${firstName} ${lastName}`;
-      const reversedFullName = `${lastName} ${firstName}`;
+  const filteredEditoriales = searchTerm
+    ? editoriales.filter(
+        editorial =>
+          editorial.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (editorial.ciudad && editorial.ciudad.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (editorial.pais && editorial.pais.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    : editoriales;
 
-      // Check if search term exists in the full name (both orders)
-      if (fullName.includes(search) || reversedFullName.includes(search)) {
-        return true;
-      }
-
-      // If search has multiple words, check if they match individual parts
-      if (search.includes(' ')) {
-        const searchTerms = search.split(' ').filter(term => term.length > 0);
-
-        // Check if each search term is found in either first name or last name
-        return searchTerms.every(term =>
-          firstName.includes(term) || lastName.includes(term)
-        );
-      }
-
-      // Fall back to the original simple search
-      return firstName.includes(search) || lastName.includes(search);
-    })
-    : autores;
   const showAlert = (type: 'success' | 'error', message: string) => {
     console.log(`Showing alert: ${type} - ${message}`);
     setAlerts(prev => ({
@@ -204,13 +190,13 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Gestión de Autores
+            Gestión de Editoriales
           </h1>
           <div className="flex gap-4">
             <div className="relative">
               <input
                 type="text"
-                placeholder="Buscar autores..."
+                placeholder="Buscar editoriales..."
                 className="w-64 pl-10 py-2.5 pr-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 
                           text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                           shadow-sm transition-all duration-200"
@@ -219,7 +205,7 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
               />
               <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             </div>
-            <CreateAutor
+            <CreateEditorial
               onSuccess={(message) => showAlert('success', message)}
               onError={(message) => showAlert('error', message)}
               errors={errors}
@@ -227,32 +213,32 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
           </div>
         </div>
         <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl">
-          <Pagination items={filteredAutores} itemsPerPage={10}>
-            {(paginatedAutores) => (
+          <Pagination items={filteredEditoriales} itemsPerPage={10}>
+            {(paginatedEditoriales) => (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50 dark:bg-gray-700">
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">ID</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Nombres</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Apellidos</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Nombre Completo</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Nombre</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Ciudad</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">País</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {paginatedAutores.length > 0 ? (
-                      paginatedAutores.map((autor) => (
-                        <tr key={autor.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{autor.id}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{autor.nombres}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{autor.apellidos}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{`${autor.nombres} ${autor.apellidos}`}</td>
+                    {paginatedEditoriales.length > 0 ? (
+                      paginatedEditoriales.map((editorial) => (
+                        <tr key={editorial.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{editorial.id}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{editorial.nombre}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{editorial.ciudad || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{editorial.pais || '-'}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex space-x-4">
-                              <ShowAutor autor={autor} />
-                              <EditAutor
-                                autor={autor}
+                              <ShowEditorial editorial={editorial} />
+                              <EditEditorial
+                                editorial={editorial}
                                 onSuccess={(message) => showAlert('success', message)}
                                 onError={(message) => showAlert('error', message)}
                                 errors={errors}
@@ -264,7 +250,7 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
                     ) : (
                       <tr>
                         <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                          No hay autores disponibles
+                          No hay editoriales disponibles
                         </td>
                       </tr>
                     )}
@@ -280,7 +266,7 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
-      <Head title="Gestión de Autores" />
+      <Head title="Gestión de Editoriales" />
       {content}
     </AppLayout>
   );

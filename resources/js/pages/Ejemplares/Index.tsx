@@ -15,7 +15,7 @@ const getBreadcrumbs = (libroId: number, libroTitulo: string): BreadcrumbItem[] 
   },
   {
     title: libroTitulo,
-    href: `/libros/${libroId}`,
+    href: '/libros',
   },
   {
     title: 'Ejemplares',

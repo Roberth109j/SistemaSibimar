@@ -75,8 +75,8 @@ return new class extends Migration
             //signatura topografica primera letra apellido numero consecutivo y primera letra del titulo del libro   
             $table->string('sign_top')->nullable();
 
-            //estanteria donde se encuentra el libro
-            $table->foreignId('estanteria_id')->constrained('estanterias')->onDelete('restrict');
+            //estanteria donde se encuentra el libro (opcional)
+            $table->foreignId('estanteria_id')->nullable()->constrained('estanterias')->onDelete('set null');
             
 
             $table->timestamps();
@@ -86,8 +86,6 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      */
-
-
     public function down(): void
     {
         Schema::dropIfExists('libros');
