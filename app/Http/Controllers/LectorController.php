@@ -16,15 +16,46 @@ class LectorController extends Controller
     /**
      * Obtiene un listado de lectores con sus grados y secciones
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $lectores = Lector::with(['grado.seccion'])
-            ->orderBy('nombre')
-            ->paginate(10);
+        $query = Lector::with(['grado.seccion'])
+            ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
+            ->orderBy('grados.grado')
+            ->orderBy('grados.subGrado')
+            ->orderBy('lectores.nombre')
+            ->select('lectores.*');
+
+        // Aplicar filtros
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('nombre', 'LIKE', "%{$search}%")
+                  ->orWhere('codigo', 'LIKE', "%{$search}%");
+            });
+        }
+
+        if ($request->has('tipo') && $request->tipo) {
+            $query->where('tipo', $request->tipo);
+        }
+
+        if ($request->has('grado') && $request->grado) {
+            $query->where('grado_id', $request->grado);
+        }
+
+        if ($request->has('estado') && $request->estado) {
+            $query->where('estado', $request->estado);
+        }
+
+        $lectores = $query->paginate(10)->withQueryString();
+        $grados = Grado::select('id', 'grado')
+            ->where('estado', 'ACTIVO')
+            ->orderBy('grado')
+            ->get();
 
         return Inertia::render('Lector/Index', [
             'lectores' => $lectores,
-            'filters' => request()->all('search', 'trashed')
+            'filters' => $request->only(['search', 'tipo', 'grado', 'estado']),
+            'grados' => $grados
         ]);
     }
 
@@ -33,7 +64,15 @@ class LectorController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Lector/Create');
+        $grados = Grado::select('id', 'grado', 'subGrado')
+            ->where('estado', 'ACTIVO')
+            ->orderBy('grado')
+            ->orderBy('subGrado')
+            ->get();
+
+        return Inertia::render('Lector/Create', [
+            'grados' => $grados
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -72,8 +111,15 @@ class LectorController extends Controller
      */
     public function edit(Lector $lector): Response
     {
+        $grados = Grado::select('id', 'grado', 'subGrado')
+            ->where('estado', 'ACTIVO')
+            ->orderBy('grado')
+            ->orderBy('subGrado')
+            ->get();
+
         return Inertia::render('Lector/Edit', [
-            'lector' => $lector
+            'lector' => $lector,
+            'grados' => $grados
         ]);
     }
 

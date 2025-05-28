@@ -10,14 +10,32 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 
 class PrestamoController extends Controller
 {
     /**
      * Mostrar la vista de gestión de préstamos
      */
+    private function actualizarPrestamosVencidos()
+    {
+        $fechaActual = Carbon::now();
+        
+        // Buscar préstamos activos que han pasado su fecha de devolución
+        $prestamosVencidos = Prestamo::where('estado', Prestamo::ESTADO_ACTIVO)
+            ->where('fecha_devolucion', '<', $fechaActual)
+            ->get();
+            
+        foreach ($prestamosVencidos as $prestamo) {
+            $prestamo->marcarComoVencido();
+        }
+    }
+
     public function index()
     {
+        // Actualizar estado de préstamos vencidos
+        $this->actualizarPrestamosVencidos();
+        
         // Solo renderizamos la vista inicial, los libros se buscarán por AJAX
         return Inertia::render('Prestamos/Index');
     }
@@ -154,6 +172,9 @@ class PrestamoController extends Controller
     public function listado(Request $request)
     {
         try {
+            // Actualizar estado de préstamos vencidos
+            $this->actualizarPrestamosVencidos();
+            
             $query = Prestamo::with(['ejemplar.libro', 'lector'])
                             ->where('estado', 'ACTIVO')
                             ->orderBy('fecha_prestamo', 'desc');
@@ -171,6 +192,84 @@ class PrestamoController extends Controller
             ]);
         } catch (\Exception $e) {
             return back()->with('error', 'Error al cargar la lista de préstamos: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Lista de préstamos vencidos
+     */
+    public function vencidos(Request $request)
+    {
+        try {
+            // Actualizar estado de préstamos vencidos
+            $this->actualizarPrestamosVencidos();
+            
+            $prestamos = Prestamo::with(['ejemplar.libro', 'lector'])
+                            ->where('estado', Prestamo::ESTADO_VENCIDO)
+                            ->orderBy('fecha_devolucion', 'asc')
+                            ->get()
+                            ->map(function ($prestamo) {
+                                $prestamo->fecha_prestamo = Carbon::parse($prestamo->fecha_prestamo)->addDay()->format('Y-m-d');
+                                $prestamo->fecha_devolucion = Carbon::parse($prestamo->fecha_devolucion)->addDay()->format('Y-m-d');
+                                $prestamo->dias_retraso = Carbon::now()->diffInDays(Carbon::parse($prestamo->fecha_devolucion));
+                                return $prestamo;
+                            })
+                            ->when($request->has('dias_vencido'), function ($collection) use ($request) {
+                                return $collection->filter(function ($prestamo) use ($request) {
+                                    return $prestamo->dias_retraso >= (int)$request->dias_vencido;
+                                });
+                            });
+
+            if ($request->has('search')) {
+                $search = $request->search;
+                $prestamos = $prestamos->filter(function($prestamo) use ($search) {
+                    return str_contains(strtolower($prestamo->lector->nombre), strtolower($search)) ||
+                           str_contains(strtolower($prestamo->lector->codigo), strtolower($search)) ||
+                           str_contains(strtolower($prestamo->ejemplar->libro->titulo), strtolower($search)) ||
+                           str_contains(strtolower($prestamo->ejemplar->codigo), strtolower($search));
+                });
+            }
+
+            // Paginar la colección manualmente
+            $page = $request->input('page', 1);
+            $perPage = 10;
+            $items = $prestamos->forPage($page, $perPage);
+            
+            return Inertia::render('Prestamos/Vencidos', [
+                'prestamos' => new \Illuminate\Pagination\LengthAwarePaginator(
+                    $items,
+                    $prestamos->count(),
+                    $perPage,
+                    $page,
+                    ['path' => $request->url()]
+                )
+            ]);
+
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->whereHas('lector', function($q) use ($search) {
+                        $q->where('nombre', 'LIKE', "%{$search}%")
+                          ->orWhere('codigo', 'LIKE', "%{$search}%");
+                    })->orWhereHas('ejemplar.libro', function($q) use ($search) {
+                        $q->where('titulo', 'LIKE', "%{$search}%")
+                          ->orWhere('codigo', 'LIKE', "%{$search}%");
+                    });
+                });
+            }
+
+            if ($request->has('dias_vencido')) {
+                $dias = $request->dias_vencido;
+                $query->where('fecha_devolucion', '<=', Carbon::now()->subDays($dias));
+            }
+
+            $prestamos = $query->paginate(10);
+            
+            return Inertia::render('Prestamos/Vencidos', [
+                'prestamos' => $prestamos
+            ]);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error al cargar la lista de préstamos vencidos: ' . $e->getMessage());
         }
     }
 }
