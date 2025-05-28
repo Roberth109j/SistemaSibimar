@@ -100,6 +100,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('prestamos/create', [PrestamoController::class, 'create'])->name('prestamos.create');
     Route::get('prestamos/listado', [PrestamoController::class, 'listado'])->name('prestamos.listado');
     Route::get('prestamos/devoluciones', [PrestamoController::class, 'listado'])->name('prestamos.devoluciones');
+    Route::get('prestamos/vencidos', [PrestamoController::class, 'vencidos'])->name('prestamos.vencidos');
     Route::post('prestamos', [PrestamoController::class, 'store'])->name('prestamos.store');
     Route::get('prestamos/{prestamo}', [PrestamoController::class, 'show'])->name('prestamos.show');
     Route::get('prestamos/{prestamo}/edit', [PrestamoController::class, 'edit'])->name('prestamos.edit');

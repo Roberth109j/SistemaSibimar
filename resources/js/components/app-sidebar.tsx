@@ -58,6 +58,11 @@ const mainNavItems: NavItem[] = [
         href: '/prestamos/devoluciones',
         icon: BookX,
     },
+    {
+        title: 'Préstamos Vencidos',
+        href: '/prestamos/vencidos',
+        icon: BookX,
+    },
 ];
 
 const footerNavItems: NavItem[] = [
