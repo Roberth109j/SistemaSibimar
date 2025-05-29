@@ -125,7 +125,9 @@ export default function Show({ auth, libro, ejemplar, success }: EjemplarPagePro
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Autor</p>
-                    <p className="text-base font-semibold text-gray-900 dark:text-white leading-tight">{libro.autor}</p>
+                    <p className="text-base font-semibold text-gray-900 dark:text-white leading-tight">
+                      {libro.autor?.nombre_completo || `${libro.autor?.nombres || ''} ${libro.autor?.apellidos || ''}`.trim() || 'Autor no especificado'}
+                    </p>
                   </div>
                   {libro.editorial && (
                     <div className="space-y-1">
@@ -142,7 +144,7 @@ export default function Show({ auth, libro, ejemplar, success }: EjemplarPagePro
                   {libro.isbn && (
                     <div className="md:col-span-2 space-y-1">
                       <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">ISBN</p>
-                      <p className="text-sm font-mono font-medium text-blue-700 dark:text-blue-300 bg-white/60 dark:bg-gray-800/60 px-3 py-2 rounded-lg border border-blue-200/50 dark:border-blue-700/50 inline-block">
+                      <p className="text-base font-semibold text-gray-900 dark:text-white leading-tight">
                         {libro.isbn}
                       </p>
                     </div>

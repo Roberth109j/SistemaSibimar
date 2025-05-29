@@ -21,7 +21,8 @@ class EjemplarController extends Controller
      */
     public function index(int $libroId)
     {
-        $libro = Libro::findOrFail($libroId);
+        // Cargar el libro con la relación del autor
+        $libro = Libro::with('autor')->findOrFail($libroId);
         $ejemplares = Ejemplar::where('libro_id', $libroId)->get();
         
         return Inertia::render('Ejemplares/Index', [
@@ -38,7 +39,8 @@ class EjemplarController extends Controller
      */
     public function create(int $libroId)
     {
-        $libro = Libro::findOrFail($libroId);
+        // Cargar el libro con la relación del autor
+        $libro = Libro::with('autor')->findOrFail($libroId);
         
         return Inertia::render('Ejemplares/Create', [
             'libro' => $libro,
@@ -97,7 +99,8 @@ class EjemplarController extends Controller
      */
     public function show(int $libroId, int $ejemplarId)
     {
-        $libro = Libro::findOrFail($libroId);
+        // AQUÍ ESTÁ EL CAMBIO PRINCIPAL - Cargar el libro con la relación del autor
+        $libro = Libro::with('autor')->findOrFail($libroId);
         $ejemplar = Ejemplar::where('libro_id', $libroId)
             ->where('id', $ejemplarId)
             ->firstOrFail();
@@ -117,7 +120,8 @@ class EjemplarController extends Controller
      */
     public function edit(int $libroId, int $ejemplarId)
     {
-        $libro = Libro::findOrFail($libroId);
+        // Cargar el libro con la relación del autor
+        $libro = Libro::with('autor')->findOrFail($libroId);
         $ejemplar = Ejemplar::where('libro_id', $libroId)
             ->where('id', $ejemplarId)
             ->firstOrFail();

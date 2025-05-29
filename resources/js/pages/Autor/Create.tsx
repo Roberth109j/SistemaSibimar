@@ -18,9 +18,11 @@ export default function CreateAutor({ onSuccess, onError, errors = {} }: CreateM
     apellidos: ''
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Solución: Actualizar handleChange para manejar tanto input como select
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['nombres', 'apellidos'];
+    
     if (validFields.includes(name as keyof typeof data)) {
       setData(name as keyof typeof data, value);
       console.log('Form data updated - Current state:', { ...data, [name]: value });
