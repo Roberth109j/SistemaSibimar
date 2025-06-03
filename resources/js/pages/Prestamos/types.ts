@@ -16,6 +16,7 @@ export type Ejemplar = {
   codigo: string;
   estado: string;
   libro?: Libro;
+  numEjemplar?: number;
 };
 
 export type Libro = {

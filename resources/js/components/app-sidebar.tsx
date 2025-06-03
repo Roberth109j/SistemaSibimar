@@ -86,6 +86,11 @@ const mainNavItems: NavItem[] = [
         href: '/prestamos/vencidos',
         icon: BookmarkX,
     },
+    {
+        title: 'Historial de préstamos',
+        href: '/reportes/historial-prestamos',
+        icon: BookmarkX,
+    },
 ];
 
 const footerNavItems: NavItem[] = [];
@@ -129,7 +134,7 @@ export function AppSidebar() {
     const librosItem = mainNavItems.find(item => item.title === 'Libros')!;
     const lectoresItem = mainNavItems.find(item => item.title === 'Lectores')!;
     const prestamosItems = mainNavItems.filter(item => 
-        ['Prestamos', 'Devoluciones', 'Préstamos Vencidos'].includes(item.title)
+        ['Prestamos', 'Devoluciones', 'Préstamos Vencidos', 'Historial de préstamos'].includes(item.title)
     );
 
     return (
