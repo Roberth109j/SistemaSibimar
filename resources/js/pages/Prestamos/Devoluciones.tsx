@@ -91,9 +91,9 @@ export default function Devoluciones({
         preserveState: true,
         onSuccess: (page) => {
           const prestamosActivos = page.props.prestamos || [];
-          setPrestamosFiltrados(prestamosActivos);
+          setPrestamosFiltrados(prestamosActivos as Prestamo[]);
 
-          if (prestamosActivos.length === 0) {
+          if (!Array.isArray(prestamosActivos) || prestamosActivos.length === 0) {
             setNotification({
               show: true,
               type: 'error',
@@ -124,7 +124,7 @@ export default function Devoluciones({
       title="Devoluciones de Libros"
       breadcrumbs={breadcrumbs}
       renderHeader={() => (
-        <h2 className="text-xl font-semibold leading-tight text-gray-800">
+        <h2 className="text-xl font-semibold leading-tight text-gray-900 dark:text-gray-100">
           Devoluciones de Libros
         </h2>
       )}
@@ -133,22 +133,26 @@ export default function Devoluciones({
 
       {/* Notificación */}
       {notification.show && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center justify-between min-w-72 p-4 rounded-lg shadow-lg ${
-          notification.type === 'success' ? 'bg-green-50 border-l-4 border-green-500' : 'bg-red-50 border-l-4 border-red-500'
+        <div className={`fixed top-4 right-4 z-50 flex items-center justify-between min-w-72 p-4 rounded-xl shadow-lg backdrop-blur-sm border transition-all duration-300 ${
+          notification.type === 'success' 
+            ? 'bg-emerald-50/95 dark:bg-emerald-900/80 border-emerald-200 dark:border-emerald-700' 
+            : 'bg-red-50/95 dark:bg-red-900/80 border-red-200 dark:border-red-700'
         }`}>
           <div className="flex items-center">
             {notification.type === 'success' ? (
-              <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
+              <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mr-3" />
             ) : (
-              <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mr-3" />
             )}
-            <p className={notification.type === 'success' ? 'text-green-700' : 'text-red-700'}>
+            <p className={`font-medium ${notification.type === 'success' 
+              ? 'text-emerald-800 dark:text-emerald-200' 
+              : 'text-red-800 dark:text-red-200'}`}>
               {notification.message}
             </p>
           </div>
           <button
             onClick={() => setNotification(prev => ({ ...prev, show: false }))}
-            className="ml-4 text-gray-500 hover:text-gray-700"
+            className="ml-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -157,7 +161,7 @@ export default function Devoluciones({
 
       <div className="flex flex-col gap-6">
         {/* Buscador */}
-        <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border bg-white dark:bg-gray-800 p-6">
+        <div className="border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 p-6 shadow-sm">
           <div className="flex gap-4">
             <div className="flex-1">
               <input
@@ -166,12 +170,20 @@ export default function Devoluciones({
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleKeyPress}
                 placeholder="Ingrese el código del estudiante"
-                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
+                         bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+                         placeholder-gray-500 dark:placeholder-gray-400
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 
+                         focus:border-transparent transition-all duration-200"
               />
             </div>
             <button
               onClick={handleSearch}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+              disabled={!searchTerm.trim()}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 
+                       disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed
+                       text-white font-medium rounded-lg transition-all duration-200 
+                       flex items-center gap-2 shadow-sm hover:shadow-md"
             >
               <Search className="w-5 h-5" />
               Buscar
@@ -181,40 +193,79 @@ export default function Devoluciones({
 
         {/* Lista de préstamos */}
         {prestamosFiltrados.length > 0 && (
-          <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border bg-white dark:bg-gray-800 p-6">
-            <h3 className="text-lg font-semibold mb-4">Préstamos Activos</h3>
+          <div className="border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Préstamos Activos
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {prestamosFiltrados.length} préstamo{prestamosFiltrados.length !== 1 ? 's' : ''} encontrado{prestamosFiltrados.length !== 1 ? 's' : ''}
+              </p>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Libro</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ejemplar</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fecha Préstamo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fecha Devolución</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Libro
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Ejemplar
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Fecha Préstamo
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Fecha Devolución
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Estado
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {prestamosFiltrados.map((prestamo) => (
-                    <tr key={prestamo.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                    <tr key={prestamo.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150">
+                      <td className="px-6 py-4">
                         <div>
-                          <div className="font-medium text-gray-900 dark:text-gray-100">{prestamo.ejemplar.libro.titulo}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">ISBN: {prestamo.ejemplar.libro.isbn}</div>
+                          <div className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                            {prestamo.ejemplar.libro.titulo}
+                          </div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">
+                            ISBN: {prestamo.ejemplar.libro.isbn}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-gray-100">#{prestamo.ejemplar.numEjemplar}</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{prestamo.ejemplar.codigo}</div>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          #{prestamo.ejemplar.numEjemplar}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          {prestamo.ejemplar.codigo}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(prestamo.fecha_prestamo).toLocaleDateString()}
+                      <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                        {new Date(prestamo.fecha_prestamo).toLocaleDateString('es-ES', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(prestamo.fecha_devolucion).toLocaleDateString()}
+                      <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                        {new Date(prestamo.fecha_devolucion).toLocaleDateString('es-ES', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${
+                          prestamo.estado.toLowerCase() === 'activo'
+                            ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200'
+                            : prestamo.estado.toLowerCase() === 'vencido'
+                            ? 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
+                        }`}>
                           {prestamo.estado}
                         </span>
                       </td>
@@ -223,6 +274,21 @@ export default function Devoluciones({
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* Estado vacío cuando no hay resultados */}
+        {searchTerm && prestamosFiltrados.length === 0 && !notification.show && (
+          <div className="border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 p-12 text-center shadow-sm">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+              <Search className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+              No se encontraron préstamos
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              No hay préstamos activos para el código de estudiante ingresado.
+            </p>
           </div>
         )}
       </div>

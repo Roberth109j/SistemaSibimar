@@ -40,6 +40,26 @@ const breadcrumbs = [
   },
 ];
 
+// Función para calcular la fecha de devolución (2 días hábiles)
+const calcularFechaDevolucion = (fechaPrestamo: string) => {
+  const fecha = new Date(fechaPrestamo);
+  let diasAgregados = 0;
+  while (diasAgregados < 2) {
+    fecha.setDate(fecha.getDate() + 1);
+    // Si no es fin de semana (0 = domingo, 6 = sábado)
+    if (fecha.getDay() !== 0 && fecha.getDay() !== 6) {
+      diasAgregados++;
+    }
+  }
+  return fecha.toISOString().split('T')[0];
+};
+
+// Función para obtener la fecha actual en formato YYYY-MM-DD
+const obtenerFechaActual = () => {
+  const hoy = new Date();
+  return hoy.toISOString().split('T')[0];
+};
+
 export default function Index({
   auth,
   ejemplares = [],
@@ -100,6 +120,18 @@ export default function Index({
 
     return () => clearTimeout(timer);
   }, [flash]);
+
+  // Efecto para establecer las fechas cuando se abre el modal
+  useEffect(() => {
+    if (showPrestamoModal) {
+      const fechaActual = obtenerFechaActual();
+      setPrestamoForm(prev => ({
+        ...prev,
+        fecha_prestamo: fechaActual,
+        fecha_devolucion: calcularFechaDevolucion(fechaActual)
+      }));
+    }
+  }, [showPrestamoModal]);
 
   // Función para buscar libro
   const handleSearch = () => {
@@ -334,12 +366,12 @@ export default function Index({
         {/* Modal de confirmación de préstamo */}
         {showPrestamoModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-lg">
+            <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-2xl">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-semibold">Confirmar Préstamo</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Confirmar Préstamo</h3>
                 <button
                   onClick={handleCancelarPrestamo}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -347,57 +379,46 @@ export default function Index({
 
               <div className="space-y-4">
                 <div>
-                  <label className="block font-medium mb-2">Fecha de Préstamo</label>
+                  <label className="block font-medium mb-2 text-gray-700">Fecha de Préstamo</label>
                   <input
                     type="date"
                     value={prestamoForm.fecha_prestamo}
-                    onChange={(e) => setPrestamoForm(prev => ({ ...prev, fecha_prestamo: e.target.value }))}
-                    className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    readOnly
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-medium mb-2">Fecha de Devolución</label>
+                  <label className="block font-medium mb-2 text-gray-700">Fecha de Devolución</label>
                   <input
                     type="date"
                     value={prestamoForm.fecha_devolucion}
-                    onChange={(e) => setPrestamoForm(prev => ({ ...prev, fecha_devolucion: e.target.value }))}
-                    className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    readOnly
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
                   />
                 </div>
 
-{/*                 <div>
-                  <label className="block font-medium mb-2">Estado</label>
-                  <select
-                    value={prestamoForm.estado}
-                    onChange={(e) => setPrestamoForm(prev => ({ ...prev, estado: e.target.value }))}
-                    className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="ACTIVO">ACTIVO</option>
-                    <option value="VENCIDO">VENCIDO</option>
-                  </select>
-                </div> */}
-
                 <div>
-                  <label className="block font-medium mb-2">Observaciones</label>
+                  <label className="block font-medium mb-2 text-gray-700">Observaciones</label>
                   <textarea
                     value={prestamoForm.observaciones}
                     onChange={(e) => setPrestamoForm(prev => ({ ...prev, observaciones: e.target.value }))}
-                    className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                     rows={3}
+                    placeholder="Ingrese observaciones opcionales..."
                   />
                 </div>
 
-                <div className="flex justify-end gap-4 mt-6">
+                <div className="flex justify-end gap-4 pt-4">
                   <button
                     onClick={handleCancelarPrestamo}
-                    className="px-4 py-2 border rounded-md hover:bg-gray-100"
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleConfirmarPrestamo}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium shadow-sm"
                   >
                     Confirmar
                   </button>
@@ -423,15 +444,6 @@ export default function Index({
                 <X className="w-6 h-6" />
               </button>
             </div>
-
-{/*             <div className="mb-6">
-              <h4 className="font-medium mb-2">Detalles del Libro</h4>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p><span className="font-medium">Título:</span> {selectedLibro.titulo}</p>
-                <p><span className="font-medium">ISBN:</span> {selectedLibro.isbn}</p>
-                <p><span className="font-medium">Código de Ejemplar:</span> {selectedEjemplar.codigo}</p>
-              </div>
-            </div> */}
 
             <div className="mb-6">
               <label htmlFor="codigoLector" className="block font-medium mb-2">

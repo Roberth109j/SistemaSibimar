@@ -1,16 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
-import { Search, Calendar, BookX, Filter } from 'lucide-react';
+ import { Head, router, usePage } from '@inertiajs/react';
+import { Search, Calendar, BookX, Filter, X, CheckCircle } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const breadcrumbs: BreadcrumbItem[] = [
-  {
-    title: 'Dashboard',
-    href: '/dashboard',
-  },
   {
     title: 'Préstamos',
     href: '/prestamos',
@@ -56,6 +52,35 @@ export default function Vencidos({ prestamos }: Props) {
     type: '',
     message: ''
   });
+
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [prestamoSeleccionado, setPrestamoSeleccionado] = useState<number | null>(null);
+  const [fechaDevuelto, setFechaDevuelto] = useState('');
+  const [observaciones, setObservaciones] = useState('');
+
+  const handleDevolucion = (prestamoId: number) => {
+    setPrestamoSeleccionado(prestamoId);
+    setFechaDevuelto(new Date().toISOString().split('T')[0]);
+    setObservaciones('');
+    setModalAbierto(true);
+  };
+
+  const confirmarDevolucion = () => {
+    if (!prestamoSeleccionado || !fechaDevuelto) return;
+
+    router.post(`/prestamos/${prestamoSeleccionado}/devolver`, {
+      fecha_devuelto: fechaDevuelto,
+      observaciones: observaciones
+    });
+    setModalAbierto(false);
+  };
+
+  const cerrarModal = () => {
+    setModalAbierto(false);
+    setPrestamoSeleccionado(null);
+    setFechaDevuelto('');
+    setObservaciones('');
+  };
 
   const handleSearch = () => {
     router.get(
@@ -148,6 +173,7 @@ export default function Vencidos({ prestamos }: Props) {
                 <th className="px-4 py-3">Fecha Préstamo</th>
                 <th className="px-4 py-3">Fecha Devolución</th>
                 <th className="px-4 py-3">Días De Retrazo</th>
+                <th className="px-4 py-3">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
@@ -174,6 +200,14 @@ export default function Vencidos({ prestamos }: Props) {
                     <span className="px-2 py-1 text-sm font-medium text-red-800 bg-red-100 rounded-full dark:bg-red-900 dark:text-red-200">
                       {calcularDiasVencido(prestamo.fecha_devolucion)} días
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <button
+                      onClick={() => handleDevolucion(prestamo.id)}
+                      className="px-3 py-1 text-sm font-medium text-blue-600 bg-blue-100 rounded-full hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
+                    >
+                      Devolver
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -217,6 +251,64 @@ export default function Vencidos({ prestamos }: Props) {
           </div>
         )}
       </div>
+
+      {/* Modal de Devolución */}
+      {modalAbierto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-xl dark:bg-gray-800">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                Confirmar Devolución
+              </h3>
+              <button
+                onClick={cerrarModal}
+                className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Fecha de Devolución
+              </label>
+              <input
+                type="date"
+                value={fechaDevuelto}
+                onChange={(e) => setFechaDevuelto(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Observaciones
+              </label>
+              <textarea
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={cerrarModal}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarDevolucion}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
+              >
+                Confirmar Devolución
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

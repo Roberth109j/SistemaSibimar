@@ -11,6 +11,7 @@ use App\Http\Controllers\EjemplarController;
 use App\Http\Controllers\GradoController;
 use App\Http\Controllers\LectorController;
 use App\Http\Controllers\PrestamoController;
+use App\Http\Controllers\ReporteController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -98,6 +99,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Rutas para PrestamoController
     Route::get('prestamos', [PrestamoController::class, 'index'])->name('prestamos.index');
     Route::get('prestamos/create', [PrestamoController::class, 'create'])->name('prestamos.create');
+
+    // Rutas para Reportes
+    Route::get('reportes/historial-prestamos', [ReporteController::class, 'historialPrestamos'])->name('reportes.historial-prestamos');
     Route::get('prestamos/listado', [PrestamoController::class, 'listado'])->name('prestamos.listado');
     Route::get('prestamos/devoluciones', [PrestamoController::class, 'listado'])->name('prestamos.devoluciones');
     Route::get('prestamos/vencidos', [PrestamoController::class, 'vencidos'])->name('prestamos.vencidos');
