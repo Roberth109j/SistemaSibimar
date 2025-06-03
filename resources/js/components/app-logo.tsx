@@ -4,7 +4,7 @@ export default function AppLogo() {
       <img 
         src="/IMG/escudo.png" 
         alt="Escudo del Colegio" 
-        className="h-10 w-auto transition-transform duration-300 group-hover:scale-110" 
+        className="h-8 w-auto transition-transform duration-300 group-hover:scale-110" 
       />
       <div className="ml-2 flex flex-col justify-center">
         <span className="text-[9px] font-light text-gray-800 dark:text-gray-200 transition-colors duration-300 group-hover:text-blue-700 dark:group-hover:text-blue-400">Colegio</span>
