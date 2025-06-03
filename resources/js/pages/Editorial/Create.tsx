@@ -19,7 +19,8 @@ export default function CreateEditorial({ onSuccess, onError, errors = {} }: Cre
     ciudad: ''
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Solución: Actualizar handleChange para manejar tanto input como select
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['nombre', 'pais', 'ciudad'];
     if (validFields.includes(name as keyof typeof data)) {
@@ -49,7 +50,6 @@ export default function CreateEditorial({ onSuccess, onError, errors = {} }: Cre
       value: data.pais,
       onChange: handleChange
     },
-    
     {
       name: 'ciudad',
       label: 'Ciudad',

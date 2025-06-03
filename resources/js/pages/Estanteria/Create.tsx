@@ -18,7 +18,7 @@ export default function CreateEstanteria({ onSuccess, onError, errors = {} }: Cr
     descripcion: ''
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['cod_estante', 'descripcion'];
     if (validFields.includes(name as keyof typeof data)) {
