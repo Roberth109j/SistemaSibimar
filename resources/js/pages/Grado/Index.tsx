@@ -277,13 +277,13 @@ const Index = ({ auth, grados, flash, errors = {} }: IndexProps) => {
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                       {paginatedGrados.map((grado) => (
                         <tr key={grado.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{grado.id}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{grado.grado}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{grado.subGrado || '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{getSeccionNombre(grado.seccion_id)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{grado.estado}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex space-x-4">
+                          <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">{grado.id}</td>
+                          <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">{grado.grado}</td>
+                          <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">{grado.subGrado || '-'}</td>
+                          <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">{getSeccionNombre(grado.seccion_id)}</td>
+                          <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 text-sm">{grado.estado}</td>
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            <div className="flex space-x-2">
                               <ShowGrado grado={grado} />
                               <EditGrado
                                 grado={grado}

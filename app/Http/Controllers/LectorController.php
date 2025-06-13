@@ -18,6 +18,10 @@ class LectorController extends Controller
      */
     public function index(Request $request): Response
     {
+        // Validación de parámetros de paginación
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 10; // Valor fijo de 10 elementos por página
+
         // Query base con relaciones necesarias y conteo de préstamos activos
         $query = Lector::with(['grado.seccion'])
             ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
@@ -42,16 +46,24 @@ class LectorController extends Controller
             $query->where('lectores.tipo', $request->tipo);
         }
 
-        if ($request->filled('grado')) {
-            $query->where('lectores.grado_id', $request->grado);
+        // ⭐ LÍNEA CAMBIADA: Filtro por subgrado en lugar de grado_id
+        if ($request->filled('subgrado')) {
+            $query->where('grados.subGrado', $request->subgrado);
         }
 
         if ($request->filled('estado')) {
             $query->where('lectores.estado', $request->estado); // Especificar tabla lectores
         }
 
-        // Paginación optimizada
-        $lectores = $query->paginate(10)->withQueryString();
+        // Paginación mejorada
+        $lectores = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+
+        // Redirigir si la página solicitada no existe pero hay resultados
+        if ($page > $lectores->lastPage() && $lectores->lastPage() > 0) {
+            return redirect()->route('lectores.index', 
+                array_merge($request->query(), ['page' => $lectores->lastPage()])
+            );
+        }
 
         // Datos para filtros
         $grados = Grado::select('id', 'grado', 'subGrado')
@@ -76,7 +88,16 @@ class LectorController extends Controller
             'grados' => $grados,
             'tipos' => $tipos,
             'estados' => $estados,
-            'filters' => $request->only(['search', 'tipo', 'grado', 'estado']),
+            'filters' => array_filter($request->only(['search', 'tipo', 'subgrado', 'estado'])), // ⭐ CAMBIADO: 'grado' por 'subgrado'
+            'pagination' => [
+                'current_page' => $lectores->currentPage(),
+                'last_page' => $lectores->lastPage(),
+                'per_page' => $lectores->perPage(),
+                'total' => $lectores->total(),
+                'from' => $lectores->firstItem(),
+                'to' => $lectores->lastItem(),
+                'has_pages' => $lectores->hasPages(),
+            ],
         ]);
     }
 

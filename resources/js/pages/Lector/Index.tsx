@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Search, CheckCircle, AlertCircle, X, Plus, Filter } from 'lucide-react';
+import { Search, CheckCircle, AlertCircle, X, Plus, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import AppLayout from '../../layouts/app-layout';
 import { type BreadcrumbItem, type Lector, type Grado } from './types';
 import ShowLector from './Show';
@@ -18,22 +18,35 @@ type PaginatedLectors = {
   total?: number;
   current_page: number;
   last_page: number;
+  per_page?: number;
 };
 
 type IndexProps = {
   auth: {
     user: any;
   };
-  lectores: PaginatedLectors | { data: Lector[]; total?: number }; // Allow non-paginated case
+  lectores: PaginatedLectors | { data: Lector[]; total?: number };
   flash?: FlashMessage;
   errors?: Record<string, string>;
   filters?: {
     search?: string;
     tipo?: string;
-    grado?: string;
+    subgrado?: string;
     estado?: string;
   };
   grados?: Grado[];
+  // Nuevos props del backend mejorado
+  perPageOptions?: number[];
+  currentPerPage?: number;
+  pagination?: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    has_pages: boolean;
+  };
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -109,14 +122,24 @@ function AlertNotification({
   );
 }
 
-const Index = ({ auth, lectores, flash, errors = {}, filters: initialFilters = {}, grados = [] }: IndexProps) => {
+const Index = ({ 
+  auth, 
+  lectores, 
+  flash, 
+  errors = {}, 
+  filters: initialFilters = {}, 
+  grados = [],
+  perPageOptions = [10, 25, 50, 100],
+  currentPerPage = 10,
+  pagination
+}: IndexProps) => {
   const page = usePage();
 
   const [searchTerm, setSearchTerm] = useState(initialFilters.search || '');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState({
     tipo: initialFilters.tipo || '',
-    grado: initialFilters.grado || '',
+    subgrado: initialFilters.subgrado || '',
     estado: initialFilters.estado || '',
   });
 
@@ -142,12 +165,13 @@ const Index = ({ auth, lectores, flash, errors = {}, filters: initialFilters = {
     }
   }, [flash, page.props.flash]);
 
-  const applyFilters = (currentSearchTerm: string, currentSelectedFilters: typeof selectedFilters): void => {
+  const applyFilters = (currentSearchTerm: string, currentSelectedFilters: typeof selectedFilters, perPage?: number): void => {
     const params = new URLSearchParams();
     if (currentSearchTerm) params.set('search', currentSearchTerm);
     if (currentSelectedFilters.tipo) params.set('tipo', currentSelectedFilters.tipo);
-    if (currentSelectedFilters.grado) params.set('grado', currentSelectedFilters.grado);
+    if (currentSelectedFilters.subgrado) params.set('subgrado', currentSelectedFilters.subgrado);
     if (currentSelectedFilters.estado) params.set('estado', currentSelectedFilters.estado);
+    if (perPage) params.set('per_page', perPage.toString());
 
     router.get(`/lectores?${params.toString()}`, {}, {
       preserveState: true,
@@ -172,17 +196,35 @@ const Index = ({ auth, lectores, flash, errors = {}, filters: initialFilters = {
     applyFilters(searchTerm, newFilters);
   };
 
+  const handlePerPageChange = (newPerPage: number): void => {
+    applyFilters(searchTerm, selectedFilters, newPerPage);
+  };
+
   const resetFilters = (): void => {
     setSearchTerm('');
     setSelectedFilters({
       tipo: '',
-      grado: '',
+      subgrado: '',
       estado: ''
     });
     router.get('/lectores', {}, {
       preserveState: true,
       preserveScroll: true,
     });
+  };
+
+  // Obtener lista única de subgrados para el filtro
+  const uniqueSubgrados = [...new Set(grados?.map(grado => grado.subGrado).filter(Boolean))];
+
+  // Usar datos de paginación mejorados si están disponibles, sino fallback a los originales
+  const paginationData = pagination || {
+    current_page: 'current_page' in lectores ? lectores.current_page : 1,
+    last_page: 'last_page' in lectores ? lectores.last_page : 1,
+    per_page: currentPerPage,
+    total: lectores.total || 0,
+    from: 'from' in lectores ? lectores.from : null,
+    to: 'to' in lectores ? lectores.to : null,
+    has_pages: (lectores.total || 0) > currentPerPage
   };
 
   const renderAlerts = () => {
@@ -207,7 +249,7 @@ const Index = ({ auth, lectores, flash, errors = {}, filters: initialFilters = {
   };
 
   const content = (
-    <div className="py-8 px-6 bg-slate-50 dark:bg-gray-900 min-h-screen">
+    <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
       {renderAlerts()}
       <div className="absolute inset-0 overflow-hidden pointer-events-none fixed">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
@@ -259,7 +301,7 @@ const Index = ({ auth, lectores, flash, errors = {}, filters: initialFilters = {
               <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Filtros avanzados</h3>
               <button
                 onClick={resetFilters}
-                className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
               >
                 Restablecer filtros
               </button>
@@ -269,7 +311,7 @@ const Index = ({ auth, lectores, flash, errors = {}, filters: initialFilters = {
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tipo</label>
                 <select
-                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
+                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={selectedFilters.tipo}
                   onChange={(e) => handleFilterChange('tipo', e.target.value)}
                 >
@@ -281,16 +323,16 @@ const Index = ({ auth, lectores, flash, errors = {}, filters: initialFilters = {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Grado</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">SubGrado</label>
                 <select
-                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
-                  value={selectedFilters.grado}
-                  onChange={(e) => handleFilterChange('grado', e.target.value)}
+                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={selectedFilters.subgrado}
+                  onChange={(e) => handleFilterChange('subgrado', e.target.value)}
                 >
-                  <option value="">Todos los grados</option>
-                  {grados.map((grado) => (
-                    <option key={grado.id} value={grado.id}>
-                      {grado.grado}
+                  <option value="">Todos los subgrados</option>
+                  {uniqueSubgrados.map((subgrado, index) => (
+                    <option key={index} value={subgrado}>
+                      {subgrado}
                     </option>
                   ))}
                 </select>
@@ -299,7 +341,7 @@ const Index = ({ auth, lectores, flash, errors = {}, filters: initialFilters = {
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Estado</label>
                 <select
-                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
+                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={selectedFilters.estado}
                   onChange={(e) => handleFilterChange('estado', e.target.value)}
                 >
@@ -309,6 +351,13 @@ const Index = ({ auth, lectores, flash, errors = {}, filters: initialFilters = {
                 </select>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Información de resultados mejorada */}
+        {paginationData.total > 0 && (
+          <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            Mostrando {paginationData.from || 1} a {paginationData.to || lectores.data.length} de {paginationData.total} resultados
           </div>
         )}
 
@@ -330,14 +379,14 @@ const Index = ({ auth, lectores, flash, errors = {}, filters: initialFilters = {
                 {lectores.data.length > 0 ? (
                   lectores.data.map((lector) => (
                     <tr key={lector.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-3 whitespace-nowrap">
                         <span className="text-sm font-mono text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                           {lector.codigo}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{lector.nombre}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                      <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">{lector.nombre}</td>
+                      <td className="px-6 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                           lector.tipo === 'ESTUDIANTE' 
                             ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' 
                             : lector.tipo === 'DOCENTE'
@@ -347,11 +396,11 @@ const Index = ({ auth, lectores, flash, errors = {}, filters: initialFilters = {
                           {lector.tipo}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                      <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 text-sm">
                         {lector.grado?.subGrado || '—'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                      <td className="px-6 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                           lector.estado === 'ACTIVO' 
                             ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
                             : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
@@ -359,16 +408,16 @@ const Index = ({ auth, lectores, flash, errors = {}, filters: initialFilters = {
                           {lector.estado}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex space-x-4">
+                      <td className="px-6 py-3 whitespace-nowrap">
+                        <div className="flex space-x-2">
                           <ShowLector lector={lector} />
                           <Link
                             href={route('lectores.edit', lector.id)}
                             className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 
-                                      transition-colors p-1.5 bg-amber-50 dark:bg-amber-900/30 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-800/40"
+                                      transition-colors p-1 bg-amber-50 dark:bg-amber-900/30 rounded hover:bg-amber-100 dark:hover:bg-amber-800/40"
                             title="Editar"
                           >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                               <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                             </svg>
                           </Link>
@@ -388,86 +437,105 @@ const Index = ({ auth, lectores, flash, errors = {}, filters: initialFilters = {
           </div>
         </div>
 
-        {/* Paginación mejorada */}
-        {lectores.total && lectores.total > 10 && 'current_page' in lectores && 'last_page' in lectores && (
-          <div className="mt-6 flex justify-center items-center space-x-2">
-            <Link
-              href={lectores.links?.find(link => link.label.includes('Previous'))?.url || '#'}
-              className={`flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors ${
-                !lectores.links?.find(link => link.label.includes('Previous'))?.url ? 'cursor-not-allowed opacity-50' : ''
-              }`}
-              onClick={(e) => {
-                if (!lectores.links?.find(link => link.label.includes('Previous'))?.url) e.preventDefault();
-              }}
-              preserveState
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" />
-              </svg>
-            </Link>
+        {/* Paginación mejorada y más robusta */}
+        {paginationData.has_pages && paginationData.last_page > 1 && (
+          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+            {/* Información de paginación */}
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Página {paginationData.current_page} de {paginationData.last_page}
+            </div>
 
-            {[...Array(lectores.last_page)].map((_, index) => {
-              const pageNum = index + 1;
-              const maxVisiblePages = 5;
-              const currentPage = lectores.current_page;
-              const halfVisible = Math.floor(maxVisiblePages / 2);
+            {/* Controles de paginación */}
+            <div className="flex items-center space-x-2">
+              {/* Botón anterior */}
+              <Link
+                href={paginationData.current_page > 1 ? 
+                  `${window.location.pathname}?${new URLSearchParams({
+                    ...Object.fromEntries(new URLSearchParams(window.location.search)),
+                    page: String(paginationData.current_page - 1)
+                  })}` : '#'}
+                className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+                  paginationData.current_page > 1
+                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                }`}
+                onClick={(e) => {
+                  if (paginationData.current_page <= 1) e.preventDefault();
+                }}
+                preserveState
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Link>
 
-              let showPage = false;
-              if (lectores.last_page <= maxVisiblePages) {
-                showPage = true;
-              } else if (
-                pageNum === 1 ||
-                pageNum === lectores.last_page ||
-                (pageNum >= currentPage - halfVisible && pageNum <= currentPage + halfVisible)
-              ) {
-                showPage = true;
-              }
+              {/* Números de página */}
+              {[...Array(paginationData.last_page)].map((_, index) => {
+                const pageNum = index + 1;
+                const maxVisiblePages = 5;
+                const currentPage = paginationData.current_page;
+                const halfVisible = Math.floor(maxVisiblePages / 2);
 
-              if (showPage) {
-                return (
-                  <Link
-                    key={pageNum}
-                    href={lectores.links?.find(link => link.label === String(pageNum))?.url || '#'}
-                    className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors ${
-                      currentPage === pageNum
-                        ? 'bg-blue-600 text-white shadow-md'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                    } ${!lectores.links?.find(link => link.label === String(pageNum))?.url ? 'cursor-not-allowed opacity-50' : ''}`}
-                    onClick={(e) => {
-                      if (!lectores.links?.find(link => link.label === String(pageNum))?.url) e.preventDefault();
-                    }}
-                    preserveState
-                  >
-                    {pageNum}
-                  </Link>
-                );
-              } else if (
-                (pageNum === 2 && currentPage > halfVisible + 1) ||
-                (pageNum === lectores.last_page - 1 && currentPage < lectores.last_page - halfVisible)
-              ) {
-                return (
-                  <span key={pageNum} className="flex items-center justify-center w-10 h-10 text-sm font-medium text-gray-500 dark:text-gray-400">
-                    ...
-                  </span>
-                );
-              }
-              return null;
-            })}
+                let showPage = false;
+                if (paginationData.last_page <= maxVisiblePages) {
+                  showPage = true;
+                } else if (
+                  pageNum === 1 ||
+                  pageNum === paginationData.last_page ||
+                  (pageNum >= currentPage - halfVisible && pageNum <= currentPage + halfVisible)
+                ) {
+                  showPage = true;
+                }
 
-            <Link
-              href={lectores.links?.find(link => link.label.includes('Next'))?.url || '#'}
-              className={`flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors ${
-                !lectores.links?.find(link => link.label.includes('Next'))?.url ? 'cursor-not-allowed opacity-50' : ''
-              }`}
-              onClick={(e) => {
-                if (!lectores.links?.find(link => link.label.includes('Next'))?.url) e.preventDefault();
-              }}
-              preserveState
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" />
-              </svg>
-            </Link>
+                if (showPage) {
+                  return (
+                    <Link
+                      key={pageNum}
+                      href={`${window.location.pathname}?${new URLSearchParams({
+                        ...Object.fromEntries(new URLSearchParams(window.location.search)),
+                        page: String(pageNum)
+                      })}`}
+                      className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                      preserveState
+                    >
+                      {pageNum}
+                    </Link>
+                  );
+                } else if (
+                  (pageNum === 2 && currentPage > halfVisible + 1) ||
+                  (pageNum === paginationData.last_page - 1 && currentPage < paginationData.last_page - halfVisible)
+                ) {
+                  return (
+                    <span key={pageNum} className="flex items-center justify-center w-10 h-10 text-sm font-medium text-gray-500 dark:text-gray-400">
+                      ...
+                    </span>
+                  );
+                }
+                return null;
+              })}
+
+              {/* Botón siguiente */}
+              <Link
+                href={paginationData.current_page < paginationData.last_page ? 
+                  `${window.location.pathname}?${new URLSearchParams({
+                    ...Object.fromEntries(new URLSearchParams(window.location.search)),
+                    page: String(paginationData.current_page + 1)
+                  })}` : '#'}
+                className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+                  paginationData.current_page < paginationData.last_page
+                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                }`}
+                onClick={(e) => {
+                  if (paginationData.current_page >= paginationData.last_page) e.preventDefault();
+                }}
+                preserveState
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Link>
+            </div>
           </div>
         )}
       </div>

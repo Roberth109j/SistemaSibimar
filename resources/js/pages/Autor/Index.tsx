@@ -243,12 +243,12 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
                     {paginatedAutores.length > 0 ? (
                       paginatedAutores.map((autor) => (
                         <tr key={autor.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{autor.id}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{autor.nombres}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{autor.apellidos}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{`${autor.nombres} ${autor.apellidos}`}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex space-x-4">
+                          <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">{autor.id}</td>
+                          <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">{autor.nombres}</td>
+                          <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">{autor.apellidos}</td>
+                          <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 text-sm">{`${autor.nombres} ${autor.apellidos}`}</td>
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            <div className="flex space-x-2">
                               <ShowAutor autor={autor} />
                               <EditAutor
                                 autor={autor}
