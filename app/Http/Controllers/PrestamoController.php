@@ -116,7 +116,7 @@ class PrestamoController extends Controller
                 'fecha_devolucion' => $request->fecha_devolucion,
                 'fecha_devuelto' => null,
                 'estado' => 'ACTIVO',
-                'observaciones' => $request->observaciones ?? 'Préstamo generado desde el sistema'
+                'observaciones' => $request->observaciones ?? ''
             ]);
 
             // Actualizar estado del ejemplar
