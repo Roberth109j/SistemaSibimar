@@ -84,7 +84,7 @@ export default function Vencidos({ prestamos }: Props) {
 
   const handleSearch = () => {
     router.get(
-      route('prestamos.vencidos'),
+      '/prestamos/vencidos',
       { search: searchTerm, dias_vencido: diasVencido },
       { preserveState: true }
     );
@@ -93,7 +93,7 @@ export default function Vencidos({ prestamos }: Props) {
   const handleFilterChange = (dias: string) => {
     setDiasVencido(dias);
     router.get(
-      route('prestamos.vencidos'),
+      '/prestamos/vencidos',
       { search: searchTerm, dias_vencido: dias },
       { preserveState: true }
     );
@@ -109,10 +109,13 @@ export default function Vencidos({ prestamos }: Props) {
 
   return (
     <AppLayout
-      title="Préstamos Vencidos"
       breadcrumbs={breadcrumbs}
-      renderHeader={() => (
-        <div className="flex items-center justify-between">
+    >
+      <Head title="Préstamos Vencidos" />
+
+      <div className="p-6 overflow-hidden bg-white shadow-sm dark:bg-gray-800 sm:rounded-lg">
+        {/* Header con título y contador */}
+        <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
             Préstamos Vencidos
           </h2>
@@ -120,11 +123,7 @@ export default function Vencidos({ prestamos }: Props) {
             {prestamos.total} vencidos
           </span>
         </div>
-      )}
-    >
-      <Head title="Préstamos Vencidos" />
 
-      <div className="p-6 overflow-hidden bg-white shadow-sm dark:bg-gray-800 sm:rounded-lg">
         {/* Barra de búsqueda y filtros */}
         <div className="flex flex-col gap-4 mb-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center flex-1 gap-4">
