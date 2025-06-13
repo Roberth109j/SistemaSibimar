@@ -1,113 +1,124 @@
 import { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import { Search, Book, BookOpen, UserCheck, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { CheckCircle, AlertCircle, X, AlertTriangle } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { 
+  type PrestamoPageProps, 
+  type Libro, 
+  type Ejemplar, 
+  type NotificationType, 
+  type PrestamoForm 
+} from './types';
 
-// Tipos para TypeScript
-/**
- * @typedef {Object} Libro
- * @property {number} id
- * @property {string} isbn
- * @property {string} titulo
- * @property {Object} autor
- * @property {Object} editorial
- * @property {Object} seccion
- */
-
-/**
- * @typedef {Object} Ejemplar
- * @property {number} id
- * @property {string} codigo
- * @property {string} estado
- * @property {number} libro_id
- * @property {number} numEjemplar
- */
-
-/**
- * @typedef {Object} PrestamoPageProps
- * @property {Object} auth
- * @property {Ejemplar[]} ejemplares
- * @property {Object} flash
- * @property {Libro} libro
- */
+// Componentes del wizard
+import { IndicadorPasos } from './components/IndicadorPasos';
+import { PasoBuscarLibro } from './components/PasoBuscarLibro';
+import { PasoSeleccionarEjemplar } from './components/PasoSeleccionarEjemplar';
+import { PasoEscanearEstudiante } from './components/PasoEscanearEstudiante';
+import { ResumenPrestamo } from './components/ResumenPrestamo';
 
 // Constantes
-const breadcrumbs = [
+const breadcrumbs: BreadcrumbItem[] = [
   {
     title: 'Préstamos',
     href: '/prestamos',
   },
+  {
+    title: 'Nuevo Préstamo',
+    href: '#',
+  },
 ];
 
-// Función para calcular la fecha de devolución (2 días hábiles)
-const calcularFechaDevolucion = (fechaPrestamo: string) => {
-  const fecha = new Date(fechaPrestamo);
+// Función para obtener la fecha actual
+const obtenerFechaActual = (): string => {
+  // Crear fecha con la zona horaria de Bogotá
+  const hoy = new Date();
+  // Formatear como YYYY-MM-DD asegurando que sea la fecha correcta en Colombia
+  const año = hoy.getFullYear();
+  const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+  const dia = String(hoy.getDate()).padStart(2, '0');
+  return `${año}-${mes}-${dia}`;
+};
+
+// Función para calcular fecha de devolución por defecto (2 días hábiles)
+const calcularFechaDevolucionDefault = (fechaPrestamo: string): string => {
+  // Parsear fecha de préstamo y crear una nueva fecha a medianoche para evitar problemas de zona horaria
+  const [año, mes, dia] = fechaPrestamo.split('-').map(Number);
+  const fecha = new Date(año, mes - 1, dia, 0, 0, 0);
+  
   let diasAgregados = 0;
   while (diasAgregados < 2) {
     fecha.setDate(fecha.getDate() + 1);
-    // Si no es fin de semana (0 = domingo, 6 = sábado)
     if (fecha.getDay() !== 0 && fecha.getDay() !== 6) {
       diasAgregados++;
     }
   }
-  return fecha.toISOString().split('T')[0];
-};
-
-// Función para obtener la fecha actual en formato YYYY-MM-DD
-const obtenerFechaActual = () => {
-  const hoy = new Date();
-  return hoy.toISOString().split('T')[0];
+  
+  // Formatear la fecha de resultado como YYYY-MM-DD
+  const añoResultado = fecha.getFullYear();
+  const mesResultado = String(fecha.getMonth() + 1).padStart(2, '0');
+  const diaResultado = String(fecha.getDate()).padStart(2, '0');
+  return `${añoResultado}-${mesResultado}-${diaResultado}`;
 };
 
 export default function Index({
   auth,
-  ejemplares = [],
-  libro = null,
+  ejemplares: ejemplaresIniciales = [],
+  libro: libroInicial = null,
   flash = {},
-}) {
+}: PrestamoPageProps) {
   const { errors = {} } = usePage().props;
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedLibro, setSelectedLibro] = useState(libro);
-  const [selectedEjemplar, setSelectedEjemplar] = useState(null);
-  const [codigoLector, setCodigoLector] = useState('');
-  const [view, setView] = useState(libro ? 'ejemplares' : 'search');
-  const [notification, setNotification] = useState({
-    show: false,
-    type: '',
-    message: ''
-  });
-  const [showPrestamoModal, setShowPrestamoModal] = useState(false);
-  const [prestamoForm, setPrestamoForm] = useState({
-    fecha_prestamo: '',
+  
+  // Estado del wizard
+  const [pasoActual, setPasoActual] = useState<1 | 2 | 3 | 4>(1);
+  const [libroSeleccionado, setLibroSeleccionado] = useState<Libro | null>(
+    libroInicial && 'id' in libroInicial ? libroInicial : null
+  );
+  const [ejemplarSeleccionado, setEjemplarSeleccionado] = useState<Ejemplar | null>(null);
+  const [codigoEstudiante, setCodigoEstudiante] = useState<string>('');
+  const [ejemplaresDisponibles, setEjemplaresDisponibles] = useState<Ejemplar[]>(
+    Array.isArray(ejemplaresIniciales) ? ejemplaresIniciales : []
+  );
+  const [cargando, setCargando] = useState<boolean>(false);
+  const [mostrarResumen, setMostrarResumen] = useState<boolean>(false);
+  
+  // Estado del formulario de préstamo
+  const [formularioPrestamo, setFormularioPrestamo] = useState<PrestamoForm>({
+    fecha_prestamo: obtenerFechaActual(),
     fecha_devolucion: '',
     estado: 'ACTIVO',
     observaciones: ''
   });
-  const [availableEjemplares, setAvailableEjemplares] = useState(ejemplares);
+  
+  // Estado de notificaciones
+  const [notificacion, setNotificacion] = useState<NotificationType>({
+    show: false,
+    type: 'success',
+    message: ''
+  });
 
-  // Inicializar el estado con los datos recibidos
+  // Inicializar si viene con libro preseleccionado
   useEffect(() => {
-    if (libro) {
-      setSelectedLibro(libro);
-      setView('ejemplares');
+    if (libroInicial && 'id' in libroInicial) {
+      setLibroSeleccionado(libroInicial as Libro);
+      setPasoActual(2);
     }
-    
-    if (ejemplares && ejemplares.length > 0) {
-      setAvailableEjemplares(ejemplares);
+    if (ejemplaresIniciales && Array.isArray(ejemplaresIniciales) && ejemplaresIniciales.length > 0) {
+      setEjemplaresDisponibles(ejemplaresIniciales);
     }
-  }, [libro, ejemplares]);
+  }, [libroInicial, ejemplaresIniciales]);
 
-  // Mostrar notificaciones de flash
+  // Mostrar notificaciones flash
   useEffect(() => {
     if (flash?.success) {
-      setNotification({
+      setNotificacion({
         show: true,
         type: 'success',
         message: flash.success
       });
     } else if (flash?.error) {
-      setNotification({
+      setNotificacion({
         show: true,
         type: 'error',
         message: flash.error
@@ -115,364 +126,283 @@ export default function Index({
     }
 
     const timer = setTimeout(() => {
-      setNotification(prev => ({ ...prev, show: false }));
+      setNotificacion(prev => ({ ...prev, show: false }));
     }, 5000);
 
     return () => clearTimeout(timer);
   }, [flash]);
 
-  // Efecto para establecer las fechas cuando se abre el modal
+  // Actualizar fecha de devolución cuando se selecciona el ejemplar
   useEffect(() => {
-    if (showPrestamoModal) {
-      const fechaActual = obtenerFechaActual();
-      setPrestamoForm(prev => ({
+    if (ejemplarSeleccionado) {
+      const fechaDefault = calcularFechaDevolucionDefault(formularioPrestamo.fecha_prestamo);
+      setFormularioPrestamo(prev => ({
         ...prev,
-        fecha_prestamo: fechaActual,
-        fecha_devolucion: calcularFechaDevolucion(fechaActual)
+        fecha_devolucion: fechaDefault
       }));
     }
-  }, [showPrestamoModal]);
+  }, [ejemplarSeleccionado, formularioPrestamo.fecha_prestamo]);
 
-  // Función para buscar libro
-  const handleSearch = () => {
-    if (!searchTerm.trim()) return;
-
+  // Buscar libro
+  const handleBuscarLibro = (codigoLibro: string) => {
+    if (!codigoLibro.trim()) return;
+    
+    setCargando(true);
     router.get(
       route('libros.search'),
-      { search: searchTerm },
+      { search: codigoLibro },
       {
         preserveState: true,
         onSuccess: (page) => {
           const libro = page.props.libro;
-          const ejemplares = page.props.ejemplares;
+          const ejemplares = page.props.ejemplares || [];
           
-          if (libro) {
-            setSelectedLibro(libro);
-            setAvailableEjemplares(ejemplares || []);
-            setView('ejemplares');
+          if (libro) {  // Verificar que sea un objeto Libro válido
+            setLibroSeleccionado(libro as Libro);
+            setEjemplaresDisponibles(Array.isArray(ejemplares) ? ejemplares : []);
+            setPasoActual(2);
           } else {
-            setNotification({
+            setNotificacion({
               show: true,
               type: 'error',
-              message: 'No se encontró el libro'
+              message: 'No se encontró ningún libro con el ISBN proporcionado'
             });
           }
+          setCargando(false);
         },
-        onError: () => {
-          setNotification({
+        onError: (errors) => {
+          setNotificacion({
             show: true,
             type: 'error',
-            message: 'No se encontró el libro'
+            message: errors.message || 'No se encontró ningún libro con el ISBN proporcionado'
           });
+          setCargando(false);
         }
       }
     );
   };
 
-  // Función para realizar préstamo
-  const handlePrestamo = () => {
-    if (!selectedEjemplar || !codigoLector.trim()) return;
-    setShowPrestamoModal(true);
+  // Seleccionar ejemplar
+  const handleSeleccionarEjemplar = (ejemplar: Ejemplar) => {
+    setEjemplarSeleccionado(ejemplar);
+    setPasoActual(3);
   };
 
-  // Función para limpiar el formulario y volver a la página principal
-  const resetFormAndRedirect = () => {
-    setShowPrestamoModal(false);
-    setView('search');
-    setSelectedLibro(null);
-    setSelectedEjemplar(null);
-    setCodigoLector('');
-    setSearchTerm('');
-    setAvailableEjemplares([]);
-    setPrestamoForm({
-      fecha_prestamo: '',
+  // Escanear código de estudiante
+  const handleEscanearEstudiante = (codigo: string) => {
+    setCodigoEstudiante(codigo);
+    setMostrarResumen(true);
+  };
+
+  // Confirmar préstamo
+  const handleConfirmarPrestamo = () => {
+    if (!ejemplarSeleccionado || !codigoEstudiante.trim()) return;
+
+    setCargando(true);
+    router.post(
+      route('prestamos.store'),
+      {
+        ejemplar_id: ejemplarSeleccionado.id,
+        codigo_lector: codigoEstudiante,
+        fecha_prestamo: formularioPrestamo.fecha_prestamo,
+        fecha_devolucion: formularioPrestamo.fecha_devolucion,
+        estado: formularioPrestamo.estado,
+        observaciones: formularioPrestamo.observaciones,
+      },
+      {
+        onSuccess: () => {
+          setNotificacion({
+            show: true,
+            type: 'success',
+            message: '¡Préstamo registrado exitosamente!'
+          });
+          
+          // Reiniciar después de un breve delay
+          setTimeout(() => {
+            handleReiniciar();
+          }, 2000);
+        },
+        onError: (errors) => {
+          setCargando(false);
+          
+          // Si hay error de código de lector, volver al paso 3 para mostrar el error
+          if (errors.codigo_lector) {
+            setMostrarResumen(false);
+            // El error se mostrará automáticamente en el componente PasoEscanearEstudiante
+          } else {
+            // Para otros errores, mostrar notificación general
+            const errorMessage = errors.ejemplar_id || 'Error al procesar el préstamo';
+            setNotificacion({
+              show: true,
+              type: 'error',
+              message: errorMessage
+            });
+          }
+        }
+      }
+    );
+  };
+
+  // Reiniciar formulario
+  const handleReiniciar = () => {
+    setPasoActual(1);
+    setLibroSeleccionado(null);
+    setEjemplarSeleccionado(null);
+    setCodigoEstudiante('');
+    setEjemplaresDisponibles([]);
+    setMostrarResumen(false);
+    setCargando(false);
+    setFormularioPrestamo({
+      fecha_prestamo: obtenerFechaActual(),
       fecha_devolucion: '',
       estado: 'ACTIVO',
       observaciones: ''
     });
   };
 
-  // Función para confirmar y guardar el préstamo
-  const handleConfirmarPrestamo = () => {
-    if (!selectedEjemplar || !codigoLector.trim()) return;
-
-    router.post(
-      route('prestamos.store'),
-      {
-        ejemplar_id: selectedEjemplar.id,
-        codigo_lector: codigoLector,
-        fecha_prestamo: prestamoForm.fecha_prestamo,
-        fecha_devolucion: prestamoForm.fecha_devolucion,
-        estado: prestamoForm.estado,
-        observaciones: prestamoForm.observaciones,
-      },
-      {
-        onSuccess: () => {
-          // Cuando se confirma, volver a la página principal y limpiar todos los datos
-          router.visit(route('prestamos.index'), {
-            onSuccess: () => {
-              resetFormAndRedirect();
-            }
-          });
-        },
-        onError: (errors) => {
-          // Manejar errores específicos
-          setShowPrestamoModal(false);
-          const errorMessage = errors.codigo_lector || errors.ejemplar_id || 'Error al procesar el préstamo';
-          setNotification({
-            show: true,
-            type: 'error',
-            message: errorMessage
-          });
-        }
-      }
-    );
+  // Navegar entre pasos
+  const handlePasoAnterior = () => {
+    if (pasoActual > 1) {
+      setPasoActual((pasoActual - 1) as 1 | 2 | 3);
+    }
   };
 
-  // Función para cancelar el préstamo
-  const handleCancelarPrestamo = () => {
-    setShowPrestamoModal(false);
-    resetFormAndRedirect();
-  };
-
-  // Manejar la tecla Enter en el campo de búsqueda
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleSearch();
+  // Puede avanzar al siguiente paso
+  const puedeAvanzar = (): boolean => {
+    switch (pasoActual) {
+      case 1: return !!libroSeleccionado;
+      case 2: return !!ejemplarSeleccionado;
+      case 3: return !!codigoEstudiante.trim();
+      default: return false;
     }
   };
 
   return (
     <AppLayout
-      title="Gestión de Préstamos"
       breadcrumbs={breadcrumbs}
       renderHeader={() => (
-        <h2 className="text-xl font-semibold leading-tight text-gray-800">
+        <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-white">
           Gestión de Préstamos
         </h2>
       )}
     >
-      <Head title="Gestión de Préstamos" />
+      <Head title="Nuevo Préstamo" />
 
-      {/* Notificación */}
-      {notification.show && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center justify-between min-w-72 p-4 rounded-lg shadow-lg ${
-          notification.type === 'success' ? 'bg-green-50 border-l-4 border-green-500' : 'bg-red-50 border-l-4 border-red-500'
-        }`}>
-          <div className="flex items-center">
-            {notification.type === 'success' ? (
-              <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-            ) : (
-              <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
-            )}
-            <p className={notification.type === 'success' ? 'text-green-700' : 'text-red-700'}>
-              {notification.message}
-            </p>
-          </div>
-          <button
-            onClick={() => setNotification(prev => ({ ...prev, show: false }))}
-            className="ml-4 text-gray-500 hover:text-gray-700"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-6">
-        {/* Vista de búsqueda */}
-        {view === 'search' && (
-          <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border bg-white dark:bg-gray-800 p-6">
-            <h3 className="text-lg font-semibold mb-4">Buscar Libro</h3>
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder="Ingrese código o nombre del libro"
-                  className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <button
-                onClick={handleSearch}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
-              >
-                <Search className="w-5 h-5" />
-                Buscar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Vista de ejemplares */}
-        {view === 'ejemplares' && selectedLibro && (
-          <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border bg-white dark:bg-gray-800 p-6">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-lg font-semibold">{selectedLibro.titulo}</h3>
-                <p className="text-gray-600">ISBN: {selectedLibro.isbn}</p>
-              </div>
-              <button
-                onClick={() => {
-                  setView('search');
-                  setSelectedLibro(null);
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {availableEjemplares && availableEjemplares.length > 0 ? (
-                availableEjemplares.map((ejemplar) => (
-                  <div
-                    key={ejemplar.id}
-                    className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">Número de Ejemplar: {ejemplar.numEjemplar}</span>
-                      <span className={`px-2 py-1 rounded text-sm ${
-                        ejemplar.estado === 'DISPONIBLE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {ejemplar.estado}
-                      </span>
-                    </div>
-                    {ejemplar.estado === 'DISPONIBLE' && (
-                      <button
-                        onClick={() => {
-                          setSelectedEjemplar(ejemplar);
-                          setView('prestamo');
-                        }}
-                        className="w-full mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <BookOpen className="w-5 h-5" />
-                        Prestar
-                      </button>
-                    )}
-                  </div>
-                ))
+      <div className="py-6 px-4 bg-slate-50 dark:bg-black min-h-screen">
+        {/* Notificación */}
+        {notificacion.show && (
+          <div className={`fixed top-4 right-4 z-50 flex items-center justify-between min-w-[320px] max-w-md p-4 rounded-lg shadow-xl backdrop-blur-sm transition-all duration-300 ${
+            notificacion.type === 'success' 
+              ? 'bg-green-50/95 dark:bg-green-800/40 border-l-4 border-green-500' 
+              : notificacion.type === 'error'
+              ? 'bg-red-50/95 dark:bg-red-800/40 border-l-4 border-red-500'
+              : notificacion.type === 'warning'
+              ? 'bg-yellow-50/95 dark:bg-yellow-800/40 border-l-4 border-yellow-500'
+              : 'bg-blue-50/95 dark:bg-blue-800/40 border-l-4 border-blue-500'
+          }`}>
+            <div className="flex items-center">
+              {notificacion.type === 'success' ? (
+                <CheckCircle className="w-5 h-5 text-green-500 dark:text-green-400 mr-3 flex-shrink-0" />
+              ) : notificacion.type === 'error' ? (
+                <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 mr-3 flex-shrink-0" />
+              ) : notificacion.type === 'warning' ? (
+                <AlertTriangle className="w-5 h-5 text-yellow-500 dark:text-yellow-400 mr-3 flex-shrink-0" />
               ) : (
-                <div className="col-span-full text-center py-8">
-                  <Book className="w-12 h-12 mx-auto text-gray-400 mb-2" />
-                  <p className="text-gray-500">No hay ejemplares disponibles para este libro</p>
-                </div>
+                <AlertCircle className="w-5 h-5 text-blue-500 dark:text-blue-400 mr-3 flex-shrink-0" />
               )}
+              <p className={`${
+                notificacion.type === 'success' 
+                  ? 'text-green-700 dark:text-green-100' 
+                  : notificacion.type === 'error'
+                  ? 'text-red-700 dark:text-red-100'
+                  : notificacion.type === 'warning'
+                  ? 'text-yellow-700 dark:text-yellow-100'
+                  : 'text-blue-700 dark:text-blue-100'
+              } text-sm font-medium`}>
+                {notificacion.message}
+              </p>
             </div>
+            <button
+              onClick={() => setNotificacion(prev => ({ ...prev, show: false }))}
+              className="ml-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
 
-        {/* Modal de confirmación de préstamo */}
-        {showPrestamoModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-2xl">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">Confirmar Préstamo</h3>
-                <button
-                  onClick={handleCancelarPrestamo}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+        <div className="absolute inset-0 overflow-hidden pointer-events-none fixed">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
+          <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
+        </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block font-medium mb-2 text-gray-700">Fecha de Préstamo</label>
-                  <input
-                    type="date"
-                    value={prestamoForm.fecha_prestamo}
-                    readOnly
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
-                  />
-                </div>
+        <div className="max-w-5xl mx-auto relative z-10">
+          {/* Indicador de pasos */}
+          <IndicadorPasos 
+            pasoActual={pasoActual} 
+            libroSeleccionado={!!libroSeleccionado}
+            ejemplarSeleccionado={!!ejemplarSeleccionado}
+            estudianteEscaneado={!!codigoEstudiante}
+          />
 
-                <div>
-                  <label className="block font-medium mb-2 text-gray-700">Fecha de Devolución</label>
-                  <input
-                    type="date"
-                    value={prestamoForm.fecha_devolucion}
-                    readOnly
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
-                  />
-                </div>
+          {/* Contenido del paso actual */}
+          <div className="mt-6">
+            {pasoActual === 1 && (
+              <PasoBuscarLibro
+                onBuscar={handleBuscarLibro}
+                cargando={cargando}
+                libroSeleccionado={libroSeleccionado}
+              />
+            )}
 
-                <div>
-                  <label className="block font-medium mb-2 text-gray-700">Observaciones</label>
-                  <textarea
-                    value={prestamoForm.observaciones}
-                    onChange={(e) => setPrestamoForm(prev => ({ ...prev, observaciones: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                    rows={3}
-                    placeholder="Ingrese observaciones opcionales..."
-                  />
-                </div>
+            {pasoActual === 2 && libroSeleccionado && (
+              <PasoSeleccionarEjemplar
+                libro={libroSeleccionado}
+                ejemplares={ejemplaresDisponibles}
+                onSeleccionar={handleSeleccionarEjemplar}
+                onVolver={handlePasoAnterior}
+                ejemplarSeleccionado={ejemplarSeleccionado}
+              />
+            )}
 
-                <div className="flex justify-end gap-4 pt-4">
-                  <button
-                    onClick={handleCancelarPrestamo}
-                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleConfirmarPrestamo}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium shadow-sm"
-                  >
-                    Confirmar
-                  </button>
-                </div>
-              </div>
-            </div>
+            {pasoActual === 3 && libroSeleccionado && ejemplarSeleccionado && (
+              <PasoEscanearEstudiante
+                libro={libroSeleccionado}
+                ejemplar={ejemplarSeleccionado}
+                formularioPrestamo={formularioPrestamo}
+                onActualizarFormulario={setFormularioPrestamo}
+                onEscanear={handleEscanearEstudiante}
+                onVolver={handlePasoAnterior}
+                error={errors.codigo_lector}
+              />
+            )}
           </div>
-        )}
 
-        {/* Vista de préstamo */}
-        {view === 'prestamo' && selectedEjemplar && selectedLibro && (
-          <div className="border-sidebar-border/70 dark:border-sidebar-border rounded-xl border bg-white dark:bg-gray-800 p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold">Realizar Préstamo</h3>
+          {/* Modal de resumen */}
+          {mostrarResumen && libroSeleccionado && ejemplarSeleccionado && (
+            <ResumenPrestamo
+              libro={libroSeleccionado}
+              ejemplar={ejemplarSeleccionado}
+              codigoEstudiante={codigoEstudiante}
+              formularioPrestamo={formularioPrestamo}
+              onConfirmar={handleConfirmarPrestamo}
+              onCancelar={() => setMostrarResumen(false)}
+              cargando={cargando}
+            />
+          )}
+
+          {/* Botón de cancelar/reiniciar siempre visible */}
+          {(pasoActual > 1 || libroSeleccionado) && !mostrarResumen && (
+            <div className="mt-6 flex justify-center">
               <button
-                onClick={() => {
-                  setView('ejemplares');
-                  setSelectedEjemplar(null);
-                  setCodigoLector('');
-                }}
-                className="text-gray-500 hover:text-gray-700"
+                onClick={handleReiniciar}
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline text-sm"
               >
-                <X className="w-6 h-6" />
+                Cancelar y empezar de nuevo
               </button>
             </div>
-
-            <div className="mb-6">
-              <label htmlFor="codigoLector" className="block font-medium mb-2">
-                Código del Lector
-              </label>
-              <div className="flex gap-4">
-                <input
-                  id="codigoLector"
-                  type="text"
-                  value={codigoLector}
-                  onChange={(e) => setCodigoLector(e.target.value)}
-                  placeholder="Ingrese el código del lector"
-                  className="flex-1 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  onClick={handlePrestamo}
-                  disabled={!codigoLector.trim()}
-                  className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <UserCheck className="w-5 h-5" />
-                  Confirmar Préstamo
-                </button>
-              </div>
-              {errors.codigo_lector && (
-                <p className="text-red-500 text-sm mt-1">{errors.codigo_lector}</p>
-              )}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </AppLayout>
   );

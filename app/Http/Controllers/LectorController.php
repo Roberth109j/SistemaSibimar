@@ -219,6 +219,32 @@ class LectorController extends Controller
             ->with('success', 'Lector eliminado exitosamente.');
     }
 
+    //Busca por código de lector         
+    public function buscarPorCodigo(Request $request): JsonResponse     
+    {         
+        $codigo = $request->input('codigo');
+        
+        \Log::info('Buscando lector con código: ' . $codigo);
+        
+        $lector = Lector::where('codigo', $codigo)
+            ->where('estado', Lector::ESTADO_ACTIVO)
+            ->first();
+        
+        \Log::info('Lector encontrado: ' . ($lector ? 'SÍ' : 'NO'));
+                    
+        if (!$lector) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lector no encontrado o inactivo'
+            ], 404);
+        }
+                
+        return response()->json([
+            'success' => true,
+            'lector' => $lector
+        ]);
+    }
+
     /**
      * Obtiene lectores por tipo con su información de grado
      */
