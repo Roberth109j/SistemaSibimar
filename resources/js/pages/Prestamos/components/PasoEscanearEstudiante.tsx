@@ -266,10 +266,10 @@ export function PasoEscanearEstudiante({
           {/* Columna derecha - Fechas */}
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 <Calendar className="w-3.5 h-3.5" />
                 <span>Fecha de Préstamo</span>
-              </label>
+              </div>
               <input
                 type="date"
                 value={formularioPrestamo.fecha_prestamo}
@@ -279,10 +279,10 @@ export function PasoEscanearEstudiante({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 <Clock className="w-3.5 h-3.5" />
                 <span>Fecha de Devolución</span>
-              </label>
+              </div>
               <input
                 type="date"
                 value={formularioPrestamo.fecha_devolucion}

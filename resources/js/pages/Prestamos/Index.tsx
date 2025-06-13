@@ -149,7 +149,7 @@ export default function Index({
     
     setCargando(true);
     router.get(
-      route('libros.search'),
+      '/libros/search',
       { search: codigoLibro },
       {
         preserveState: true,
@@ -200,7 +200,7 @@ export default function Index({
 
     setCargando(true);
     router.post(
-      route('prestamos.store'),
+      '/prestamos',
       {
         ejemplar_id: ejemplarSeleccionado.id,
         codigo_lector: codigoEstudiante,
@@ -331,7 +331,7 @@ export default function Index({
           </div>
         )}
 
-        <div className="absolute inset-0 overflow-hidden pointer-events-none fixed">
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
           <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
         </div>

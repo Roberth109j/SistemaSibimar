@@ -31,7 +31,7 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     router.get(
-      route('reportes.historial-prestamos'),
+      '/reportes/historial-prestamos',
       { search: searchTerm, ...selectedFilters },
       { preserveState: true }
     );
@@ -47,7 +47,7 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
 
   const applyFilters = () => {
     router.get(
-      route('reportes.historial-prestamos'),
+      '/reportes/historial-prestamos',
       { search: searchTerm, ...selectedFilters },
       { preserveState: true }
     );
@@ -60,7 +60,7 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
       fechaInicio: '',
       fechaFin: '',
     });
-    router.get(route('reportes.historial-prestamos'), { search: searchTerm });
+    router.get('/reportes/historial-prestamos', { search: searchTerm });
     setShowFilters(false);
   };
 
@@ -79,7 +79,6 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
 
   return (
     <AppLayout
-      user={auth.user}
       breadcrumbs={breadcrumbs}
     >
       <Head title="Historial de Préstamos" />

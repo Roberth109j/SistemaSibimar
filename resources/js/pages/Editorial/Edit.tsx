@@ -31,7 +31,7 @@ export default function EditEditorial({ editorial, onSuccess, onError, errors = 
     clearErrors();
   }, [editorial, setData, clearErrors]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['nombre', 'pais', 'ciudad'];
     if (validFields.includes(name as keyof typeof data)) {

@@ -354,13 +354,13 @@ const Index: React.FC<LibroPageProps> = ({
   const content = (
     <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
       {renderAlerts()}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none fixed">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
         <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
       </div>
       <div className="max-w-full mx-auto relative z-10">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Gestión de Libros
           </h1>
           <div className="flex gap-4">
@@ -386,7 +386,7 @@ const Index: React.FC<LibroPageProps> = ({
             </button>
 
             <Link
-              href={route('libros.create')}
+              href="/libros/create"
               className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white
                 px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg
                 transform hover:-translate-y-0.5"
@@ -512,7 +512,7 @@ const Index: React.FC<LibroPageProps> = ({
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex justify-center space-x-2">
                           <Link
-                            href={route('libros.show', libro.id)}
+                            href={`/libros/${libro.id}`}
                             className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 
                                       transition-colors p-1 bg-blue-50 dark:bg-blue-900/30 rounded hover:bg-blue-100 dark:hover:bg-blue-800/40"
                             title="Ver detalles"
@@ -521,7 +521,7 @@ const Index: React.FC<LibroPageProps> = ({
                           </Link>
                           
                           <Link
-                            href={route('libros.edit', libro.id)}
+                            href={`/libros/${libro.id}/edit`}
                             className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 
                                       transition-colors p-1 bg-amber-50 dark:bg-amber-900/30 rounded hover:bg-amber-100 dark:hover:bg-amber-800/40"
                             title="Editar libro"
@@ -530,7 +530,7 @@ const Index: React.FC<LibroPageProps> = ({
                           </Link>
                           
                           <Link
-                            href={route('ejemplares.index', libro.id)}
+                            href={`/libros/${libro.id}/ejemplares`}
                             className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300
                                       transition-colors p-1 bg-purple-50 dark:bg-purple-900/30 rounded hover:bg-purple-100 dark:hover:bg-purple-800/40"
                             title="Ejemplares"

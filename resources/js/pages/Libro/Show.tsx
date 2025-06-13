@@ -238,7 +238,7 @@ export default function Show({ auth, libro, success }: ShowLibroProps) {
 
       <div className="min-h-screen bg-slate-50 dark:bg-black">
         {/* Efectos de fondo decorativos */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none fixed">
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
           <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
         </div>
@@ -275,14 +275,14 @@ export default function Show({ auth, libro, success }: ShowLibroProps) {
                     </div>
                     <div className="flex items-center gap-2">
                       <Link
-                        href={route('libros.index')}
+                        href="/libros"
                         className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur text-white text-sm rounded-lg hover:bg-white/30 transition-all duration-200"
                       >
                         <ArrowLeft className="w-4 h-4" />
                         Volver
                       </Link>
                       <Link
-                        href={route('libros.edit', libro.id)}
+                        href={`/libros/${libro.id}/edit`}
                         className="flex items-center gap-2 px-4 py-1.5 bg-white text-blue-600 text-sm rounded-lg hover:bg-blue-50 transition-all duration-200 font-medium shadow-lg"
                       >
                         <Edit className="w-4 h-4" />
@@ -473,14 +473,14 @@ export default function Show({ auth, libro, success }: ShowLibroProps) {
                 <InfoCard title="Gestión de Ejemplares" icon={Library}>
                   <div className="space-y-3">
                     <Link
-                      href={route('ejemplares.index', libro.id)}
+                      href={`/libros/${libro.id}/ejemplares`}
                       className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md"
                     >
                       <Library className="w-5 h-5" />
                       Ver Ejemplares ({libro.ejemplares_count || 0})
                     </Link>
                     <Link
-                      href={route('ejemplares.create', libro.id)}
+                      href={`/libros/${libro.id}/ejemplares/create`}
                       className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-all duration-200 shadow-sm hover:shadow-md"
                     >
                       <PlusCircle className="w-5 h-5" />

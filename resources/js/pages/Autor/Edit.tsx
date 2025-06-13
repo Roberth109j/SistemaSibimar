@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Pencil } from 'lucide-react';
 import Modal from '@/components/Modal';
-import Form from '@/components/Form';
+import Form, { FormField } from '@/components/Form';
 import { Autor } from './types';
 
 type EditModalProps = {
@@ -20,16 +20,16 @@ export default function EditAutor({ autor, onSuccess, onError, errors = {} }: Ed
     apellidos: autor.apellidos || ''
   });
 
-  // Sync form data with updated autor prop
+  // Sync form data with updated autor prop - FIX: removed setData and clearErrors from dependencies
   useEffect(() => {
     setData({
       nombres: autor.nombres || '',
       apellidos: autor.apellidos || ''
     });
     clearErrors();
-  }, [autor, setData, clearErrors]);
+  }, [autor]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['nombres', 'apellidos'];
     if (validFields.includes(name as keyof typeof data)) {
@@ -40,7 +40,7 @@ export default function EditAutor({ autor, onSuccess, onError, errors = {} }: Ed
     }
   };
 
-  const autorFields = [
+  const autorFields: FormField[] = [
     {
       name: 'nombres',
       label: 'Nombres',
@@ -52,7 +52,7 @@ export default function EditAutor({ autor, onSuccess, onError, errors = {} }: Ed
     },
     {
       name: 'apellidos',
-      label: 'Apellidos',
+      label: 'Apellidos', 
       type: 'text',
       placeholder: 'Ingrese los apellidos',
       required: true,
@@ -144,16 +144,12 @@ export default function EditAutor({ autor, onSuccess, onError, errors = {} }: Ed
           initialData={data}
           fields={autorFields}
           errors={formErrors}
-          submitUrl={`/autores/${autor.id}`}
-          method="put"
           onCancel={() => setIsOpen(false)}
-          onSuccess={handleSubmit}
-          submitButtonText="Actualizar"
-          isEditing={true}
           accentColor="amber"
           showButtons={false}
           id="edit-autor-form"
           processing={processing}
+          isEditing={true}
         />
       </Modal>
     </>

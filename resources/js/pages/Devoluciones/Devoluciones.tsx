@@ -121,13 +121,7 @@ export default function Devoluciones({
 
   return (
     <AppLayout
-      title="Devoluciones de Libros"
       breadcrumbs={breadcrumbs}
-      renderHeader={() => (
-        <h2 className="text-xl font-semibold leading-tight text-gray-900 dark:text-gray-100">
-          Devoluciones de Libros
-        </h2>
-      )}
     >
       <Head title="Devoluciones de Libros" />
 
