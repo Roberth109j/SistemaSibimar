@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Pencil } from 'lucide-react';
 import Modal from '@/components/Modal';
@@ -34,6 +33,28 @@ export default function EditGrado({ grado, onSuccess, onError, errors = {} }: Ed
     estado: grado.estado,
     seccion_id: String(grado.seccion_id), // Convert to string as per GradoFormData type
   });
+
+  // ✅ SOLUCION: Actualizar los datos del formulario cuando el prop grado cambie
+  useEffect(() => {
+    setData({
+      grado: grado.grado,
+      subGrado: grado.subGrado || '',
+      estado: grado.estado,
+      seccion_id: String(grado.seccion_id),
+    });
+  }, [grado, setData]);
+
+  // ✅ SOLUCION: También actualizar cuando se abra el modal para asegurar datos frescos
+  const handleOpenModal = () => {
+    setData({
+      grado: grado.grado,
+      subGrado: grado.subGrado || '',
+      estado: grado.estado,
+      seccion_id: String(grado.seccion_id),
+    });
+    clearErrors();
+    setIsOpen(true);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -118,9 +139,9 @@ export default function EditGrado({ grado, onSuccess, onError, errors = {} }: Ed
         console.log('Success response:', page);
         const successMessage = page.props.flash?.success || 'Grado actualizado exitosamente';
         onSuccess(successMessage);
-        reset();
         clearErrors();
         setIsOpen(false);
+        // ✅ NO hacer reset() aquí para mantener los datos actualizados
       },
       onError: (errors: Record<string, string>) => {
         console.log('Error response:', errors);
@@ -170,7 +191,7 @@ export default function EditGrado({ grado, onSuccess, onError, errors = {} }: Ed
   return (
     <>
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={handleOpenModal} // ✅ Usar la nueva función que actualiza los datos
         className="text-amber-500 hover:text-amber-600 focus:outline-none transition-colors duration-200"
       >
         <Pencil className="w-5 h-5" />
