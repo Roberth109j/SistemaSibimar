@@ -172,14 +172,11 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
 
       <div className="py-8">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          {/* Card principal con efectos modernos */}
-          <div className="relative overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-2xl border border-gray-200 dark:border-gray-700 backdrop-blur-sm">
-            {/* Efectos de fondo decorativos */}
-            <div className="absolute top-0 right-0 w-32 h-32 -mt-16 -mr-16 bg-gradient-to-br from-indigo-400/20 to-purple-600/20 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 -mb-12 -ml-12 bg-gradient-to-tr from-indigo-400/20 to-cyan-400/20 rounded-full blur-2xl" />
+          {/* Card principal sin efectos problemáticos */}
+          <div className="relative overflow-hidden bg-white dark:bg-gray-800 shadow-2xl rounded-2xl border border-gray-200 dark:border-gray-700">
             
-            {/* Header del formulario mejorado */}
-            <div className="relative bg-gradient-to-r from-indigo-50 via-indigo-50 to-purple-50 dark:from-gray-800 dark:via-gray-800 dark:to-gray-750 px-6 py-6 border-b border-gray-200 dark:border-gray-700">
+            {/* Header del formulario sin gradientes problemáticos */}
+            <div className="relative bg-gray-50 dark:bg-gray-800 px-6 py-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center space-x-4">
                 <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg shadow-lg">
                   <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -197,16 +194,16 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
               </div>
             </div>
 
-            {/* Contenido del formulario con espaciado mejorado */}
+            {/* Contenido del formulario */}
             <div className="relative p-8">
               <form onSubmit={handleSubmit} className="space-y-8">
-                {/* Grid de campos con mejor espaciado */}
+                {/* Grid de campos */}
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                   {/* Código con icono */}
                   {renderFormField('codigo', 'Código de Identificación', true, 
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v8H4V6z" clipRule="evenodd" />
                         </svg>
                       </div>
@@ -215,7 +212,7 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
                         id="codigo"
                         value={data.codigo}
                         onChange={(e) => setData('codigo', e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
                         placeholder="Ej: EST001, DOC001"
                       />
                     </div>,
@@ -226,7 +223,7 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
                   {renderFormField('nombre', 'Nombre Completo', true, 
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                         </svg>
                       </div>
@@ -235,7 +232,7 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
                         id="nombre"
                         value={data.nombre}
                         onChange={(e) => setData('nombre', e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
                         placeholder="Ingrese el nombre completo del lector"
                       />
                     </div>,
@@ -246,7 +243,7 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
                   {renderFormField('tipo', 'Tipo de Lector', true, 
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h2zM8 5a1 1 0 011-1h2a1 1 0 011 1v1H8V5z" clipRule="evenodd" />
                         </svg>
                       </div>
@@ -254,7 +251,7 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
                         id="tipo"
                         value={data.tipo}
                         onChange={(e) => setData('tipo', e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
                       >
                         <option value="ESTUDIANTE">Estudiante</option>
                         <option value="DOCENTE">Docente</option>
@@ -268,7 +265,7 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
                   {data.tipo === 'ESTUDIANTE' && renderFormField('grado_id', 'Grado Académico', true, 
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
                         </svg>
                       </div>
@@ -276,7 +273,7 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
                         id="grado_id"
                         value={data.grado_id}
                         onChange={(e) => setData('grado_id', e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
                       >
                         <option value="">Seleccione un grado</option>
                         {grados?.map((grado) => (
@@ -293,7 +290,7 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
                   {renderFormField('estado', 'Estado del Lector', true, 
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
                       </div>
@@ -301,7 +298,7 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
                         id="estado"
                         value={data.estado}
                         onChange={(e) => setData('estado', e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
+                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
                       >
                         <option value="ACTIVO">Activo</option>
                         <option value="INACTIVO">Inactivo</option>
@@ -311,7 +308,7 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
                   )}
                 </div>
 
-                {/* Botones mejorados */}
+                {/* Botones */}
                 <div className="flex justify-between items-center pt-8 border-t border-gray-200 dark:border-gray-700">
                   <a
                     href={route('lectores.index')}
@@ -353,8 +350,8 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
             </div>
           </div>
 
-          {/* Información adicional mejorada */}
-          <div className="mt-8 bg-gradient-to-r from-indigo-50 to-indigo-50 dark:from-indigo-900/20 dark:to-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-2xl p-6 shadow-lg">
+          {/* Información adicional sin gradientes problemáticos */}
+          <div className="mt-8 bg-indigo-50 dark:bg-gray-800 border border-indigo-200 dark:border-gray-700 rounded-2xl p-6 shadow-lg">
             <div className="flex items-start space-x-4">
               <div className="flex-shrink-0">
                 <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg shadow-lg">

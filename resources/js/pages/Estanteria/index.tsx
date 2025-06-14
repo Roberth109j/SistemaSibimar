@@ -175,12 +175,15 @@ const Index = ({ auth, estanterias, flash, errors = {} }: IndexProps) => {
   };
 
   const content = (
-    <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
+    <div className="relative py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
       {renderAlerts()}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 filter blur-3xl dark:bg-blue-600/10"></div>
-        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 filter blur-3xl dark:bg-indigo-600/10"></div>
+      
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
+        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
       </div>
+      
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
@@ -206,32 +209,43 @@ const Index = ({ auth, estanterias, flash, errors = {} }: IndexProps) => {
             />
           </div>
         </div>
+        
         <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl">
           <Pagination items={filteredEstanterias} itemsPerPage={10}>
             {(paginatedEstanterias) => (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[700px] table-fixed">
+                  <colgroup>
+                    <col className="w-16" />
+                    <col className="w-32" />
+                    <col className="w-40" />
+                    <col className="w-28" />
+                  </colgroup>
                   <thead>
                     <tr className="bg-gray-50 dark:bg-gray-700">
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">ID</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Código</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Descripción</th>
-                      <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Acciones</th>
+                      <th className="px-3 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                      <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Código</th>
+                      <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Descripción</th>
+                      <th className="px-4 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {paginatedEstanterias.length > 0 ? (
                       paginatedEstanterias.map((estanteria) => (
                         <tr key={estanteria.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{estanteria.id}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{estanteria.cod_estante}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 max-w-md overflow-hidden">
+                          <td className="px-3 py-3 whitespace-nowrap text-center text-gray-600 dark:text-gray-400 text-sm font-medium">{estanteria.id}</td>
+                          <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
+                            <div className="truncate" title={estanteria.cod_estante}>
+                              {estanteria.cod_estante}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
                             <div className="truncate" title={estanteria.descripcion || '-'}>
                               {truncateText(estanteria.descripcion, 40)}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <div className="flex justify-center space-x-4">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex justify-center space-x-2">
                               <ShowEstanteria estanteria={estanteria} />
                               <EditEstanteria
                                 estanteria={estanteria}

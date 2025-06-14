@@ -75,13 +75,12 @@ export default function Listado({ auth, prestamos, flash }: PrestamoPageProps) {
 
   return (
     <AppLayout
-      user={auth.user}
-      header={
+      breadcrumbs={breadcrumbs}
+      renderHeader={() => (
         <h2 className="text-xl font-semibold leading-tight text-gray-900 dark:text-gray-100">
           Listado de Préstamos Activos
         </h2>
-      }
-      breadcrumbs={breadcrumbs}
+      )}
     >
       <Head title="Listado de Préstamos Activos" />
 
@@ -219,20 +218,20 @@ export default function Listado({ auth, prestamos, flash }: PrestamoPageProps) {
                               </div>
                               <div>
                                 <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                  {prestamo.ejemplar?.libro?.titulo}
+                                  {(prestamo as any).ejemplar?.libro?.titulo || 'Título no disponible'}
                                 </div>
                                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                                  ISBN: {prestamo.ejemplar?.libro?.isbn}
+                                  ISBN: {(prestamo as any).ejemplar?.libro?.isbn || 'No disponible'}
                                 </div>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              #{prestamo.ejemplar?.numEjemplar}
+                              #{(prestamo as any).ejemplar?.numEjemplar || 'N/A'}
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">
-                              {prestamo.ejemplar?.codigo}
+                              {(prestamo as any).ejemplar?.codigo || 'Código no disponible'}
                             </div>
                           </td>
                           <td className="px-6 py-4">
@@ -242,7 +241,7 @@ export default function Listado({ auth, prestamos, flash }: PrestamoPageProps) {
                               </div>
                               <div>
                                 <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                  {prestamo.lector?.nombre}
+                                  {(prestamo as any).lector?.nombre || 'Nombre no disponible'}
                                 </div>
                               </div>
                             </div>
