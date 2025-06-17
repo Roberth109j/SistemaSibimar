@@ -16,13 +16,57 @@ use Illuminate\Validation\Rule;
 class GradoController extends Controller
 {
     /**
-     * Muestra un listado de todos los grados.
+     * Muestra un listado de todos los grados con paginación.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $grados = Grado::orderBy('id')->get();
+        // Validación de parámetros de paginación
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 10; // Valor fijo de 10 elementos por página
+
+        // Query base con orden específico
+        $query = Grado::query()
+            ->orderBy('id');
+
+        // Aplicar filtros si existen
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('grado', 'LIKE', "%{$search}%")
+                  ->orWhere('subGrado', 'LIKE', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('seccion_id')) {
+            $query->where('seccion_id', $request->seccion_id);
+        }
+
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
+        // Paginación
+        $grados = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+
+        // Redirigir si la página solicitada no existe pero hay resultados
+        if ($page > $grados->lastPage() && $grados->lastPage() > 0) {
+            return redirect()->route('grados.index', 
+                array_merge($request->query(), ['page' => $grados->lastPage()])
+            );
+        }
+
         return Inertia::render('Grado/Index', [
-            'grados' => $grados
+            'grados' => $grados,
+            'filters' => array_filter($request->only(['search', 'seccion_id', 'estado'])),
+            'pagination' => [
+                'current_page' => $grados->currentPage(),
+                'last_page' => $grados->lastPage(),
+                'per_page' => $grados->perPage(),
+                'total' => $grados->total(),
+                'from' => $grados->firstItem(),
+                'to' => $grados->lastItem(),
+                'has_pages' => $grados->hasPages(),
+            ],
         ]);
     }
 
@@ -151,8 +195,7 @@ class GradoController extends Controller
             DB::commit();
 
             return redirect()->route('grados.index')
-                ->with('success', 'Grado actualizado correctamente.')
-                ->with('grados', Grado::orderBy('id')->get());
+                ->with('success', 'Grado actualizado correctamente.');
         } catch (ValidationException $e) {
             DB::rollBack();
             Log::error('Validation error updating grado: ' . json_encode($e->errors()));

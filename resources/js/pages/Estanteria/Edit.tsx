@@ -17,6 +17,19 @@ type FormData = {
   descripcion: string;
 };
 
+type FormField = {
+  name: string;
+  label: string;
+  type: string;
+  placeholder?: string;
+  required?: boolean;
+  autoComplete?: string;
+  disabled?: boolean;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  options?: { value: string; label: string }[];
+};
+
 export default function EditEstanteria({ estanteria, onSuccess, onError, errors = {} }: EditModalProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -34,7 +47,7 @@ export default function EditEstanteria({ estanteria, onSuccess, onError, errors 
     clearErrors();
   }, [estanteria, setData, clearErrors]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
     if (name === 'cod_estante' || name === 'descripcion') {
@@ -45,30 +58,24 @@ export default function EditEstanteria({ estanteria, onSuccess, onError, errors 
     }
   };
 
-  const estanteriaFields = [
+  const estanteriaFields: FormField[] = [
     {
-      name: 'cod_estante' as const,
+      name: 'cod_estante',
       label: 'Código de estante',
       type: 'text',
       placeholder: 'Ingrese el código de estante',
       required: true,
       value: data.cod_estante,
       onChange: handleChange,
-      labelClassName: 'text-left block w-full', // Clase para alinear a la izquierda
-      inputClassName: 'text-left', // Clase para alinear a la izquierda
-      containerClassName: 'text-left mb-4', // Clase para alinear el contenedor a la izquierda
     },
     {
-      name: 'descripcion' as const,
+      name: 'descripcion',
       label: 'Descripción',
       type: 'text',
       placeholder: 'Ingrese la descripción (opcional)',
       required: false,
       value: data.descripcion,
       onChange: handleChange,
-      labelClassName: 'text-left block w-full', // Clase para alinear a la izquierda
-      inputClassName: 'text-left', // Clase para alinear a la izquierda
-      containerClassName: 'text-left mb-4', // Clase para alinear el contenedor a la izquierda
     }
   ];
 

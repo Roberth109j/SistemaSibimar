@@ -14,11 +14,58 @@ use Illuminate\Database\QueryException;
 
 class EditorialController extends Controller
 {
-    public function index(): Response
+    /**
+     * Obtiene un listado de editoriales con paginación y filtros
+     */
+    public function index(Request $request): Response
     {
-        $editoriales = Editorial::orderBy('id')->get();
+        // Validación de parámetros de paginación
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 10; // Valor fijo de 10 elementos por página
+
+        // Query base ordenado por ID
+        $query = Editorial::query()->orderBy('id');
+
+        // Aplicar filtros
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('nombre', 'LIKE', "%{$search}%")
+                  ->orWhere('ciudad', 'LIKE', "%{$search}%")
+                  ->orWhere('pais', 'LIKE', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('ciudad')) {
+            $query->where('ciudad', $request->ciudad);
+        }
+
+        if ($request->filled('pais')) {
+            $query->where('pais', $request->pais);
+        }
+
+        // Paginación mejorada
+        $editoriales = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+
+        // Redirigir si la página solicitada no existe pero hay resultados
+        if ($page > $editoriales->lastPage() && $editoriales->lastPage() > 0) {
+            return redirect()->route('editoriales.index', 
+                array_merge($request->query(), ['page' => $editoriales->lastPage()])
+            );
+        }
+
         return Inertia::render('Editorial/Index', [
-            'editoriales' => $editoriales
+            'editoriales' => $editoriales,
+            'filters' => array_filter($request->only(['search', 'ciudad', 'pais'])),
+            'pagination' => [
+                'current_page' => $editoriales->currentPage(),
+                'last_page' => $editoriales->lastPage(),
+                'per_page' => $editoriales->perPage(),
+                'total' => $editoriales->total(),
+                'from' => $editoriales->firstItem(),
+                'to' => $editoriales->lastItem(),
+                'has_pages' => $editoriales->hasPages(),
+            ],
         ]);
     }
 
@@ -32,10 +79,24 @@ class EditorialController extends Controller
         Log::info('Received store request data:', $request->all());
         try {
             $validated = $request->validate([
-                'nombre' => 'required|string|max:255|unique:editoriales,nombre',
+                'nombre' => 'required|string|max:255',
                 'ciudad' => 'nullable|string|max:255',
                 'pais' => 'nullable|string|max:255',
             ]);
+
+            // Verificar si ya existe una editorial con el mismo nombre
+            $existingEditorial = Editorial::where('nombre', $validated['nombre'])->first();
+
+            if ($existingEditorial) {
+                Log::warning('Attempted to create duplicate editorial', [
+                    'nombre' => $validated['nombre'],
+                    'existing_id' => $existingEditorial->id
+                ]);
+                
+                return redirect()->back()
+                    ->withErrors(['duplicate' => 'Esta editorial ya existe en el sistema'])
+                    ->withInput();
+            }
 
             DB::beginTransaction();
             $editorial = Editorial::create($validated);
@@ -122,10 +183,9 @@ class EditorialController extends Controller
             
             DB::commit();
 
-            // Return updated editorial data to refresh frontend props
-            return redirect()->route('editoriales.index')
-                ->with('success', 'Editorial actualizada correctamente.')
-                ->with('editoriales', Editorial::orderBy('id')->get()); // Refresh editoriales list
+            // Return to index with success message and preserve filters
+            return redirect()->route('editoriales.index', $request->query())
+                ->with('success', 'Editorial actualizada correctamente.');
         } catch (ValidationException $e) {
             DB::rollBack();
             Log::error('Validation error updating editorial: ' . json_encode($e->errors()));
@@ -149,5 +209,46 @@ class EditorialController extends Controller
                 ->withErrors(['error' => 'Ha ocurrido un error al actualizar la editorial: ' . $e->getMessage()])
                 ->withInput();
         }
+    }
+
+    /**
+     * Elimina una editorial
+     */
+    public function destroy(Editorial $editorial): RedirectResponse
+    {
+        try {
+            // Verificar si tiene libros asociados antes de eliminar
+            if ($editorial->libros()->exists()) {
+                return back()->with('error', 'No se puede eliminar la editorial porque tiene libros asociados');
+            }
+
+            DB::beginTransaction();
+            $editorial->delete();
+            DB::commit();
+
+            Log::info('Editorial eliminada correctamente', ['id' => $editorial->id]);
+
+            return redirect()->route('editoriales.index')
+                ->with('success', 'Editorial eliminada correctamente.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error deleting editorial: ' . $e->getMessage());
+            return back()->with('error', 'Ha ocurrido un error al eliminar la editorial');
+        }
+    }
+
+    /**
+     * Obtiene editoriales para autocompletado/búsqueda
+     */
+    public function search(Request $request)
+    {
+        $search = $request->input('search', '');
+        
+        $editoriales = Editorial::where('nombre', 'LIKE', "%{$search}%")
+            ->orderBy('nombre')
+            ->limit(10)
+            ->get(['id', 'nombre', 'ciudad', 'pais']);
+
+        return response()->json($editoriales);
     }
 }

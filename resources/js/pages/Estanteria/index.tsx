@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Search, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Search, CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import AppLayout from '../../layouts/app-layout';
 import { type BreadcrumbItem } from './types';
 import CreateEstanteria from './Create';
 import EditEstanteria from './Edit';
 import ShowEstanteria from './Show';
-import Pagination from '../../components/Pagination';
 
 type Estanteria = {
   id: number;
@@ -21,13 +20,36 @@ type FlashMessage = {
   error?: string;
 };
 
+type PaginatedEstanterias = {
+  data: Estanteria[];
+  links?: any[];
+  from?: number;
+  to?: number;
+  total?: number;
+  current_page: number;
+  last_page: number;
+  per_page?: number;
+};
+
 type IndexProps = {
   auth: {
     user: any;
   };
-  estanterias: Estanteria[];
+  estanterias: PaginatedEstanterias | { data: Estanteria[]; total?: number };
   flash?: FlashMessage;
   errors?: Record<string, string>;
+  filters?: {
+    search?: string;
+  };
+  pagination?: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    has_pages: boolean;
+  };
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -110,10 +132,18 @@ function AlertNotification({
   );
 }
 
-const Index = ({ auth, estanterias, flash, errors = {} }: IndexProps) => {
+const Index = ({ 
+  auth, 
+  estanterias, 
+  flash, 
+  errors = {}, 
+  filters: initialFilters = {},
+  pagination
+}: IndexProps) => {
   const page = usePage();
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialFilters.search || '');
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const [alerts, setAlerts] = useState<{
     success: string | null;
@@ -135,13 +165,45 @@ const Index = ({ auth, estanterias, flash, errors = {} }: IndexProps) => {
     }
   }, [flash, page.props.flash]);
 
-  const filteredEstanterias = searchTerm
-    ? estanterias.filter(
-        estanteria =>
-          estanteria.cod_estante.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (estanteria.descripcion && estanteria.descripcion.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
-    : estanterias;
+  const applyFilters = (currentSearchTerm: string): void => {
+    const params = new URLSearchParams();
+    if (currentSearchTerm) params.set('search', currentSearchTerm);
+
+    router.get(`/estanterias?${params.toString()}`, {}, {
+      preserveState: true,
+      preserveScroll: true,
+    });
+  };
+
+  const handleSearch = (value: string): void => {
+    setSearchTerm(value);
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    const timeout = setTimeout(() => {
+      applyFilters(value);
+    }, 500);
+    setSearchTimeout(timeout);
+  };
+
+  const resetFilters = (): void => {
+    setSearchTerm('');
+    router.get('/estanterias', {}, {
+      preserveState: true,
+      preserveScroll: true,
+    });
+  };
+
+  // Usar datos de paginación mejorados si están disponibles, sino fallback a los originales
+  const paginationData = pagination || {
+    current_page: 'current_page' in estanterias ? estanterias.current_page : 1,
+    last_page: 'last_page' in estanterias ? estanterias.last_page : 1,
+    per_page: 10,
+    total: estanterias.total || 0,
+    from: 'from' in estanterias ? estanterias.from : null,
+    to: 'to' in estanterias ? estanterias.to : null,
+    has_pages: (estanterias.total || 0) > 10
+  };
 
   const showAlert = (type: 'success' | 'error', message: string) => {
     console.log(`Showing alert: ${type} - ${message}`);
@@ -177,13 +239,16 @@ const Index = ({ auth, estanterias, flash, errors = {} }: IndexProps) => {
   const content = (
     <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
       {renderAlerts()}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none fixed">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
-        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
+      
+      {/* Background decorative elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 filter blur-3xl dark:bg-blue-600/10"></div>
+        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 filter blur-3xl dark:bg-indigo-600/10"></div>
       </div>
+      
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Gestión de Estanterías
           </h1>
           <div className="flex gap-4">
@@ -195,7 +260,7 @@ const Index = ({ auth, estanterias, flash, errors = {} }: IndexProps) => {
                           text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                           shadow-sm transition-all duration-200"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearch(e.target.value)}
               />
               <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             </div>
@@ -206,56 +271,173 @@ const Index = ({ auth, estanterias, flash, errors = {} }: IndexProps) => {
             />
           </div>
         </div>
+
+        {/* Información de resultados */}
+        {paginationData.total > 0 && (
+          <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            Mostrando {paginationData.from || 1} a {paginationData.to || estanterias.data.length} de {paginationData.total} resultados
+          </div>
+        )}
+        
         <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl">
-          <Pagination items={filteredEstanterias} itemsPerPage={10}>
-            {(paginatedEstanterias) => (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-700">
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">ID</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Código</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Descripción</th>
-                      <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Acciones</th>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px] table-fixed">
+              <colgroup>
+                <col className="w-16" />
+                <col className="w-32" />
+                <col className="w-40" />
+                <col className="w-28" />
+              </colgroup>
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-700">
+                  <th className="px-3 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">ID</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Código</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Descripción</th>
+                  <th className="px-4 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {estanterias.data.length > 0 ? (
+                  estanterias.data.map((estanteria) => (
+                    <tr key={estanteria.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="px-3 py-3 whitespace-nowrap text-center text-gray-600 dark:text-gray-400 text-sm font-medium">{estanteria.id}</td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
+                        <div className="truncate" title={estanteria.cod_estante}>
+                          {estanteria.cod_estante}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
+                        <div className="truncate" title={estanteria.descripcion || '-'}>
+                          {truncateText(estanteria.descripcion, 40)}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex justify-center space-x-2">
+                          <ShowEstanteria estanteria={estanteria} />
+                          <EditEstanteria
+                            estanteria={estanteria}
+                            onSuccess={(message) => showAlert('success', message)}
+                            onError={(message) => showAlert('error', message)}
+                            errors={errors}
+                          />
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {paginatedEstanterias.length > 0 ? (
-                      paginatedEstanterias.map((estanteria) => (
-                        <tr key={estanteria.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{estanteria.id}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{estanteria.cod_estante}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 max-w-md overflow-hidden">
-                            <div className="truncate" title={estanteria.descripcion || '-'}>
-                              {truncateText(estanteria.descripcion, 40)}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <div className="flex justify-center space-x-4">
-                              <ShowEstanteria estanteria={estanteria} />
-                              <EditEstanteria
-                                estanteria={estanteria}
-                                onSuccess={(message) => showAlert('success', message)}
-                                onError={(message) => showAlert('error', message)}
-                                errors={errors}
-                              />
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                          No hay estanterías disponibles
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Pagination>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                      No hay estanterías disponibles
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        {/* Paginación */}
+        {paginationData.has_pages && paginationData.last_page > 1 && (
+          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+            {/* Información de paginación */}
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Página {paginationData.current_page} de {paginationData.last_page}
+            </div>
+
+            {/* Controles de paginación */}
+            <div className="flex items-center space-x-2">
+              {/* Botón anterior */}
+              <Link
+                href={paginationData.current_page > 1 ? 
+                  `/estanterias?${new URLSearchParams({
+                    ...Object.fromEntries(new URLSearchParams(window.location.search)),
+                    page: String(paginationData.current_page - 1)
+                  })}` : '#'}
+                className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+                  paginationData.current_page > 1
+                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                }`}
+                onClick={(e) => {
+                  if (paginationData.current_page <= 1) e.preventDefault();
+                }}
+                preserveState
+                preserveScroll
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Link>
+
+              {/* Números de página */}
+              {[...Array(paginationData.last_page)].map((_, index) => {
+                const pageNum = index + 1;
+                const maxVisiblePages = 5;
+                const currentPage = paginationData.current_page;
+                const halfVisible = Math.floor(maxVisiblePages / 2);
+
+                let showPage = false;
+                if (paginationData.last_page <= maxVisiblePages) {
+                  showPage = true;
+                } else if (
+                  pageNum === 1 ||
+                  pageNum === paginationData.last_page ||
+                  (pageNum >= currentPage - halfVisible && pageNum <= currentPage + halfVisible)
+                ) {
+                  showPage = true;
+                }
+
+                if (showPage) {
+                  return (
+                    <Link
+                      key={pageNum}
+                      href={`/estanterias?${new URLSearchParams({
+                        ...Object.fromEntries(new URLSearchParams(window.location.search)),
+                        page: String(pageNum)
+                      })}`}
+                      className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                      preserveState
+                    >
+                      {pageNum}
+                    </Link>
+                  );
+                } else if (
+                  (pageNum === 2 && currentPage > halfVisible + 1) ||
+                  (pageNum === paginationData.last_page - 1 && currentPage < paginationData.last_page - halfVisible)
+                ) {
+                  return (
+                    <span key={pageNum} className="flex items-center justify-center w-10 h-10 text-sm font-medium text-gray-500 dark:text-gray-400">
+                      ...
+                    </span>
+                  );
+                }
+                return null;
+              })}
+
+              {/* Botón siguiente */}
+              <Link
+                href={paginationData.current_page < paginationData.last_page ? 
+                  `/estanterias?${new URLSearchParams({
+                    ...Object.fromEntries(new URLSearchParams(window.location.search)),
+                    page: String(paginationData.current_page + 1)
+                  })}` : '#'}
+                className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+                  paginationData.current_page < paginationData.last_page
+                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                }`}
+                onClick={(e) => {
+                  if (paginationData.current_page >= paginationData.last_page) e.preventDefault();
+                }}
+                preserveState
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -5,21 +5,56 @@ namespace App\Http\Controllers;
 use App\Models\Estanteria;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class EstanteriaController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of the resource with pagination.
      */
-    public function index()
+    public function index(Request $request): Response
     {
-        $estanterias = Estanteria::all();
-        
+        // Validación de parámetros de paginación
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 10; // Valor fijo de 10 elementos por página
+
+        // Query base
+        $query = Estanteria::query()->orderBy('cod_estante');
+
+        // Aplicar filtros de búsqueda
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('cod_estante', 'LIKE', "%{$search}%")
+                  ->orWhere('descripcion', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Paginación
+        $estanterias = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+
+        // Redirigir si la página solicitada no existe pero hay resultados
+        if ($page > $estanterias->lastPage() && $estanterias->lastPage() > 0) {
+            return redirect()->route('estanterias.index', 
+                array_merge($request->query(), ['page' => $estanterias->lastPage()])
+            );
+        }
+
         return Inertia::render('Estanteria/index', [
             'estanterias' => $estanterias,
             'flash' => [
                 'success' => session('success'),
                 'error' => session('error'),
+            ],
+            'filters' => array_filter($request->only(['search'])),
+            'pagination' => [
+                'current_page' => $estanterias->currentPage(),
+                'last_page' => $estanterias->lastPage(),
+                'per_page' => $estanterias->perPage(),
+                'total' => $estanterias->total(),
+                'from' => $estanterias->firstItem(),
+                'to' => $estanterias->lastItem(),
+                'has_pages' => $estanterias->hasPages(),
             ],
         ]);
     }

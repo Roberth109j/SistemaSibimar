@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Search, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Search, CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import AppLayout from '../../layouts/app-layout';
 import { type BreadcrumbItem } from './types';
 import CreateAutor from './Create';
 import EditAutor from './Edit';
 import ShowAutor from './Show';
-import Pagination from '../../components/Pagination';
 
 type Libro = {
   id: number;
@@ -27,13 +26,33 @@ type FlashMessage = {
   error?: string;
 };
 
+type PaginatedAutores = {
+  data: Autor[];
+  links?: any[];
+  from?: number;
+  to?: number;
+  total?: number;
+  current_page: number;
+  last_page: number;
+  per_page?: number;
+};
+
 type IndexProps = {
   auth: {
     user: any;
   };
-  autores: Autor[];
+  autores: PaginatedAutores | { data: Autor[]; total?: number };
   flash?: FlashMessage;
   errors?: Record<string, string>;
+  pagination?: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    has_pages: boolean;
+  };
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -45,7 +64,7 @@ function AlertNotification({
   message,
   className = '',
   autoClose = true,
-  duration = 4000,
+  duration = 6000, // Aumentado de 4000 a 6000ms para errores
 }: {
   type: 'success' | 'error';
   message: string;
@@ -58,16 +77,18 @@ function AlertNotification({
 
   useEffect(() => {
     if (autoClose && message) {
+      // Duración extendida para errores de duplicado
+      const alertDuration = type === 'error' ? 7000 : duration;
       const timer = setTimeout(() => {
         setAnimateOut(true);
         const hideTimer = setTimeout(() => {
           setIsVisible(false);
         }, 500);
         return () => clearTimeout(hideTimer);
-      }, duration);
+      }, alertDuration);
       return () => clearTimeout(timer);
     }
-  }, [autoClose, duration, message]);
+  }, [autoClose, duration, message, type]);
 
   if (!isVisible || !message) return null;
 
@@ -109,7 +130,13 @@ function AlertNotification({
   );
 }
 
-const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
+const Index = ({ 
+  auth, 
+  autores, 
+  flash, 
+  errors = {},
+  pagination
+}: IndexProps) => {
   const page = usePage();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -134,34 +161,41 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
     }
   }, [flash, page.props.flash]);
 
+  // Filtrar autores localmente solo para la búsqueda básica
   const filteredAutores = searchTerm
-    ? autores.filter(autor => {
-      // Convert search term and author data to lowercase for case-insensitive comparison
-      const search = searchTerm.toLowerCase().trim();
-      const firstName = autor.nombres.toLowerCase();
-      const lastName = autor.apellidos.toLowerCase();
-      const fullName = `${firstName} ${lastName}`;
-      const reversedFullName = `${lastName} ${firstName}`;
+    ? autores.data.filter(autor => {
+        const search = searchTerm.toLowerCase().trim();
+        const firstName = autor.nombres.toLowerCase();
+        const lastName = autor.apellidos.toLowerCase();
+        const fullName = `${firstName} ${lastName}`;
+        const reversedFullName = `${lastName} ${firstName}`;
 
-      // Check if search term exists in the full name (both orders)
-      if (fullName.includes(search) || reversedFullName.includes(search)) {
-        return true;
-      }
+        if (fullName.includes(search) || reversedFullName.includes(search)) {
+          return true;
+        }
 
-      // If search has multiple words, check if they match individual parts
-      if (search.includes(' ')) {
-        const searchTerms = search.split(' ').filter(term => term.length > 0);
+        if (search.includes(' ')) {
+          const searchTerms = search.split(' ').filter(term => term.length > 0);
+          return searchTerms.every(term =>
+            firstName.includes(term) || lastName.includes(term)
+          );
+        }
 
-        // Check if each search term is found in either first name or last name
-        return searchTerms.every(term =>
-          firstName.includes(term) || lastName.includes(term)
-        );
-      }
+        return firstName.includes(search) || lastName.includes(search);
+      })
+    : autores.data;
 
-      // Fall back to the original simple search
-      return firstName.includes(search) || lastName.includes(search);
-    })
-    : autores;
+  // Usar datos de paginación si están disponibles, sino fallback a los originales
+  const paginationData = pagination || {
+    current_page: 'current_page' in autores ? autores.current_page : 1,
+    last_page: 'last_page' in autores ? autores.last_page : 1,
+    per_page: 10,
+    total: autores.total || 0,
+    from: 'from' in autores ? autores.from : null,
+    to: 'to' in autores ? autores.to : null,
+    has_pages: (autores.total || 0) > 10
+  };
+  
   const showAlert = (type: 'success' | 'error', message: string) => {
     console.log(`Showing alert: ${type} - ${message}`);
     setAlerts(prev => ({
@@ -187,6 +221,7 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
             key={`error-${alerts.timestamp}`}
             type="error"
             message={alerts.error}
+            duration={7000}
           />
         )}
       </>
@@ -194,15 +229,18 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
   };
 
   const content = (
-    <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
+    <div className="relative py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
       {renderAlerts()}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none fixed">
+      
+      {/* Background decorative elements - fixed positioning issue */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
         <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
       </div>
+      
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Gestión de Autores
           </h1>
           <div className="flex gap-4">
@@ -218,6 +256,7 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
               />
               <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             </div>
+
             <CreateAutor
               onSuccess={(message) => showAlert('success', message)}
               onError={(message) => showAlert('error', message)}
@@ -225,54 +264,179 @@ const Index = ({ auth, autores, flash, errors = {} }: IndexProps) => {
             />
           </div>
         </div>
+
+        {/* Información de resultados */}
+        {paginationData.total > 0 && (
+          <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            Mostrando {paginationData.from || 1} a {paginationData.to || autores.data.length} de {paginationData.total} resultados
+          </div>
+        )}
+        
         <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl">
-          <Pagination items={filteredAutores} itemsPerPage={10}>
-            {(paginatedAutores) => (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-700">
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">ID</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Nombres</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Apellidos</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Nombre Completo</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Acciones</th>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px] table-fixed">
+              <colgroup>
+                <col className="w-16" />
+                <col className="w-32" />
+                <col className="w-32" />
+                <col className="w-40" />
+                <col className="w-28" />
+              </colgroup>
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-700">
+                  <th className="px-3 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nombres</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Apellidos</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nombre Completo</th>
+                  <th className="px-4 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredAutores.length > 0 ? (
+                  filteredAutores.map((autor) => (
+                    <tr key={autor.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="px-3 py-3 whitespace-nowrap text-center text-gray-600 dark:text-gray-400 text-sm font-medium">{autor.id}</td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
+                        <div className="truncate" title={autor.nombres}>
+                          {autor.nombres}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
+                        <div className="truncate" title={autor.apellidos}>
+                          {autor.apellidos}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
+                        <div className="truncate" title={`${autor.nombres} ${autor.apellidos}`}>
+                          {`${autor.nombres} ${autor.apellidos}`}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex justify-center space-x-2">
+                          <ShowAutor autor={autor} />
+                          <EditAutor
+                            autor={autor}
+                            onSuccess={(message) => showAlert('success', message)}
+                            onError={(message) => showAlert('error', message)}
+                            errors={errors}
+                          />
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {paginatedAutores.length > 0 ? (
-                      paginatedAutores.map((autor) => (
-                        <tr key={autor.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{autor.id}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{autor.nombres}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium">{autor.apellidos}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-700 dark:text-gray-300">{`${autor.nombres} ${autor.apellidos}`}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex space-x-4">
-                              <ShowAutor autor={autor} />
-                              <EditAutor
-                                autor={autor}
-                                onSuccess={(message) => showAlert('success', message)}
-                                onError={(message) => showAlert('error', message)}
-                                errors={errors}
-                              />
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                          No hay autores disponibles
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Pagination>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                      No hay autores disponibles
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        {/* Paginación */}
+        {paginationData.has_pages && paginationData.last_page > 1 && (
+          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+            {/* Información de paginación */}
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Página {paginationData.current_page} de {paginationData.last_page}
+            </div>
+
+            {/* Controles de paginación */}
+            <div className="flex items-center space-x-2">
+              {/* Botón anterior */}
+              <Link
+                href={paginationData.current_page > 1 ? 
+                  `${window.location.pathname}?${new URLSearchParams({
+                    ...Object.fromEntries(new URLSearchParams(window.location.search)),
+                    page: String(paginationData.current_page - 1)
+                  })}` : '#'}
+                className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+                  paginationData.current_page > 1
+                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                }`}
+                onClick={(e) => {
+                  if (paginationData.current_page <= 1) e.preventDefault();
+                }}
+                preserveState
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Link>
+
+              {/* Números de página */}
+              {[...Array(paginationData.last_page)].map((_, index) => {
+                const pageNum = index + 1;
+                const maxVisiblePages = 5;
+                const currentPage = paginationData.current_page;
+                const halfVisible = Math.floor(maxVisiblePages / 2);
+
+                let showPage = false;
+                if (paginationData.last_page <= maxVisiblePages) {
+                  showPage = true;
+                } else if (
+                  pageNum === 1 ||
+                  pageNum === paginationData.last_page ||
+                  (pageNum >= currentPage - halfVisible && pageNum <= currentPage + halfVisible)
+                ) {
+                  showPage = true;
+                }
+
+                if (showPage) {
+                  return (
+                    <Link
+                      key={pageNum}
+                      href={`${window.location.pathname}?${new URLSearchParams({
+                        ...Object.fromEntries(new URLSearchParams(window.location.search)),
+                        page: String(pageNum)
+                      })}`}
+                      className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                      preserveState
+                    >
+                      {pageNum}
+                    </Link>
+                  );
+                } else if (
+                  (pageNum === 2 && currentPage > halfVisible + 1) ||
+                  (pageNum === paginationData.last_page - 1 && currentPage < paginationData.last_page - halfVisible)
+                ) {
+                  return (
+                    <span key={pageNum} className="flex items-center justify-center w-10 h-10 text-sm font-medium text-gray-500 dark:text-gray-400">
+                      ...
+                    </span>
+                  );
+                }
+                return null;
+              })}
+
+              {/* Botón siguiente */}
+              <Link
+                href={paginationData.current_page < paginationData.last_page ? 
+                  `${window.location.pathname}?${new URLSearchParams({
+                    ...Object.fromEntries(new URLSearchParams(window.location.search)),
+                    page: String(paginationData.current_page + 1)
+                  })}` : '#'}
+                className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+                  paginationData.current_page < paginationData.last_page
+                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                }`}
+                onClick={(e) => {
+                  if (paginationData.current_page >= paginationData.last_page) e.preventDefault();
+                }}
+                preserveState
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -26,11 +26,13 @@ class LibroController extends Controller
     {
         $search = $request->input('search');
 
+        // Si no hay término de búsqueda, devolver el formulario con un mensaje flash
         if (!$search) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Término de búsqueda requerido'
-            ], 400);
+            return Inertia::render('Prestamos/Index', [
+                'flash' => [
+                    'error' => 'Término de búsqueda requerido'
+                ]
+            ]);
         }
         
         $libro = Libro::with([
@@ -46,16 +48,17 @@ class LibroController extends Controller
             })
             ->first();
 
+        // Si no se encuentra el libro, devolver el formulario con un mensaje flash
         if (!$libro) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Libro no encontrado'
-            ], 404);
+            return Inertia::render('Prestamos/Index', [
+                'flash' => [
+                    'error' => 'Libro no encontrado'
+                ]
+            ]);
         }
 
         // Buscar los ejemplares disponibles de este libro
         $ejemplares = Ejemplar::where('libro_id', $libro->id)
-            ->where('estado', Ejemplar::ESTADO_DISPONIBLE)
             ->get();
 
         return Inertia::render('Prestamos/Index', [

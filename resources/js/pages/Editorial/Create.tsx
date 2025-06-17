@@ -19,6 +19,20 @@ export default function CreateEditorial({ onSuccess, onError, errors = {} }: Cre
     ciudad: ''
   });
 
+  // Función para limpiar y cerrar modal
+  const handleCloseModal = () => {
+    reset(); // Limpiar los datos del formulario
+    clearErrors(); // Limpiar errores
+    setIsOpen(false);
+  };
+
+  // Función para abrir modal
+  const handleOpenModal = () => {
+    reset(); // Limpiar datos al abrir
+    clearErrors(); // Limpiar errores al abrir
+    setIsOpen(true);
+  };
+
   // Solución: Actualizar handleChange para manejar tanto input como select
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -76,12 +90,30 @@ export default function CreateEditorial({ onSuccess, onError, errors = {} }: Cre
       },
       onError: (errors: Record<string, string>) => {
         console.log('Error response:', errors);
+        
+        // Verificar si hay errores específicos de duplicado
+        if (errors.duplicate || errors.editorial_exists) {
+          const duplicateMessage = errors.duplicate || errors.editorial_exists || 'Esta editorial ya existe en el sistema';
+          // Limpiar formulario y cerrar modal incluso con error de duplicado
+          setTimeout(() => {
+            reset();
+            clearErrors();
+            setIsOpen(false);
+            onError(duplicateMessage);
+          }, 100);
+          return;
+        }
+        
+        // Verificar si hay errores de validación de campos
         const hasFieldErrors = Object.keys(errors).some(key => ['nombre', 'ciudad', 'pais'].includes(key));
         if (hasFieldErrors) {
           Object.keys(errors).forEach((key) => {
-            setError(key as keyof typeof data, errors[key]);
+            if (['nombre', 'ciudad', 'pais'].includes(key)) {
+              setError(key as keyof typeof data, errors[key]);
+            }
           });
         } else {
+          // Error genérico
           const errorMessage = errors.error || 'Ha ocurrido un error al crear la editorial';
           onError(errorMessage);
         }
@@ -96,7 +128,7 @@ export default function CreateEditorial({ onSuccess, onError, errors = {} }: Cre
     <>
       <button
         type="button"
-        onClick={() => setIsOpen(false)}
+        onClick={handleCloseModal}
         className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
           bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 
           border border-gray-300 dark:border-gray-600
@@ -122,7 +154,7 @@ export default function CreateEditorial({ onSuccess, onError, errors = {} }: Cre
   return (
     <>
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={handleOpenModal}
         className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white 
                   px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg
                   transform hover:-translate-y-0.5"
@@ -132,7 +164,7 @@ export default function CreateEditorial({ onSuccess, onError, errors = {} }: Cre
       </button>
       <Modal
         open={isOpen}
-        onClose={() => setIsOpen(false)}
+        onClose={handleCloseModal}
         title="Crear Nueva Editorial"
         description="Complete los campos para continuar"
         footer={modalFooter}
@@ -143,7 +175,7 @@ export default function CreateEditorial({ onSuccess, onError, errors = {} }: Cre
           errors={formErrors}
           submitUrl="/editoriales"
           method="post"
-          onCancel={() => setIsOpen(false)}
+          onCancel={handleCloseModal}
           onSuccess={handleSubmit}
           submitButtonText="Guardar"
           isEditing={false}

@@ -1,650 +1,553 @@
-import { useState, useEffect } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
-import { Link } from '@inertiajs/react';
-import {
-  Search,
-  PlusCircle,
-  Eye,
-  Edit,
-  Filter,
-  Users,
-  CheckCircle,
-  AlertCircle,
-  X,
-  GraduationCap,
-  UserCheck,
-  FilterX,
-  ChevronDown,
-  Settings,
-  Download
-} from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { type LectorPageProps, type Lector } from './types';
+import React, { useState, useEffect } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Search, CheckCircle, AlertCircle, X, Plus, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import AppLayout from '../../layouts/app-layout';
+import { type BreadcrumbItem, type Lector, type Grado } from './types';
+import ShowLector from './Show';
 
-// Constantes
+type FlashMessage = {
+  success?: string;
+  error?: string;
+};
+
+type PaginatedLectors = {
+  data: Lector[];
+  links?: any[];
+  from?: number;
+  to?: number;
+  total?: number;
+  current_page: number;
+  last_page: number;
+  per_page?: number;
+};
+
+type IndexProps = {
+  auth: {
+    user: any;
+  };
+  lectores: PaginatedLectors | { data: Lector[]; total?: number };
+  flash?: FlashMessage;
+  errors?: Record<string, string>;
+  filters?: {
+    search?: string;
+    tipo?: string;
+    subgrado?: string;
+    estado?: string;
+  };
+  grados?: Grado[];
+  // Nuevos props del backend mejorado
+  perPageOptions?: number[];
+  currentPerPage?: number;
+  pagination?: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    has_pages: boolean;
+  };
+};
+
 const breadcrumbs: BreadcrumbItem[] = [
-  {
-    title: 'Lectores',
-    href: '/lectores',
-  },
+  { title: 'Lectores', href: '/lectores' },
 ];
 
-// Componente de notificación
-const Notification = ({
-  notification,
-  onClose
+function AlertNotification({
+  type,
+  message,
+  className = '',
+  autoClose = true,
+  duration = 4000,
 }: {
-  notification: { show: boolean; type: string; message: string },
-  onClose: () => void
-}) => {
-  if (!notification.show) return null;
+  type: 'success' | 'error';
+  message: string;
+  className?: string;
+  autoClose?: boolean;
+  duration?: number;
+}) {
+  const [isVisible, setIsVisible] = useState(true);
+  const [animateOut, setAnimateOut] = useState(false);
+
+  useEffect(() => {
+    if (autoClose && message) {
+      const timer = setTimeout(() => {
+        setAnimateOut(true);
+        const hideTimer = setTimeout(() => {
+          setIsVisible(false);
+        }, 500);
+        return () => clearTimeout(hideTimer);
+      }, duration);
+      return () => clearTimeout(timer);
+    }
+  }, [autoClose, duration, message]);
+
+  if (!isVisible || !message) return null;
+
+  const colors = {
+    success: {
+      light: { bg: 'bg-green-100', border: 'border-green-500', text: 'text-green-800', icon: 'text-green-500' },
+      dark: { bg: 'dark:bg-green-800/40', border: 'dark:border-green-500', text: 'dark:text-green-100', icon: 'dark:text-green-400' }
+    },
+    error: {
+      light: { bg: 'bg-red-100', border: 'border-red-500', text: 'text-red-800', icon: 'text-red-500' },
+      dark: { bg: 'dark:bg-red-800/40', border: 'dark:border-red-500', text: 'dark:text-red-100', icon: 'dark:text-red-400' }
+    }
+  };
+
+  const Icon = type === 'success' ? CheckCircle : AlertCircle;
 
   return (
-    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right-full duration-300">
-      <div className={`
-        flex items-center justify-between min-w-80 max-w-md p-4 rounded-xl shadow-xl backdrop-blur-sm border
-        ${notification.type === 'success'
-          ? 'bg-green-50/95 dark:bg-green-900/95 border-green-200 dark:border-green-800'
-          : 'bg-red-50/95 dark:bg-red-900/95 border-red-200 dark:border-red-800'
-        }
-      `}>
-        <div className="flex items-center">
-          {notification.type === 'success' ? (
-            <div className="flex-shrink-0 w-8 h-8 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-300" />
-            </div>
-          ) : (
-            <div className="flex-shrink-0 w-8 h-8 bg-red-100 dark:bg-red-800 rounded-full flex items-center justify-center">
-              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-300" />
-            </div>
-          )}
-          <p className={`ml-3 text-sm font-medium ${notification.type === 'success'
-              ? 'text-green-800 dark:text-green-200'
-              : 'text-red-800 dark:text-red-200'
-            }`}>
-            {notification.message}
+    <div className={`fixed top-6 right-6 z-50 ${animateOut ? 'opacity-0 translate-x-20' : 'opacity-100 translate-x-0'} transition-all duration-500 ease-in-out transform ${className}`}>
+      <div
+        className={`max-w-md rounded-lg shadow-xl border-l-4 
+                    ${colors[type].light.border} ${colors[type].dark.border}
+                    ${colors[type].light.bg} ${colors[type].dark.bg} 
+                    flex items-start p-5 transition-all duration-300 animate-slide-in-right`}
+      >
+        <Icon className={`h-6 w-6 mt-0.5 mr-4 flex-shrink-0 ${colors[type].light.icon} ${colors[type].dark.icon}`} />
+        <div className="flex-grow">
+          <p className={`text-base font-semibold ${colors[type].light.text} ${colors[type].dark.text}`}>
+            {message}
           </p>
         </div>
         <button
-          onClick={onClose}
-          className="ml-4 flex-shrink-0 rounded-full p-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          onClick={() => setAnimateOut(true)}
+          className="ml-4 flex-shrink-0 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
         >
-          <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          <X className="h-5 w-5" />
         </button>
       </div>
     </div>
   );
-};
+}
 
-// Componente de badge de estado
-const StatusBadge = ({
-  status,
-  type
-}: {
-  status: string;
-  type: 'estado' | 'tipo'
-}) => {
-  const getStatusStyles = () => {
-    if (type === 'estado') {
-      switch (status) {
-        case 'ACTIVO':
-          return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
-        case 'INACTIVO':
-          return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600';
-        default:
-          return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800';
-      }
-    } else {
-      switch (status) {
-        case 'ESTUDIANTE':
-          return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800';
-        case 'DOCENTE':
-          return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800';
-        default:
-          return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800';
-      }
-    }
-  };
-
-  const getIcon = () => {
-    if (type === 'tipo') {
-      if (status === 'ESTUDIANTE') return <GraduationCap className="w-3 h-3" />;
-      if (status === 'DOCENTE') return <UserCheck className="w-3 h-3" />;
-    }
-    return null;
-  };
-
-  return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusStyles()}`}>
-      {getIcon()}
-      {status}
-    </span>
-  );
-};
-
-// Componente de vista de detalles
-const LectorDetails = ({
-  lector,
-  onClose,
-  onEdit
-}: {
-  lector: Lector;
-  onClose: () => void;
-  onEdit: (lector: Lector) => void;
-}) => (
-  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden">
-    {/* Header */}
-    <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-            <Users className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-white">
-              Detalles del Lector
-            </h2>
-            <p className="text-indigo-100 text-sm">
-              Información completa del registro
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => onEdit(lector)}
-            className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors flex items-center gap-2"
-          >
-            <Edit className="w-4 h-4" />
-            <span className="hidden sm:inline">Editar</span>
-          </button>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/20 text-white rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-    </div>
-
-    {/* Content */}
-    <div className="p-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-              Código
-            </dt>
-            <dd className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {lector.codigo}
-            </dd>
-          </div>
-
-          <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-              Nombre Completo
-            </dt>
-            <dd className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {lector.nombre}
-            </dd>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-              Tipo
-            </dt>
-            <dd>
-              <StatusBadge status={lector.tipo} type="tipo" />
-            </dd>
-          </div>
-
-          <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-            <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-              Grado
-            </dt>
-            <dd className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {lector.grado ? lector.grado.grado : 'No asignado'}
-            </dd>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-          Estado
-        </dt>
-        <dd>
-          <StatusBadge status={lector.estado} type="estado" />
-        </dd>
-      </div>
-    </div>
-  </div>
-);
-
-// Componente principal
-export default function Index({
-  auth,
-  lectores,
-  filters = {},
+const Index = ({ 
+  auth, 
+  lectores, 
+  flash, 
+  errors = {}, 
+  filters: initialFilters = {}, 
   grados = [],
-}: LectorPageProps) {
-  const { errors = {}, flash = {} } = usePage().props as any;
+  perPageOptions = [10, 25, 50, 100],
+  currentPerPage = 10,
+  pagination
+}: IndexProps) => {
+  const page = usePage();
 
-  // Estados
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialFilters.search || '');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState({
-    tipo: '',
-    grado: '',
-    estado: ''
-  });
-  const [selectedLector, setSelectedLector] = useState<Lector | null>(null);
-  const [view, setView] = useState('list');
-  const [notification, setNotification] = useState({
-    show: false,
-    type: '',
-    message: ''
+    tipo: initialFilters.tipo || '',
+    subgrado: initialFilters.subgrado || '',
+    estado: initialFilters.estado || '',
   });
 
-  // Mostrar notificaciones de flash
+  const [alerts, setAlerts] = useState<{
+    success: string | null;
+    error: string | null;
+    timestamp: number;
+  }>({
+    success: null,
+    error: null,
+    timestamp: 0
+  });
+
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
-    if (flash?.success) {
-      setNotification({
-        show: true,
-        type: 'success',
-        message: flash.success
-      });
-    } else if (flash?.error) {
-      setNotification({
-        show: true,
-        type: 'error',
-        message: flash.error
+    if (flash) {
+      setAlerts({
+        success: flash.success || null,
+        error: flash.error || null,
+        timestamp: Date.now()
       });
     }
+  }, [flash, page.props.flash]);
 
-    const timer = setTimeout(() => {
-      setNotification(prev => ({ ...prev, show: false }));
-    }, 5000);
+  const applyFilters = (currentSearchTerm: string, currentSelectedFilters: typeof selectedFilters, perPage?: number): void => {
+    const params = new URLSearchParams();
+    if (currentSearchTerm) params.set('search', currentSearchTerm);
+    if (currentSelectedFilters.tipo) params.set('tipo', currentSelectedFilters.tipo);
+    if (currentSelectedFilters.subgrado) params.set('subgrado', currentSelectedFilters.subgrado);
+    if (currentSelectedFilters.estado) params.set('estado', currentSelectedFilters.estado);
+    if (perPage) params.set('per_page', perPage.toString());
 
-    return () => clearTimeout(timer);
-  }, [flash]);
+    router.get(`/lectores?${params.toString()}`, {}, {
+      preserveState: true,
+      preserveScroll: true,
+    });
+  };
 
-  // Manejar cambios en los filtros
-  const handleFiltersChange = () => {
-    router.get(
-      route('lectores.index'),
-      {
-        search: searchTerm,
-        tipo: selectedFilters.tipo,
-        grado: selectedFilters.grado,
-        estado: selectedFilters.estado,
-      },
-      {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-      }
+  const handleSearch = (value: string): void => {
+    setSearchTerm(value);
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    const timeout = setTimeout(() => {
+      applyFilters(value, selectedFilters);
+    }, 500);
+    setSearchTimeout(timeout);
+  };
+
+  const handleFilterChange = (filterType: string, value: string): void => {
+    const newFilters = { ...selectedFilters, [filterType]: value };
+    setSelectedFilters(newFilters);
+    applyFilters(searchTerm, newFilters);
+  };
+
+  const handlePerPageChange = (newPerPage: number): void => {
+    applyFilters(searchTerm, selectedFilters, newPerPage);
+  };
+
+  const resetFilters = (): void => {
+    setSearchTerm('');
+    setSelectedFilters({
+      tipo: '',
+      subgrado: '',
+      estado: ''
+    });
+    router.get('/lectores', {}, {
+      preserveState: true,
+      preserveScroll: true,
+    });
+  };
+
+  // Obtener lista única de subgrados para el filtro
+  const uniqueSubgrados = [...new Set(grados?.map(grado => grado.subGrado).filter(Boolean))];
+
+  // Usar datos de paginación mejorados si están disponibles, sino fallback a los originales
+  const paginationData = pagination || {
+    current_page: 'current_page' in lectores ? lectores.current_page : 1,
+    last_page: 'last_page' in lectores ? lectores.last_page : 1,
+    per_page: currentPerPage,
+    total: lectores.total || 0,
+    from: 'from' in lectores ? lectores.from : null,
+    to: 'to' in lectores ? lectores.to : null,
+    has_pages: (lectores.total || 0) > currentPerPage
+  };
+
+  const renderAlerts = () => {
+    return (
+      <>
+        {alerts.success && (
+          <AlertNotification
+            key={`success-${alerts.timestamp}`}
+            type="success"
+            message={alerts.success}
+          />
+        )}
+        {alerts.error && (
+          <AlertNotification
+            key={`error-${alerts.timestamp}`}
+            type="error"
+            message={alerts.error}
+          />
+        )}
+      </>
     );
   };
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      handleFiltersChange();
-    }, 300);
+  const content = (
+    <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
+      {renderAlerts()}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 filter blur-3xl dark:bg-blue-600/10"></div>
+        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 filter blur-3xl dark:bg-indigo-600/10"></div>
+      </div>
+      <div className="max-w-7xl mx-auto relative z-10">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            Gestión de Lectores
+          </h1>
+          <div className="flex gap-4">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Buscar lectores..."
+                className="w-64 pl-10 py-2.5 pr-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 
+                          text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                          shadow-sm transition-all duration-200"
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+              <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+            </div>
 
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, selectedFilters]);
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition shadow-sm border border-gray-300 dark:border-gray-700"
+            >
+              <Filter className="w-5 h-5" />
+              <span>Filtros</span>
+            </button>
 
-  // Funciones de acción
-  const handleShowLector = (lector: Lector) => {
-    setSelectedLector(lector);
-    setView('show');
-  };
+            <Link
+              href={route('lectores.create')}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white 
+                        px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg
+                        transform hover:-translate-y-0.5"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Nuevo Lector</span>
+            </Link>
+          </div>
+        </div>
 
-  const handleEditLector = (lector: Lector) => {
-    router.get(route('lectores.edit', lector.id));
-  };
+        {/* Panel de filtros */}
+        {showFilters && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-md border border-gray-100 dark:border-gray-700 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Filtros avanzados</h3>
+              <button
+                onClick={resetFilters}
+                className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                Restablecer filtros
+              </button>
+            </div>
 
-  const resetFilters = () => {
-    setSelectedFilters({
-      tipo: '',
-      grado: '',
-      estado: ''
-    });
-    setSearchTerm('');
-  };
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tipo</label>
+                <select
+                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={selectedFilters.tipo}
+                  onChange={(e) => handleFilterChange('tipo', e.target.value)}
+                >
+                  <option value="">Todos los tipos</option>
+                  <option value="ESTUDIANTE">Estudiante</option>
+                  <option value="DOCENTE">Docente</option>
+                  <option value="OTRO">Otro</option>
+                </select>
+              </div>
 
-  const hasActiveFilters = selectedFilters.tipo || selectedFilters.grado || selectedFilters.estado || searchTerm;
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">SubGrado</label>
+                <select
+                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={selectedFilters.subgrado}
+                  onChange={(e) => handleFilterChange('subgrado', e.target.value)}
+                >
+                  <option value="">Todos los subgrados</option>
+                  {uniqueSubgrados.map((subgrado, index) => (
+                    <option key={index} value={subgrado}>
+                      {subgrado}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-  return (
-    <AppLayout
-      title="Gestión de Lectores"
-      breadcrumbs={breadcrumbs}
-      renderHeader={() => (
-        <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-          Gestión de Lectores
-        </h2>
-      )}
-    >
-      <Head title="Gestión de Lectores" />
-
-      {/* Notificación */}
-      <Notification
-        notification={notification}
-        onClose={() => setNotification(prev => ({ ...prev, show: false }))}
-      />
-
-      <div className="space-y-6">
-        {/* Vista de detalles */}
-        {view === 'show' && selectedLector && (
-          <LectorDetails
-            lector={selectedLector}
-            onClose={() => setView('list')}
-            onEdit={handleEditLector}
-          />
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Estado</label>
+                <select
+                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={selectedFilters.estado}
+                  onChange={(e) => handleFilterChange('estado', e.target.value)}
+                >
+                  <option value="">Todos los estados</option>
+                  <option value="ACTIVO">Activo</option>
+                  <option value="INACTIVO">Inactivo</option>
+                </select>
+              </div>
+            </div>
+          </div>
         )}
 
-        {view === 'list' && (
-          <>
-            {/* Cabecera moderna */}
-            <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 rounded-2xl shadow-xl overflow-hidden">
-              <div className="px-6 py-8">
-                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                      <Users className="h-7 w-7 text-white" />
-                    </div>
-                    <div>
-                      <h1 className="text-3xl font-bold text-white">
-                        Gestión de Lectores
-                      </h1>
-                    </div>
-                  </div>
+        {/* Información de resultados mejorada */}
+        {paginationData.total > 0 && (
+          <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            Mostrando {paginationData.from || 1} a {paginationData.to || lectores.data.length} de {paginationData.total} resultados
+          </div>
+        )}
 
-                  <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-                    <Link
-                      href={route('lectores.create')}
-                      className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-indigo-600 font-semibold rounded-xl hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl"
-                    >
-                      <PlusCircle className="h-5 w-5" />
-                      <span>Nuevo Lector</span>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Barra de búsqueda y filtros */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <div className="flex flex-col lg:flex-row gap-4">
-                {/* Búsqueda */}
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    placeholder="Buscar por nombre o código..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                  />
-                  <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />
-                </div>
-
-                {/* Botones de acción */}
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setShowFilters(!showFilters)}
-                    className={`inline-flex items-center gap-2 px-4 py-3 rounded-xl border font-medium transition-all ${showFilters || hasActiveFilters
-                        ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
-                        : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
-                      }`}
-                  >
-                    <Filter className="h-5 w-5" />
-                    <span>Filtros</span>
-                    {hasActiveFilters && (
-                      <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>
-                    )}
-                  </button>
-
-                  {hasActiveFilters && (
-                    <button
-                      onClick={resetFilters}
-                      className="inline-flex items-center gap-2 px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                    >
-                      <FilterX className="h-4 w-4" />
-                      <span>Limpiar</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Panel de filtros avanzados */}
-            {showFilters && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 animate-in slide-in-from-top-2 duration-200">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                    <Settings className="w-5 h-5" />
-                    Filtros Avanzados
-                  </h3>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Tipo de Lector
-                    </label>
-                    <div className="relative">
-                      <select
-                        className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
-                        value={selectedFilters.tipo}
-                        onChange={(e) => setSelectedFilters({ ...selectedFilters, tipo: e.target.value })}
-                      >
-                        <option value="">Todos los tipos</option>
-                        <option value="ESTUDIANTE">Estudiante</option>
-                        <option value="DOCENTE">Docente</option>
-                        <option value="OTRO">Otro</option>
-                      </select>
-                      <ChevronDown className="absolute right-3 top-3.5 h-5 w-5 text-gray-400 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Grado
-                    </label>
-                    <div className="relative">
-                      <select
-                        className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
-                        value={selectedFilters.grado}
-                        onChange={(e) => setSelectedFilters({ ...selectedFilters, grado: e.target.value })}
-                      >
-                        <option value="">Todos los grados</option>
-                        {grados.map((grado: any) => (
-                          <option key={grado.id} value={grado.id}>
-                            {grado.grado}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-3.5 h-5 w-5 text-gray-400 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Estado
-                    </label>
-                    <div className="relative">
-                      <select
-                        className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
-                        value={selectedFilters.estado}
-                        onChange={(e) => setSelectedFilters({ ...selectedFilters, estado: e.target.value })}
-                      >
-                        <option value="">Todos los estados</option>
-                        <option value="ACTIVO">Activo</option>
-                        <option value="INACTIVO">Inactivo</option>
-                      </select>
-                      <ChevronDown className="absolute right-3 top-3.5 h-5 w-5 text-gray-400 pointer-events-none" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tabla de lectores */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600">
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Código
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Nombre
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Tipo
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Grado
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Estado
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Acciones
-                      </th>
+        {/* Tabla */}
+        <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-700">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Código</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Nombre</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Tipo</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">SubGrado</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Estado</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {lectores.data.length > 0 ? (
+                  lectores.data.map((lector) => (
+                    <tr key={lector.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="px-6 py-3 whitespace-nowrap">
+                        <span className="text-sm font-mono text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                          {lector.codigo}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">{lector.nombre}</td>
+                      <td className="px-6 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          lector.tipo === 'ESTUDIANTE' 
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' 
+                            : lector.tipo === 'DOCENTE'
+                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                            : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
+                        }`}>
+                          {lector.tipo}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 text-sm">
+                        {lector.grado?.subGrado || '—'}
+                      </td>
+                      <td className="px-6 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          lector.estado === 'ACTIVO' 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
+                            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                        }`}>
+                          {lector.estado}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 whitespace-nowrap">
+                        <div className="flex space-x-2">
+                          <ShowLector lector={lector} />
+                          <Link
+                            href={route('lectores.edit', lector.id)}
+                            className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 
+                                      transition-colors p-1 bg-amber-50 dark:bg-amber-900/30 rounded hover:bg-amber-100 dark:hover:bg-amber-800/40"
+                            title="Editar"
+                          >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                          </Link>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {lectores.data.length > 0 ? (
-                      lectores.data.map((lector: Lector) => (
-                        <tr
-                          key={lector.id}
-                          className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm font-mono text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                              {lector.codigo}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {lector.nombre}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <StatusBadge status={lector.tipo} type="tipo" />
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                            {lector.grado ? lector.grado.grado : '—'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <StatusBadge status={lector.estado} type="estado" />
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleShowLector(lector)}
-                                className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                title="Ver detalles"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                              <Link
-                                href={route('lectores.edit', lector.id)}
-                                className="p-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
-                                title="Editar"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Link>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center">
-                          <div className="flex flex-col items-center gap-3">
-                            <Users className="w-12 h-12 text-gray-300 dark:text-gray-600" />
-                            <div>
-                              <p className="text-gray-500 dark:text-gray-400 font-medium">
-                                No se encontraron lectores
-                              </p>
-                              <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">
-                                {hasActiveFilters
-                                  ? 'Intenta ajustar los filtros de búsqueda'
-                                  : 'Comienza agregando un nuevo lector'
-                                }
-                              </p>
-                            </div>
-                            {!hasActiveFilters && (
-                              <Link
-                                href={route('lectores.create')}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                              >
-                                <PlusCircle className="w-4 h-4" />
-                                Agregar Lector
-                              </Link>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                      No hay lectores disponibles
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-              {/* Paginación */}
-              {'links' in lectores && (lectores as any).links.length > 3 && (
-                <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Mostrando {(lectores as any).from} a {(lectores as any).to} de {(lectores as any).total} registros
-                    </div>
-                    <div className="flex gap-2">
-                      {(lectores as any).links.map((link: { url: string | null; active: boolean; label: string }, i: number) => {
-                        if (link.url === null) return null;
-
-                        return (
-                          <button
-                            key={i}
-                            onClick={() => {
-                              // Extrae el número de página de la URL
-                              const url = link.url ? new URL(link.url, window.location.origin) : null;
-                              const page = url?.searchParams.get('page') || 1;
-
-                              // Navega manteniendo todos los filtros
-                              router.get(route('lectores.index'), {
-                                search: searchTerm,
-                                tipo: selectedFilters.tipo,
-                                grado: selectedFilters.grado,
-                                estado: selectedFilters.estado,
-                                page: page
-                              }, {
-                                preserveState: true,
-                                preserveScroll: true,
-                              });
-                            }}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${link.active
-                                ? 'bg-indigo-600 text-white'
-                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                              }`}
-                            dangerouslySetInnerHTML={{ __html: link.label }}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
+        {/* Paginación mejorada y más robusta */}
+        {paginationData.has_pages && paginationData.last_page > 1 && (
+          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+            {/* Información de paginación */}
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Página {paginationData.current_page} de {paginationData.last_page}
             </div>
-          </>
+
+            {/* Controles de paginación */}
+            <div className="flex items-center space-x-2">
+              {/* Botón anterior */}
+              <Link
+                href={paginationData.current_page > 1 ? 
+                  `${window.location.pathname}?${new URLSearchParams({
+                    ...Object.fromEntries(new URLSearchParams(window.location.search)),
+                    page: String(paginationData.current_page - 1)
+                  })}` : '#'}
+                className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+                  paginationData.current_page > 1
+                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                }`}
+                onClick={(e) => {
+                  if (paginationData.current_page <= 1) e.preventDefault();
+                }}
+                preserveState
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Link>
+
+              {/* Números de página */}
+              {[...Array(paginationData.last_page)].map((_, index) => {
+                const pageNum = index + 1;
+                const maxVisiblePages = 5;
+                const currentPage = paginationData.current_page;
+                const halfVisible = Math.floor(maxVisiblePages / 2);
+
+                let showPage = false;
+                if (paginationData.last_page <= maxVisiblePages) {
+                  showPage = true;
+                } else if (
+                  pageNum === 1 ||
+                  pageNum === paginationData.last_page ||
+                  (pageNum >= currentPage - halfVisible && pageNum <= currentPage + halfVisible)
+                ) {
+                  showPage = true;
+                }
+
+                if (showPage) {
+                  return (
+                    <Link
+                      key={pageNum}
+                      href={`${window.location.pathname}?${new URLSearchParams({
+                        ...Object.fromEntries(new URLSearchParams(window.location.search)),
+                        page: String(pageNum)
+                      })}`}
+                      className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                      preserveState
+                    >
+                      {pageNum}
+                    </Link>
+                  );
+                } else if (
+                  (pageNum === 2 && currentPage > halfVisible + 1) ||
+                  (pageNum === paginationData.last_page - 1 && currentPage < paginationData.last_page - halfVisible)
+                ) {
+                  return (
+                    <span key={pageNum} className="flex items-center justify-center w-10 h-10 text-sm font-medium text-gray-500 dark:text-gray-400">
+                      ...
+                    </span>
+                  );
+                }
+                return null;
+              })}
+
+              {/* Botón siguiente */}
+              <Link
+                href={paginationData.current_page < paginationData.last_page ? 
+                  `${window.location.pathname}?${new URLSearchParams({
+                    ...Object.fromEntries(new URLSearchParams(window.location.search)),
+                    page: String(paginationData.current_page + 1)
+                  })}` : '#'}
+                className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+                  paginationData.current_page < paginationData.last_page
+                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                }`}
+                onClick={(e) => {
+                  if (paginationData.current_page >= paginationData.last_page) e.preventDefault();
+                }}
+                preserveState
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Link>
+            </div>
+          </div>
         )}
       </div>
+    </div>
+  );
+
+  return (
+    <AppLayout breadcrumbs={breadcrumbs}>
+      <Head title="Gestión de Lectores" />
+      {content}
     </AppLayout>
   );
-}
+};
+
+export default Index;

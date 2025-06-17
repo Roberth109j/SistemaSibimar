@@ -14,48 +14,90 @@ use Inertia\Response;
 class LectorController extends Controller
 {
     /**
-     * Obtiene un listado de lectores con sus grados y secciones
+     * Obtiene un listado de lectores con sus grados, secciones y conteo de préstamos activos
      */
     public function index(Request $request): Response
     {
+        // Validación de parámetros de paginación
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 10; // Valor fijo de 10 elementos por página
+
+        // Query base con relaciones necesarias y conteo de préstamos activos
         $query = Lector::with(['grado.seccion'])
             ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
+            ->select([
+                'lectores.*',
+                \DB::raw("(SELECT COUNT(*) FROM prestamos WHERE prestamos.lector_id = lectores.id AND prestamos.estado = 'ACTIVO') as prestamos_count")
+            ])
             ->orderBy('grados.grado')
             ->orderBy('grados.subGrado')
-            ->orderBy('lectores.nombre')
-            ->select('lectores.*');
+            ->orderBy('lectores.nombre');
 
         // Aplicar filtros
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->where('nombre', 'LIKE', "%{$search}%")
-                  ->orWhere('codigo', 'LIKE', "%{$search}%");
+                $q->where('lectores.nombre', 'LIKE', "%{$search}%")
+                  ->orWhere('lectores.codigo', 'LIKE', "%{$search}%");
             });
         }
 
-        if ($request->has('tipo') && $request->tipo) {
-            $query->where('tipo', $request->tipo);
+        if ($request->filled('tipo')) {
+            $query->where('lectores.tipo', $request->tipo);
         }
 
-        if ($request->has('grado') && $request->grado) {
-            $query->where('grado_id', $request->grado);
+        // ⭐ LÍNEA CAMBIADA: Filtro por subgrado en lugar de grado_id
+        if ($request->filled('subgrado')) {
+            $query->where('grados.subGrado', $request->subgrado);
         }
 
-        if ($request->has('estado') && $request->estado) {
-            $query->where('estado', $request->estado);
+        if ($request->filled('estado')) {
+            $query->where('lectores.estado', $request->estado); // Especificar tabla lectores
         }
 
-        $lectores = $query->paginate(10)->withQueryString();
-        $grados = Grado::select('id', 'grado')
+        // Paginación mejorada
+        $lectores = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+
+        // Redirigir si la página solicitada no existe pero hay resultados
+        if ($page > $lectores->lastPage() && $lectores->lastPage() > 0) {
+            return redirect()->route('lectores.index', 
+                array_merge($request->query(), ['page' => $lectores->lastPage()])
+            );
+        }
+
+        // Datos para filtros
+        $grados = Grado::select('id', 'grado', 'subGrado')
             ->where('estado', 'ACTIVO')
             ->orderBy('grado')
+            ->orderBy('subGrado')
             ->get();
+
+        $tipos = [
+            Lector::TIPO_ESTUDIANTE,
+            Lector::TIPO_DOCENTE,
+            Lector::TIPO_OTRO,
+        ];
+
+        $estados = [
+            Lector::ESTADO_ACTIVO,
+            Lector::ESTADO_INACTIVO,
+        ];
 
         return Inertia::render('Lector/Index', [
             'lectores' => $lectores,
-            'filters' => $request->only(['search', 'tipo', 'grado', 'estado']),
-            'grados' => $grados
+            'grados' => $grados,
+            'tipos' => $tipos,
+            'estados' => $estados,
+            'filters' => array_filter($request->only(['search', 'tipo', 'subgrado', 'estado'])), // ⭐ CAMBIADO: 'grado' por 'subgrado'
+            'pagination' => [
+                'current_page' => $lectores->currentPage(),
+                'last_page' => $lectores->lastPage(),
+                'per_page' => $lectores->perPage(),
+                'total' => $lectores->total(),
+                'from' => $lectores->firstItem(),
+                'to' => $lectores->lastItem(),
+                'has_pages' => $lectores->hasPages(),
+            ],
         ]);
     }
 
@@ -70,8 +112,21 @@ class LectorController extends Controller
             ->orderBy('subGrado')
             ->get();
 
+        $tipos = [
+            Lector::TIPO_ESTUDIANTE,
+            Lector::TIPO_DOCENTE,
+            Lector::TIPO_OTRO,
+        ];
+
+        $estados = [
+            Lector::ESTADO_ACTIVO,
+            Lector::ESTADO_INACTIVO,
+        ];
+
         return Inertia::render('Lector/Create', [
-            'grados' => $grados
+            'grados' => $grados,
+            'tipos' => $tipos,
+            'estados' => $estados,
         ]);
     }
 
@@ -80,9 +135,16 @@ class LectorController extends Controller
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
             'codigo' => 'required|string|unique:lectores,codigo',
-            'tipo' => 'required|in:ESTUDIANTE,DOCENTE,OTRO',
-            'grado_id' => 'required_if:tipo,ESTUDIANTE|exists:grados,id|nullable',
-            'estado' => 'required|in:ACTIVO,INACTIVO'
+            'tipo' => 'required|in:' . implode(',', [
+                Lector::TIPO_ESTUDIANTE,
+                Lector::TIPO_DOCENTE,
+                Lector::TIPO_OTRO,
+            ]),
+            'grado_id' => 'required_if:tipo,' . Lector::TIPO_ESTUDIANTE . '|exists:grados,id|nullable',
+            'estado' => 'required|in:' . implode(',', [
+                Lector::ESTADO_ACTIVO,
+                Lector::ESTADO_INACTIVO,
+            ]),
         ]);
 
         $lector = Lector::create($validated);
@@ -96,13 +158,16 @@ class LectorController extends Controller
      */
     public function show(Lector $lector): Response
     {
-        // Cargamos el grado y su sección si es estudiante
-        if ($lector->esEstudiante()) {
-            $lector->load('grado.seccion');
-        }
+        // Cargar relaciones y conteo de préstamos activos
+        $lector->load(['grado.seccion'])
+            ->loadCount([
+                'prestamos as prestamos_count' => function ($query) {
+                    $query->where('estado', 'ACTIVO');
+                }
+            ]);
 
         return Inertia::render('Lector/Show', [
-            'lector' => $lector
+            'lector' => $lector,
         ]);
     }
 
@@ -117,9 +182,22 @@ class LectorController extends Controller
             ->orderBy('subGrado')
             ->get();
 
+        $tipos = [
+            Lector::TIPO_ESTUDIANTE,
+            Lector::TIPO_DOCENTE,
+            Lector::TIPO_OTRO,
+        ];
+
+        $estados = [
+            Lector::ESTADO_ACTIVO,
+            Lector::ESTADO_INACTIVO,
+        ];
+
         return Inertia::render('Lector/Edit', [
             'lector' => $lector,
-            'grados' => $grados
+            'grados' => $grados,
+            'tipos' => $tipos,
+            'estados' => $estados,
         ]);
     }
 
@@ -128,9 +206,16 @@ class LectorController extends Controller
         $validated = $request->validate([
             'nombre' => 'sometimes|required|string|max:255',
             'codigo' => 'sometimes|required|string|unique:lectores,codigo,' . $lector->id,
-            'tipo' => 'sometimes|required|in:ESTUDIANTE,DOCENTE,OTRO',
-            'grado_id' => 'required_if:tipo,ESTUDIANTE|exists:grados,id|nullable',
-            'estado' => 'sometimes|required|in:ACTIVO,INACTIVO'
+            'tipo' => 'sometimes|required|in:' . implode(',', [
+                Lector::TIPO_ESTUDIANTE,
+                Lector::TIPO_DOCENTE,
+                Lector::TIPO_OTRO,
+            ]),
+            'grado_id' => 'required_if:tipo,' . Lector::TIPO_ESTUDIANTE . '|exists:grados,id|nullable',
+            'estado' => 'sometimes|required|in:' . implode(',', [
+                Lector::ESTADO_ACTIVO,
+                Lector::ESTADO_INACTIVO,
+            ]),
         ]);
 
         $lector->update($validated);
@@ -153,6 +238,32 @@ class LectorController extends Controller
 
         return redirect()->route('lectores.index')
             ->with('success', 'Lector eliminado exitosamente.');
+    }
+
+    //Busca por código de lector         
+    public function buscarPorCodigo(Request $request): JsonResponse     
+    {         
+        $codigo = $request->input('codigo');
+        
+        \Log::info('Buscando lector con código: ' . $codigo);
+        
+        $lector = Lector::where('codigo', $codigo)
+            ->where('estado', Lector::ESTADO_ACTIVO)
+            ->first();
+        
+        \Log::info('Lector encontrado: ' . ($lector ? 'SÍ' : 'NO'));
+                    
+        if (!$lector) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lector no encontrado o inactivo'
+            ], 404);
+        }
+                
+        return response()->json([
+            'success' => true,
+            'lector' => $lector
+        ]);
     }
 
     /**

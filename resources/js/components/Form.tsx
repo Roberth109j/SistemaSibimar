@@ -17,7 +17,7 @@ type FormProps = {
   initialData: Record<string, any>;
   fields: FormField[];
   errors?: Record<string, string>;
-  submitUrl: string;
+  submitUrl?: string; // Made optional
   method?: 'post' | 'put' | 'patch';
   onSuccess?: () => void;
   onCancel: () => void;

@@ -15,13 +15,38 @@ use Illuminate\Database\QueryException;
 class AutorController extends Controller
 {
     /**
-     * Muestra un listado de todos los autores.
+     * Muestra un listado de todos los autores con paginación.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $autores = Autor::orderBy('id')->get();
+        // Validación de parámetros de paginación
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 10; // Valor fijo de 10 elementos por página
+
+        // Query base ordenado por ID
+        $query = Autor::query()->orderBy('id');
+
+        // Paginación
+        $autores = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+
+        // Redirigir si la página solicitada no existe pero hay resultados
+        if ($page > $autores->lastPage() && $autores->lastPage() > 0) {
+            return redirect()->route('autores.index', 
+                array_merge($request->query(), ['page' => $autores->lastPage()])
+            );
+        }
+
         return Inertia::render('Autor/Index', [
-            'autores' => $autores
+            'autores' => $autores,
+            'pagination' => [
+                'current_page' => $autores->currentPage(),
+                'last_page' => $autores->lastPage(),
+                'per_page' => $autores->perPage(),
+                'total' => $autores->total(),
+                'from' => $autores->firstItem(),
+                'to' => $autores->lastItem(),
+                'has_pages' => $autores->hasPages(),
+            ],
         ]);
     }
 
@@ -44,6 +69,23 @@ class AutorController extends Controller
                 'apellidos' => 'required|string|max:255',
                 'nombres' => 'required|string|max:255',
             ]);
+
+            // Verificar si ya existe un autor con el mismo nombre y apellido
+            $existingAutor = Autor::where('nombres', $validated['nombres'])
+                                  ->where('apellidos', $validated['apellidos'])
+                                  ->first();
+
+            if ($existingAutor) {
+                Log::warning('Attempted to create duplicate autor', [
+                    'nombres' => $validated['nombres'],
+                    'apellidos' => $validated['apellidos'],
+                    'existing_id' => $existingAutor->id
+                ]);
+                
+                return redirect()->back()
+                    ->withErrors(['duplicate' => 'Este autor ya existe en el sistema'])
+                    ->withInput();
+            }
 
             DB::beginTransaction();
             $autor = Autor::create($validated);
@@ -138,10 +180,8 @@ class AutorController extends Controller
             
             DB::commit();
 
-            // Return updated autor data to refresh frontend props
             return redirect()->route('autores.index')
-                ->with('success', 'Autor actualizado correctamente.')
-                ->with('autores', Autor::orderBy('id')->get()); // Refresh autores list
+                ->with('success', 'Autor actualizado correctamente.');
         } catch (ValidationException $e) {
             DB::rollBack();
             Log::error('Validation error updating autor: ' . json_encode($e->errors()));
