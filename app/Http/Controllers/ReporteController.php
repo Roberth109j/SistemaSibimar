@@ -11,22 +11,33 @@ class ReporteController extends Controller
 {
     public function historialPrestamos(Request $request)
     {
+        // Validación de parámetros de paginación
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 10; // Valor fijo de 10 elementos por página
+
         $query = Prestamo::with(['ejemplar.libro', 'lector'])
+            // MODIFICACIÓN: Ordenar primero por estado (ACTIVO primero) y luego por fecha
+            ->orderByRaw("CASE 
+                WHEN estado = 'ACTIVO' THEN 1 
+                WHEN estado = 'VENCIDO' THEN 2 
+                WHEN estado = 'DEVUELTO' THEN 3 
+                ELSE 4 
+            END")
             ->orderBy('fecha_prestamo', 'desc');
 
-        // Aplicar filtros si existen
-        if ($request->has('search')) {
+        // Aplicar filtros si existen - CORREGIDO
+        if ($request->has('search') && $request->search) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->whereHas('lector', function ($q) use ($search) {
-                    $q->where('codigo', 'like', "%{$search}%")
-                        ->orWhere('nombre', 'like', "%{$search}%");
+                    $q->where('lectores.codigo', 'like', "%{$search}%")
+                        ->orWhere('lectores.nombre', 'like', "%{$search}%");
                 })
                 ->orWhereHas('ejemplar', function ($q) use ($search) {
-                    $q->where('codigo', 'like', "%{$search}%")
-                        ->orWhereHas('libro', function ($q) use ($search) {
-                            $q->where('titulo', 'like', "%{$search}%");
-                        });
+                    // Removido 'ejemplares.codigo' ya que no existe esta columna
+                    $q->whereHas('libro', function ($q) use ($search) {
+                        $q->where('libros.titulo', 'like', "%{$search}%");
+                    });
                 });
             });
         }
@@ -43,34 +54,57 @@ class ReporteController extends Controller
             $query->where('fecha_prestamo', '<=', $request->fechaFin);
         }
 
-        $prestamos = $query->paginate(10)
-            ->through(function ($prestamo) {
-                return [
-                    'id' => $prestamo->id,
-                    'ejemplar' => [
-                        'id' => $prestamo->ejemplar->id,
-                        'codigo' => $prestamo->ejemplar->codigo,
-                        'numEjemplar' => $prestamo->ejemplar->numEjemplar,
-                        'libro' => [
-                            'titulo' => $prestamo->ejemplar->libro->titulo,
-                            'isbn' => $prestamo->ejemplar->libro->isbn,
-                        ],
+        // Paginación mejorada
+        $prestamos = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+
+        // Redirigir si la página solicitada no existe pero hay resultados
+        if ($page > $prestamos->lastPage() && $prestamos->lastPage() > 0) {
+            return redirect()->route('reportes.historial-prestamos', 
+                array_merge($request->query(), ['page' => $prestamos->lastPage()])
+            );
+        }
+
+        // Transformar los datos manteniendo la lógica original
+        $prestamos->through(function ($prestamo) {
+            return [
+                'id' => $prestamo->id,
+                'ejemplar' => [
+                    'id' => $prestamo->ejemplar->id,
+                    'codigo' => $prestamo->ejemplar->codigo ?? null, // Usar null coalescing por si no existe
+                    'numEjemplar' => $prestamo->ejemplar->numEjemplar,
+                    'libro' => [
+                        'titulo' => $prestamo->ejemplar->libro->titulo,
+                        'isbn' => $prestamo->ejemplar->libro->isbn,
                     ],
-                    'lector' => [
-                        'id' => $prestamo->lector->id,
-                        'nombre' => $prestamo->lector->nombre,
-                        'codigo' => $prestamo->lector->codigo,
-                    ],
-                    'fecha_prestamo' => $prestamo->fecha_prestamo,
-                    'fecha_devolucion' => $prestamo->fecha_devolucion,
-                    'fecha_devuelto' => $prestamo->fecha_devuelto,
-                    'estado' => $prestamo->estado,
-                    'observaciones' => $prestamo->observaciones,
-                ];
-            });
+                ],
+                'lector' => [
+                    'id' => $prestamo->lector->id,
+                    'nombre' => $prestamo->lector->nombre,
+                    'codigo' => $prestamo->lector->codigo,
+                ],
+                // Ajustar las fechas sumando un día para compensar la zona horaria
+                'fecha_prestamo' => Carbon::parse($prestamo->fecha_prestamo)->addDay()->format('Y-m-d'),
+                'fecha_devolucion' => Carbon::parse($prestamo->fecha_devolucion)->addDay()->format('Y-m-d'),
+                'fecha_devuelto' => $prestamo->fecha_devuelto 
+                    ? Carbon::parse($prestamo->fecha_devuelto)->addDay()->format('Y-m-d') 
+                    : null,
+                'estado' => $prestamo->estado,
+                'observaciones' => $prestamo->observaciones,
+            ];
+        });
 
         return Inertia::render('Reportes/HistorialPrestamos', [
             'prestamos' => $prestamos,
+            'filters' => array_filter($request->only(['search', 'estado', 'fechaInicio', 'fechaFin'])),
+            'pagination' => [
+                'current_page' => $prestamos->currentPage(),
+                'last_page' => $prestamos->lastPage(),
+                'per_page' => $prestamos->perPage(),
+                'total' => $prestamos->total(),
+                'from' => $prestamos->firstItem(),
+                'to' => $prestamos->lastItem(),
+                'has_pages' => $prestamos->hasPages(),
+            ],
         ]);
     }
 }
