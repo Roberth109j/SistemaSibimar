@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Prestamo;
+use App\Models\Grado;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
@@ -14,6 +15,64 @@ class ReporteController extends Controller
         // Validación de parámetros de paginación
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 10; // Valor fijo de 10 elementos por página
+
+        // ✅ OBTENER TODOS LOS SUBGRADOS ÚNICOS PARA EL FILTRO CON ORDEN NATURAL
+        $subgradosCollection = Grado::whereNotNull('subGrado')
+            ->where('subGrado', '!=', '')
+            ->distinct()
+            ->pluck('subGrado')
+            ->sort(function ($a, $b) {
+                // Función de ordenamiento natural para subgrados empezando desde Primero
+                $orden = [
+                    'PRIMERO' => 1, 'SEGUNDO' => 2, 'TERCERO' => 3, 'CUARTO' => 4, 'QUINTO' => 5,
+                    'SEXTO' => 6, 'SÉPTIMO' => 7, 'SEPTIMO' => 7, 'OCTAVO' => 8, 'NOVENO' => 9, 'DÉCIMO' => 10, 'DECIMO' => 10
+                ];
+                
+                // Intentar con formato de texto (PRIMERO A, SEGUNDO B, etc.)
+                $valorA = 999; $letraA = '';
+                $valorB = 999; $letraB = '';
+                
+                // Buscar formato "PRIMERO A", "SEGUNDO B", etc.
+                foreach ($orden as $texto => $num) {
+                    if (strpos(strtoupper($a), $texto) === 0) {
+                        $valorA = $num;
+                        $letraA = trim(str_replace($texto, '', strtoupper($a)));
+                        break;
+                    }
+                }
+                
+                foreach ($orden as $texto => $num) {
+                    if (strpos(strtoupper($b), $texto) === 0) {
+                        $valorB = $num;
+                        $letraB = trim(str_replace($texto, '', strtoupper($b)));
+                        break;
+                    }
+                }
+                
+                // Si no encuentra formato de texto, intentar con números (1A, 2B, etc.)
+                if ($valorA === 999) {
+                    preg_match('/^(\d+)([A-Z]?)/', strtoupper($a), $matchesA);
+                    $valorA = isset($matchesA[1]) ? (int)$matchesA[1] + 100 : 999; // +100 para poner números después de texto
+                    $letraA = isset($matchesA[2]) ? $matchesA[2] : '';
+                }
+                
+                if ($valorB === 999) {
+                    preg_match('/^(\d+)([A-Z]?)/', strtoupper($b), $matchesB);
+                    $valorB = isset($matchesB[1]) ? (int)$matchesB[1] + 100 : 999;
+                    $letraB = isset($matchesB[2]) ? $matchesB[2] : '';
+                }
+                
+                // Comparar primero por valor numérico
+                if ($valorA !== $valorB) {
+                    return $valorA - $valorB;
+                }
+                
+                // Si los valores son iguales, comparar por letra
+                return strcmp($letraA, $letraB);
+            })
+            ->values(); // Reindexar la colección
+        
+        $subgrados = $subgradosCollection->toArray();
 
         // ✅ CARGAR LA RELACIÓN CON GRADO para obtener el subGrado
         $query = Prestamo::with(['ejemplar.libro', 'lector.grado'])
@@ -48,6 +107,13 @@ class ReporteController extends Controller
 
         if ($request->has('estado') && $request->estado) {
             $query->where('estado', $request->estado);
+        }
+
+        // ✅ AGREGAR FILTRO POR SUBGRADO
+        if ($request->has('subgrado') && $request->subgrado) {
+            $query->whereHas('lector.grado', function ($q) use ($request) {
+                $q->where('grados.subGrado', $request->subgrado);
+            });
         }
 
         if ($request->has('fechaInicio') && $request->fechaInicio) {
@@ -101,7 +167,8 @@ class ReporteController extends Controller
 
         return Inertia::render('Reportes/HistorialPrestamos', [
             'prestamos' => $prestamos,
-            'filters' => array_filter($request->only(['search', 'estado', 'fechaInicio', 'fechaFin'])),
+            'subgrados' => $subgrados, // ✅ ENVIAR LOS SUBGRADOS AL FRONTEND
+            'filters' => array_filter($request->only(['search', 'estado', 'subgrado', 'fechaInicio', 'fechaFin'])), // ✅ INCLUIR SUBGRADO EN FILTROS
             'pagination' => [
                 'current_page' => $prestamos->currentPage(),
                 'last_page' => $prestamos->lastPage(),
