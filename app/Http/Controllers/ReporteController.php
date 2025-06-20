@@ -15,7 +15,8 @@ class ReporteController extends Controller
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 10; // Valor fijo de 10 elementos por página
 
-        $query = Prestamo::with(['ejemplar.libro', 'lector'])
+        // ✅ CARGAR LA RELACIÓN CON GRADO para obtener el subGrado
+        $query = Prestamo::with(['ejemplar.libro', 'lector.grado'])
             // MODIFICACIÓN: Ordenar primero por estado (ACTIVO primero) y luego por fecha
             ->orderByRaw("CASE 
                 WHEN estado = 'ACTIVO' THEN 1 
@@ -33,8 +34,11 @@ class ReporteController extends Controller
                     $q->where('lectores.codigo', 'like', "%{$search}%")
                         ->orWhere('lectores.nombre', 'like', "%{$search}%");
                 })
+                // ✅ AGREGAR BÚSQUEDA POR SUBGRADO
+                ->orWhereHas('lector.grado', function ($q) use ($search) {
+                    $q->where('grados.subGrado', 'like', "%{$search}%");
+                })
                 ->orWhereHas('ejemplar', function ($q) use ($search) {
-                    // Removido 'ejemplares.codigo' ya que no existe esta columna
                     $q->whereHas('libro', function ($q) use ($search) {
                         $q->where('libros.titulo', 'like', "%{$search}%");
                     });
@@ -64,13 +68,13 @@ class ReporteController extends Controller
             );
         }
 
-        // Transformar los datos manteniendo la lógica original
+        // Transformar los datos incluyendo el subgrado desde la relación
         $prestamos->through(function ($prestamo) {
             return [
                 'id' => $prestamo->id,
                 'ejemplar' => [
                     'id' => $prestamo->ejemplar->id,
-                    'codigo' => $prestamo->ejemplar->codigo ?? null, // Usar null coalescing por si no existe
+                    'codigo' => $prestamo->ejemplar->codigo ?? null,
                     'numEjemplar' => $prestamo->ejemplar->numEjemplar,
                     'libro' => [
                         'titulo' => $prestamo->ejemplar->libro->titulo,
@@ -81,6 +85,8 @@ class ReporteController extends Controller
                     'id' => $prestamo->lector->id,
                     'nombre' => $prestamo->lector->nombre,
                     'codigo' => $prestamo->lector->codigo,
+                    // ✅ OBTENER EL SUBGRADO DESDE LA RELACIÓN CON GRADO
+                    'subgrado' => $prestamo->lector->grado ? $prestamo->lector->grado->subGrado : null,
                 ],
                 // Ajustar las fechas sumando un día para compensar la zona horaria
                 'fecha_prestamo' => Carbon::parse($prestamo->fecha_prestamo)->addDay()->format('Y-m-d'),

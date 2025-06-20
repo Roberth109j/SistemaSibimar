@@ -12,6 +12,7 @@ export type Prestamo = {
     id: number;
     nombre: string;
     codigo: string;
+    subgrado?: string; // ✅ Agregado el campo subgrado como opcional
   };
   fecha_prestamo: string;
   fecha_devolucion: string;
@@ -27,6 +28,7 @@ export type HistorialPrestamosProps = {
     links: any;
     total: number;
   };
+  subgrados?: string[]; // ✅ Nueva prop para la lista de subgrados
   flash?: {
     success?: string;
     error?: string;

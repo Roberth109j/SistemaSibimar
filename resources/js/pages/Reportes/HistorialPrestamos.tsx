@@ -8,8 +8,8 @@ import { es } from 'date-fns/locale';
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
-    title: 'Reportes',
-    href: '/reportes',
+    title: 'Dashboard',
+    href: '/dashboard',
   },
   {
     title: 'Historial de Préstamos',
@@ -93,13 +93,14 @@ function AlertNotification({
   );
 }
 
-export default function HistorialPrestamos({ auth, prestamos = { data: [], links: [], total: 0 }, flash = {} }: HistorialPrestamosProps) {
+export default function HistorialPrestamos({ auth, prestamos = { data: [], links: [], total: 0 }, subgrados = [], flash = {} }: HistorialPrestamosProps) {
   const page = usePage();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState({
     estado: '',
+    subgrado: '',
     fechaInicio: '',
     fechaFin: '',
   });
@@ -137,7 +138,7 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
         { search: value, ...selectedFilters },
         { preserveState: true, preserveScroll: true }
       );
-    }, 500);
+    }, 300); // ✅ REDUCIDO de 500ms a 300ms para mayor velocidad
     setSearchTimeout(timeout);
   };
 
@@ -159,6 +160,7 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
   const clearFilters = () => {
     setSelectedFilters({
       estado: '',
+      subgrado: '',
       fechaInicio: '',
       fechaFin: '',
     });
@@ -207,7 +209,7 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
 
       <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
         {renderAlerts()}
-        
+
         {/* Fondo decorativo */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 filter blur-3xl dark:bg-blue-600/10"></div>
@@ -230,7 +232,7 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Buscar por código de lector, título del libro..."
+                  placeholder="Buscar por código, nombre, subgrado o título del libro..."
                   className="w-full sm:w-80 pl-10 py-2.5 pr-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 
                             text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                             shadow-sm transition-all duration-200"
@@ -263,7 +265,7 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Estado</label>
                   <select
@@ -276,6 +278,23 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
                     <option value="ACTIVO">Activo</option>
                     <option value="DEVUELTO">Devuelto</option>
                     <option value="VENCIDO">Vencido</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Subgrado</label>
+                  <select
+                    name="subgrado"
+                    value={selectedFilters.subgrado}
+                    onChange={handleFilterChange}
+                    className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Todos los subgrados</option>
+                    {subgrados.map((subgrado) => (
+                      <option key={subgrado} value={subgrado}>
+                        {subgrado}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -326,7 +345,7 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
             </div>
           )}
 
-          {/* Tabla EXACTAMENTE IGUAL A LECTORES pero sin scroll */}
+          {/* Tabla con subgrado añadido */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
             <div className="overflow-hidden">
               <table className="w-full table-fixed">
@@ -368,8 +387,11 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
                               <div className="text-sm font-medium text-gray-900 dark:text-gray-100 break-words">
                                 {prestamo.lector.nombre}
                               </div>
-                              <div className="text-sm text-gray-600 dark:text-gray-400 break-words">
-                                Código: {prestamo.lector.codigo}
+                              <div className="text-xs text-gray-500 dark:text-gray-400 break-words mt-0.5 space-y-0.5">
+                                <div>Código: {prestamo.lector.codigo}</div>
+                                {prestamo.lector.subgrado && (
+                                  <div>Subgrado: {prestamo.lector.subgrado}</div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -449,17 +471,16 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
                           }
                         }}
                         disabled={!link.url}
-                        className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
-                          link.url
+                        className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${link.url
                             ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
-                        }`}
+                          }`}
                       >
                         <ChevronLeft className="w-5 h-5" />
                       </button>
                     );
                   }
-                  
+
                   // Botón siguiente
                   if (link.label.includes('Next') || link.label.includes('Siguiente') || link.label === '&raquo;') {
                     return (
@@ -474,11 +495,10 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
                           }
                         }}
                         disabled={!link.url}
-                        className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
-                          link.url
+                        className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${link.url
                             ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
-                        }`}
+                          }`}
                       >
                         <ChevronRight className="w-5 h-5" />
                       </button>
@@ -486,10 +506,10 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
                   }
 
                   // Números de página y puntos suspensivos
-                  if (!link.label.includes('Previous') && !link.label.includes('Next') && 
-                      !link.label.includes('Anterior') && !link.label.includes('Siguiente') &&
-                      link.label !== '&laquo;' && link.label !== '&raquo;') {
-                    
+                  if (!link.label.includes('Previous') && !link.label.includes('Next') &&
+                    !link.label.includes('Anterior') && !link.label.includes('Siguiente') &&
+                    link.label !== '&laquo;' && link.label !== '&raquo;') {
+
                     // Si es "..." 
                     if (link.label === '...') {
                       return (
@@ -511,11 +531,10 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
                             router.get(`${window.location.pathname}?${params}`, {}, { preserveState: true });
                           }
                         }}
-                        className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors ${
-                          link.active
+                        className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors ${link.active
                             ? 'bg-blue-600 text-white shadow-md'
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                        }`}
+                          }`}
                       >
                         {link.label}
                       </button>
