@@ -30,6 +30,7 @@ import {
     Undo2,
     BookmarkX,
     ArrowRightLeft,
+    FolderClock,
     ChevronDown
 } from 'lucide-react';
 import { useState, useRef, useCallback } from 'react';
@@ -89,7 +90,7 @@ const mainNavItems: NavItem[] = [
     {
         title: 'Historial de préstamos',
         href: '/reportes/historial-prestamos',
-        icon: BookmarkX,
+        icon: FolderClock,
     },
 ];
 

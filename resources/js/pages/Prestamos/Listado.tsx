@@ -192,14 +192,16 @@ export default function Listado({ auth, prestamos, flash }: PrestamoPageProps) {
   const content = (
     <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
       {renderAlerts()}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none fixed">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
         <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
       </div>
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Listado de Préstamos Activos
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Listado de Préstamos Activos
+            </span>
           </h1>
           <div className="flex gap-4">
             <div className="relative">
@@ -243,8 +245,10 @@ export default function Listado({ auth, prestamos, flash }: PrestamoPageProps) {
                 <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg transform rotate-3">
                   <Search className="w-12 h-12 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Buscar Préstamos Activos
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                  <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                    Buscar Préstamos Activos
+                  </span>
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 text-lg mb-6 max-w-lg mx-auto leading-relaxed">
                   Ingrese el código del lector en el campo de búsqueda para encontrar todos los préstamos activos asociados a ese usuario.
@@ -403,7 +407,7 @@ export default function Listado({ auth, prestamos, flash }: PrestamoPageProps) {
                                 </div>
                                 <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Lector</span>
                               </div>
-                              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{prestamo.lector?.nombre}</div>
+                              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{(prestamo as any).lector?.nombre || 'Usuario'}</div>
                               <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">Usuario activo</div>
                             </div>
 
