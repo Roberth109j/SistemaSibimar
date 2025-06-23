@@ -147,6 +147,10 @@ export default function Listado({ auth, prestamos, flash }: PrestamoPageProps) {
     router.post(`/prestamos/${prestamoSeleccionado}/devolver`, {
       fecha_devuelto: fechaDevuelto,
       observaciones: observaciones
+    }, {
+      onSuccess: () => {
+        router.visit('/prestamos/listado');
+      }
     });
     setModalAbierto(false);
   };
@@ -430,22 +434,58 @@ export default function Listado({ auth, prestamos, flash }: PrestamoPageProps) {
                               </div>
                             </div>
 
-                            {/* Fecha Devolución */}
-                            <div className="bg-white/70 dark:bg-gray-700/50 backdrop-blur-sm rounded-xl p-5 border border-gray-200/60 dark:border-gray-600/60 hover:shadow-lg transition-all duration-300">
-                              <div className="flex items-center gap-3 mb-3">
-                                <div className="w-8 h-8 bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-500/20 dark:to-amber-500/15 rounded-lg flex items-center justify-center">
-                                  <Calendar className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                            {/* Fecha Devolución - MEJORADO con estilo del modal */}
+                            <div className="bg-gradient-to-br from-amber-50/80 to-orange-50/80 dark:from-amber-500/10 dark:to-orange-500/10 
+                                          backdrop-blur-sm rounded-xl p-5 border-2 border-amber-200/60 dark:border-amber-500/30 
+                                          hover:shadow-xl hover:border-amber-300 dark:hover:border-amber-400 
+                                          transition-all duration-300 relative overflow-hidden">
+                              
+                              {/* Efecto de brillo */}
+                              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-amber-100/20 via-transparent to-orange-100/20 dark:from-amber-300/5 dark:via-transparent dark:to-orange-300/5"></div>
+                              
+                              <div className="relative z-10">
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div className="w-9 h-9 bg-gradient-to-br from-amber-200 to-orange-300 dark:from-amber-500/40 dark:to-orange-500/40 
+                                                rounded-xl flex items-center justify-center shadow-md">
+                                    <Calendar className="h-5 w-5 text-amber-700 dark:text-amber-300" />
+                                  </div>
+                                  <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                                    Vencimiento
+                                  </span>
                                 </div>
-                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Vencimiento</span>
-                              </div>
-                              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                                {new Date(prestamo.fecha_devolucion).toLocaleDateString('es-ES', {
-                                  day: 'numeric',
-                                  month: 'short'
-                                })}
-                              </div>
-                              <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                                {new Date(prestamo.fecha_devolucion).getFullYear()}
+                                
+                                <div className="space-y-1">
+                                  <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
+                                    {new Date(prestamo.fecha_devolucion).toLocaleDateString('es-ES', {
+                                      day: 'numeric',
+                                      month: 'short'
+                                    })}
+                                  </div>
+                                  <div className="text-sm text-amber-600 dark:text-amber-400 font-semibold">
+                                    {new Date(prestamo.fecha_devolucion).getFullYear()}
+                                  </div>
+                                  
+                                  {/* Indicador de tiempo restante */}
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+                                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                      {(() => {
+                                        const hoy = new Date();
+                                        const fechaVencimiento = new Date(prestamo.fecha_devolucion);
+                                        const diffTime = fechaVencimiento.getTime() - hoy.getTime();
+                                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                        
+                                        if (diffDays > 0) {
+                                          return `${diffDays} día${diffDays !== 1 ? 's' : ''} restante${diffDays !== 1 ? 's' : ''}`;
+                                        } else if (diffDays === 0) {
+                                          return 'Vence hoy';
+                                        } else {
+                                          return `Vencido hace ${Math.abs(diffDays)} día${Math.abs(diffDays) !== 1 ? 's' : ''}`;
+                                        }
+                                      })()}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -478,77 +518,106 @@ export default function Listado({ auth, prestamos, flash }: PrestamoPageProps) {
         )}
       </div>
 
-      {/* Modal de devolución */}
+      {/* Modal de devolución - MEJORADO con el estilo de la imagen */}
       {modalAbierto && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                Registrar Devolución
-              </h3>
-              <button
-                onClick={cerrarModal}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 
-                           p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-2xl shadow-2xl w-full max-w-lg border border-slate-600/50 relative overflow-hidden">
+            
+            {/* Efectos de fondo */}
+            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-500/5 via-transparent to-indigo-500/5"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl"></div>
 
-            <div className="space-y-5">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Fecha de Devolución
-                </label>
-                <input
-                  type="date"
-                  value={fechaDevuelto}
-                  onChange={(e) => setFechaDevuelto(e.target.value)}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-xl p-3 
-                             bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
-                             focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 
-                             focus:border-transparent transition-all duration-200"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Observaciones
-                </label>
-                <textarea
-                  value={observaciones}
-                  onChange={(e) => setObservaciones(e.target.value)}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-xl p-3 
-                             bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
-                             placeholder-gray-500 dark:placeholder-gray-400
-                             focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 
-                             focus:border-transparent transition-all duration-200 h-24 resize-none"
-                  placeholder="Ingrese las observaciones sobre la devolución"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6">
+            <div className="relative z-10">
+              {/* Header del modal */}
+              <div className="flex justify-between items-center mb-8">
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-2">
+                    Registrar Devolución
+                  </h3>
+                  <div className="w-12 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"></div>
+                </div>
                 <button
                   onClick={cerrarModal}
-                  className="px-6 py-3 text-sm font-semibold rounded-xl shadow-sm
-                             bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 
-                             border border-gray-300 dark:border-gray-600
-                             hover:bg-gray-50 dark:hover:bg-gray-600
-                             focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200"
+                  className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-slate-700/50 transition-all duration-200"
                 >
-                  Cancelar
+                  <X className="h-6 w-6" />
                 </button>
-                <button
-                  onClick={confirmarDevolucion}
-                  disabled={!fechaDevuelto}
-                  className="px-6 py-3 text-sm font-semibold rounded-xl shadow-sm
-                             bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white
-                             focus:outline-none focus:ring-2 focus:ring-blue-500
-                             disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                >
-                  Confirmar Devolución
-                </button>
+              </div>
+
+              {/* Mensaje informativo */}
+              <div className="bg-blue-500/10 border-l-4 border-blue-500 p-4 rounded-lg mb-6">
+                <p className="text-blue-100 text-sm">
+                  Complete los campos para continuar con el proceso de devolución
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {/* Campo Fecha de Devolución */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-3">
+                    Fecha de Devolución <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={fechaDevuelto}
+                      onChange={(e) => setFechaDevuelto(e.target.value)}
+                      className="w-full bg-slate-700/50 border border-slate-600 rounded-xl p-4 
+                                text-white placeholder-gray-400 focus:outline-none 
+                                focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
+                                transition-all duration-200 hover:bg-slate-700/70"
+                      required
+                    />
+                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                      <Calendar className="h-5 w-5 text-gray-400" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Campo Observaciones */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-3">
+                    Observaciones <span className="text-red-400">*</span>
+                  </label>
+                  <textarea
+                    value={observaciones}
+                    onChange={(e) => setObservaciones(e.target.value)}
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded-xl p-4 
+                              text-white placeholder-gray-400 focus:outline-none 
+                              focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
+                              transition-all duration-200 hover:bg-slate-700/70 h-28 resize-none"
+                    placeholder="Ingrese las observaciones sobre la devolución"
+                  />
+                </div>
+
+                {/* Botones de acción */}
+                <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-slate-600/50">
+                  <button
+                    onClick={cerrarModal}
+                    className="px-6 py-3 text-sm font-semibold rounded-xl
+                              bg-slate-700 text-gray-300 border border-slate-600
+                              hover:bg-slate-600 hover:text-white
+                              focus:outline-none focus:ring-2 focus:ring-slate-500 
+                              transition-all duration-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmarDevolucion}
+                    disabled={!fechaDevuelto}
+                    className="px-6 py-3 text-sm font-semibold rounded-xl
+                              bg-gradient-to-r from-blue-600 to-indigo-600 
+                              hover:from-blue-700 hover:to-indigo-700 
+                              text-white shadow-lg hover:shadow-xl
+                              focus:outline-none focus:ring-2 focus:ring-blue-500
+                              disabled:opacity-50 disabled:cursor-not-allowed 
+                              disabled:hover:from-blue-600 disabled:hover:to-indigo-600
+                              transition-all duration-200 transform hover:scale-105 disabled:transform-none"
+                  >
+                    Guardar
+                  </button>
+                </div>
               </div>
             </div>
           </div>
