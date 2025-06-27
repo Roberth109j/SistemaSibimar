@@ -12,6 +12,7 @@ use App\Http\Controllers\GradoController;
 use App\Http\Controllers\LectorController;
 use App\Http\Controllers\PrestamoController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\InformeController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -112,6 +113,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('prestamos/{prestamo}', [PrestamoController::class, 'update'])->name('prestamos.update');
     Route::post('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolver'])->name('prestamos.devolver');
     Route::delete('prestamos/{prestamo}', [PrestamoController::class, 'destroy'])->name('prestamos.destroy');
+    
+    Route::prefix('informes')->name('informes.')->group(function () {
+        Route::get('/', [InformeController::class, 'index'])->name('index');
+        Route::get('/rangos-fecha', [InformeController::class, 'getRangosFecha'])->name('rangos-fecha');
+        Route::match(['GET', 'POST'], '/prestamos-realizados', [InformeController::class, 'prestamosRealizados'])->name('prestamos-realizados');
+        Route::match(['GET', 'POST'], '/libros-no-devueltos', [InformeController::class, 'librosNoDevueltos'])->name('libros-no-devueltos');
+    });
 });
 
 require __DIR__ . '/settings.php';

@@ -31,7 +31,8 @@ import {
     BookmarkX,
     ArrowRightLeft,
     FolderClock,
-    ChevronDown
+    ChevronDown,
+    FileBarChart
 } from 'lucide-react';
 import { useState, useRef, useCallback } from 'react';
 import AppLogo from './app-logo';
@@ -92,6 +93,11 @@ const mainNavItems: NavItem[] = [
         href: '/reportes/historial-prestamos',
         icon: FolderClock,
     },
+    {
+        title: 'Generación de Informes',
+        href: '/informes',
+        icon: FileBarChart,
+    },
 ];
 
 const footerNavItems: NavItem[] = [];
@@ -137,6 +143,7 @@ export function AppSidebar() {
     const prestamosItems = mainNavItems.filter(item => 
         ['Prestamos', 'Devoluciones', 'Préstamos Vencidos', 'Historial de préstamos'].includes(item.title)
     );
+    const informesItem = mainNavItems.find(item => item.title === 'Generación de Informes')!;
 
     return (
         <Sidebar 
@@ -253,6 +260,16 @@ export function AppSidebar() {
                                     <Link href={lectoresItem.href!}>
                                         {lectoresItem.icon && <lectoresItem.icon className="h-5 w-5" />}
                                         <span>{lectoresItem.title}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+
+                            {/* Generación de Informes - Individual */}
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild>
+                                    <Link href={informesItem.href!}>
+                                        {informesItem.icon && <informesItem.icon className="h-5 w-5" />}
+                                        <span>{informesItem.title}</span>
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
