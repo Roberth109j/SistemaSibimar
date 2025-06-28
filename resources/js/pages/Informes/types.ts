@@ -43,9 +43,9 @@ export interface PrestamoDetalle {
     codigo?: string;
     numEjemplar?: number;
     libro: {
-      id?: number; // ✅ AGREGAR ID DEL LIBRO
+      id?: number;
       titulo: string;
-      isbn?: string; // ✅ HACER OPCIONAL
+      isbn?: string;
       autor: {
         nombres: string;
         apellidos: string;
@@ -53,11 +53,11 @@ export interface PrestamoDetalle {
     };
   };
   lector: {
-    id?: number; // ✅ AGREGAR ID DEL LECTOR
+    id?: number;
     nombre: string;
     codigo: string;
     grado?: {
-      id?: number; // ✅ AGREGAR ID DEL GRADO
+      id?: number;
       subGrado: string;
     };
   };
@@ -85,4 +85,13 @@ export interface NoDevueltoPorSeveridad {
   medio: number;
   bajo: number;
   activos: number;
+}
+
+// NUEVAS INTERFACES AGREGADAS PARA SOLUCIONAR EL ERROR
+export interface PeriodoInforme {
+  inicio: string;
+  fin: string;
+  tipo: string;
+  inicio_formatted?: string;
+  fin_formatted?: string;
 }

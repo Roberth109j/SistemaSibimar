@@ -9,6 +9,7 @@ use App\Models\Grado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -75,7 +76,7 @@ class InformeController extends Controller
             ];
 
             if ($validated['formato'] === 'pdf') {
-                return $this->generarPDFPrestamos($datos);
+                return $this->descargarPDF('prestamos', $datos);
             }
 
             return Inertia::render('Informes/PrestamosRealizados', $datos);
@@ -139,7 +140,7 @@ class InformeController extends Controller
             ];
 
             if ($validated['formato'] === 'pdf') {
-                return $this->generarPDFNoDevueltos($datos);
+                return $this->descargarPDF('no-devueltos', $datos);
             }
 
             return Inertia::render('Informes/LibrosNoDevueltos', $datos);
@@ -147,6 +148,109 @@ class InformeController extends Controller
         } catch (\Exception $e) {
             Log::error('Error generando informe de no devueltos: ' . $e->getMessage());
             return back()->with('error', 'Error al generar el informe: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Descarga directa de PDF de préstamos (GET) - Método universal
+     */
+    public function descargarPDFPrestamos(Request $request)
+    {
+        $validated = $request->validate([
+            'fecha_inicio' => 'required|date',
+            'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
+            'periodo' => 'nullable|in:mensual,trimestral,semestral,anual'
+        ]);
+
+        try {
+            $fechaInicio = Carbon::parse($validated['fecha_inicio'])->startOfDay();
+            $fechaFin = Carbon::parse($validated['fecha_fin'])->endOfDay();
+
+            $prestamos = Prestamo::with(['ejemplar.libro.autor', 'lector.grado'])
+                ->whereBetween('fecha_prestamo', [$fechaInicio, $fechaFin])
+                ->orderBy('fecha_prestamo', 'desc')
+                ->get();
+
+            $estadisticas = [
+                'total_prestamos' => $prestamos->count(),
+                'prestamos_activos' => $prestamos->where('estado', 'ACTIVO')->count(),
+                'prestamos_devueltos' => $prestamos->where('estado', 'DEVUELTO')->count(),
+                'prestamos_vencidos' => $prestamos->where('estado', 'VENCIDO')->count(),
+                'libros_mas_prestados' => $this->getLibrosMasPrestados($prestamos),
+                'prestamos_por_mes' => $this->getPrestamosPorMes($prestamos, $fechaInicio, $fechaFin),
+                'prestamos_por_grado' => $this->getPrestamosPorGrado($prestamos),
+                'prestamos_por_estado' => $this->getPrestamosPorEstado($prestamos)
+            ];
+
+            $datos = [
+                'prestamos' => $prestamos,
+                'estadisticas' => $estadisticas,
+                'periodo' => [
+                    'inicio' => $fechaInicio->format('d/m/Y'),
+                    'fin' => $fechaFin->format('d/m/Y'),
+                    'tipo' => $validated['periodo'] ?? 'personalizado'
+                ]
+            ];
+
+            return $this->descargarPDF('prestamos', $datos);
+
+        } catch (\Exception $e) {
+            Log::error('Error en descarga directa PDF prestamos: ' . $e->getMessage());
+            return back()->with('error', 'Error al descargar el PDF: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Descarga directa de PDF de no devueltos (GET) - Método universal
+     */
+    public function descargarPDFNoDevueltos(Request $request)
+    {
+        $validated = $request->validate([
+            'fecha_inicio' => 'required|date',
+            'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
+            'periodo' => 'nullable|in:mensual,trimestral,semestral,anual'
+        ]);
+
+        try {
+            $fechaInicio = Carbon::parse($validated['fecha_inicio'])->startOfDay();
+            $fechaFin = Carbon::parse($validated['fecha_fin'])->endOfDay();
+
+            $prestamosNoDevueltos = Prestamo::with(['ejemplar.libro.autor', 'lector.grado'])
+                ->whereIn('estado', ['ACTIVO', 'VENCIDO'])
+                ->whereBetween('fecha_prestamo', [$fechaInicio, $fechaFin])
+                ->orderBy('fecha_devolucion', 'asc')
+                ->get()
+                ->map(function ($prestamo) {
+                    $prestamo->dias_retraso = $prestamo->estado === 'VENCIDO' 
+                        ? Carbon::now()->diffInDays(Carbon::parse($prestamo->fecha_devolucion))
+                        : 0;
+                    return $prestamo;
+                });
+
+            $estadisticas = [
+                'total_no_devueltos' => $prestamosNoDevueltos->count(),
+                'activos' => $prestamosNoDevueltos->where('estado', 'ACTIVO')->count(),
+                'vencidos' => $prestamosNoDevueltos->where('estado', 'VENCIDO')->count(),
+                'promedio_dias_retraso' => $prestamosNoDevueltos->where('estado', 'VENCIDO')->avg('dias_retraso') ?? 0,
+                'por_grado' => $this->getNoDevueltosPorGrado($prestamosNoDevueltos),
+                'por_severidad' => $this->getNoDevueltosPorSeveridad($prestamosNoDevueltos)
+            ];
+
+            $datos = [
+                'prestamos_no_devueltos' => $prestamosNoDevueltos,
+                'estadisticas' => $estadisticas,
+                'periodo' => [
+                    'inicio' => $fechaInicio->format('d/m/Y'),
+                    'fin' => $fechaFin->format('d/m/Y'),
+                    'tipo' => $validated['periodo'] ?? 'personalizado'
+                ]
+            ];
+
+            return $this->descargarPDF('no-devueltos', $datos);
+
+        } catch (\Exception $e) {
+            Log::error('Error en descarga directa PDF no devueltos: ' . $e->getMessage());
+            return back()->with('error', 'Error al descargar el PDF: ' . $e->getMessage());
         }
     }
 
@@ -311,45 +415,54 @@ class InformeController extends Controller
         ];
     }
 
-    // GENERACIÓN DE PDFs
-
-    private function generarPDFPrestamos($datos)
+    /**
+     * Método unificado para descargar PDF - Compatible con todos los navegadores
+     */
+    private function descargarPDF($tipo, $datos)
     {
         try {
-            $pdf = Pdf::loadView('pdfs.informe-prestamos', $datos)
-                ->setPaper('a4', 'portrait')
-                ->setOptions([
-                    'defaultFont' => 'Arial',
-                    'isHtml5ParserEnabled' => true,
-                    'isRemoteEnabled' => true
-                ]);
+            Log::info("Iniciando generación de PDF: {$tipo}");
 
-            $filename = 'informe-prestamos-' . date('Y-m-d-H-i-s') . '.pdf';
-            
-            return $pdf->download($filename);
+            // Seleccionar template según tipo
+            $template = $tipo === 'prestamos' 
+                ? 'pdfs.informe-prestamos' 
+                : 'pdfs.informe-no-devueltos';
+
+            // Crear el PDF
+            $pdf = Pdf::loadView($template, $datos);
+            $pdf->setPaper('A4', 'portrait');
+
+            // Generar nombre único
+            $timestamp = now()->format('Y-m-d_H-i-s');
+            $filename = "informe-{$tipo}_{$timestamp}.pdf";
+
+            // Crear directorio temporal si no existe
+            $tempDir = storage_path('app/temp');
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            // Guardar archivo temporalmente
+            $tempPath = $tempDir . '/' . $filename;
+            file_put_contents($tempPath, $pdf->output());
+
+            Log::info("PDF generado exitosamente: {$filename}");
+
+            // Retornar descarga y eliminar archivo después
+            return response()->download($tempPath, $filename, [
+                'Content-Type' => 'application/pdf',
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0'
+            ])->deleteFileAfterSend();
+
         } catch (\Exception $e) {
-            Log::error('Error generando PDF de préstamos: ' . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    private function generarPDFNoDevueltos($datos)
-    {
-        try {
-            $pdf = Pdf::loadView('pdfs.informe-no-devueltos', $datos)
-                ->setPaper('a4', 'portrait')
-                ->setOptions([
-                    'defaultFont' => 'Arial',
-                    'isHtml5ParserEnabled' => true,
-                    'isRemoteEnabled' => true
-                ]);
-
-            $filename = 'informe-no-devueltos-' . date('Y-m-d-H-i-s') . '.pdf';
+            Log::error("Error generando PDF {$tipo}", [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             
-            return $pdf->download($filename);
-        } catch (\Exception $e) {
-            Log::error('Error generando PDF de no devueltos: ' . $e->getMessage());
-            throw $e;
+            return back()->with('error', 'Error al generar el PDF: ' . $e->getMessage());
         }
     }
 }

@@ -1,154 +1,155 @@
-?>
-
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8">
-    <title>Informe de Préstamos Realizados</title>
+    <meta charset="UTF-8">
+    <title>Informe de Prestamos Realizados</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            font-size: 12px;
-            line-height: 1.4;
+            font-size: 10px;
+            line-height: 1.2;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
+            color: #333;
         }
         .header {
             text-align: center;
             border-bottom: 2px solid #2563eb;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
         }
         .title {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: bold;
             color: #1e40af;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
         .subtitle {
             color: #6b7280;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
+            font-size: 9px;
         }
-        .stats-grid {
-            display: table;
+        .stats-table {
             width: 100%;
-            margin-bottom: 30px;
-        }
-        .stats-row {
-            display: table-row;
+            border-collapse: collapse;
+            margin-bottom: 15px;
         }
         .stats-cell {
-            display: table-cell;
             width: 25%;
-            padding: 15px;
+            padding: 8px;
             border: 1px solid #e5e7eb;
             text-align: center;
             background-color: #f9fafb;
         }
         .stats-number {
-            font-size: 24px;
+            font-size: 16px;
             font-weight: bold;
             color: #1e40af;
         }
         .stats-label {
             color: #6b7280;
-            font-size: 11px;
+            font-size: 8px;
+            margin-top: 2px;
         }
         .section {
-            margin-bottom: 30px;
+            margin-bottom: 15px;
         }
         .section-title {
-            font-size: 14px;
+            font-size: 11px;
             font-weight: bold;
             color: #374151;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
             border-bottom: 1px solid #d1d5db;
-            padding-bottom: 5px;
+            padding-bottom: 2px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
         th, td {
             border: 1px solid #e5e7eb;
-            padding: 8px;
+            padding: 4px;
             text-align: left;
+            font-size: 8px;
         }
         th {
             background-color: #f3f4f6;
             font-weight: bold;
-            font-size: 11px;
-        }
-        td {
-            font-size: 10px;
         }
         .badge {
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 9px;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-size: 7px;
             font-weight: bold;
         }
         .badge-activo { background-color: #dbeafe; color: #1e40af; }
         .badge-devuelto { background-color: #dcfce7; color: #166534; }
         .badge-vencido { background-color: #fecaca; color: #dc2626; }
         .footer {
-            margin-top: 40px;
+            margin-top: 20px;
             text-align: center;
             color: #6b7280;
-            font-size: 10px;
+            font-size: 7px;
             border-top: 1px solid #e5e7eb;
-            padding-top: 10px;
+            padding-top: 5px;
+        }
+        .text-center { text-align: center; }
+        .text-truncate {
+            max-width: 100px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="title">INFORME DE PRÉSTAMOS REALIZADOS</div>
-        <div class="subtitle">Período: {{ $periodo['inicio'] }} - {{ $periodo['fin'] }}</div>
+        <div class="title">INFORME DE PRESTAMOS REALIZADOS</div>
+        <div class="subtitle">Periodo: {{ $periodo['inicio'] }} - {{ $periodo['fin'] }}</div>
         <div class="subtitle">Generado el: {{ date('d/m/Y H:i') }}</div>
     </div>
 
-    <!-- Estadísticas Generales -->
-    <div class="stats-grid">
-        <div class="stats-row">
-            <div class="stats-cell">
+    <!-- Estadisticas Generales -->
+    <table class="stats-table">
+        <tr>
+            <td class="stats-cell">
                 <div class="stats-number">{{ $estadisticas['total_prestamos'] }}</div>
-                <div class="stats-label">Total Préstamos</div>
-            </div>
-            <div class="stats-cell">
+                <div class="stats-label">Total Prestamos</div>
+            </td>
+            <td class="stats-cell">
                 <div class="stats-number">{{ $estadisticas['prestamos_devueltos'] }}</div>
                 <div class="stats-label">Devueltos</div>
-            </div>
-            <div class="stats-cell">
+            </td>
+            <td class="stats-cell">
                 <div class="stats-number">{{ $estadisticas['prestamos_activos'] }}</div>
                 <div class="stats-label">Activos</div>
-            </div>
-            <div class="stats-cell">
+            </td>
+            <td class="stats-cell">
                 <div class="stats-number">{{ $estadisticas['prestamos_vencidos'] }}</div>
                 <div class="stats-label">Vencidos</div>
-            </div>
-        </div>
-    </div>
+            </td>
+        </tr>
+    </table>
 
-    <!-- Libros Más Prestados -->
-    @if($estadisticas['libros_mas_prestados']->count() > 0)
+    <!-- Libros Mas Prestados -->
+    @if(count($estadisticas['libros_mas_prestados']) > 0)
     <div class="section">
-        <div class="section-title">Libros Más Prestados</div>
+        <div class="section-title">Libros Mas Prestados</div>
         <table>
             <thead>
                 <tr>
-                    <th>Título</th>
+                    <th>Titulo</th>
                     <th>Autor</th>
-                    <th>Cantidad</th>
+                    <th class="text-center">Cantidad</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($estadisticas['libros_mas_prestados']->take(10) as $libro)
                 <tr>
-                    <td>{{ $libro['titulo'] }}</td>
-                    <td>{{ $libro['autor'] }}</td>
-                    <td>{{ $libro['cantidad'] }}</td>
+                    <td class="text-truncate">{{ $libro['titulo'] }}</td>
+                    <td class="text-truncate">{{ $libro['autor'] }}</td>
+                    <td class="text-center">{{ $libro['cantidad'] }}</td>
                 </tr>
                 @endforeach
             </tbody>
@@ -156,9 +157,9 @@
     </div>
     @endif
 
-    <!-- Detalle de Préstamos -->
+    <!-- Detalle de Prestamos -->
     <div class="section">
-        <div class="section-title">Detalle de Préstamos ({{ $prestamos->count() }} registros)</div>
+        <div class="section-title">Detalle de Prestamos ({{ count($prestamos) }} registros)</div>
         <table>
             <thead>
                 <tr>
@@ -167,28 +168,35 @@
                     <th>Grado</th>
                     <th>Libro</th>
                     <th>Estado</th>
-                    <th>F. Devolución</th>
+                    <th>F. Devolucion</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($prestamos->take(50) as $prestamo)
-                <tr>
-                    <td>{{ \Carbon\Carbon::parse($prestamo->fecha_prestamo)->format('d/m/Y') }}</td>
-                    <td>{{ $prestamo->lector->nombre }}</td>
-                    <td>{{ $prestamo->lector->grado->subGrado ?? 'N/A' }}</td>
-                    <td>{{ Str::limit($prestamo->ejemplar->libro->titulo, 40) }}</td>
-                    <td>
-                        <span class="badge badge-{{ strtolower($prestamo->estado) }}">
-                            {{ $prestamo->estado }}
-                        </span>
-                    </td>
-                    <td>{{ \Carbon\Carbon::parse($prestamo->fecha_devolucion)->format('d/m/Y') }}</td>
-                </tr>
+                @foreach($prestamos as $index => $prestamo)
+                    @if($index < 30)
+                    <tr>
+                        <td>{{ \Carbon\Carbon::parse($prestamo->fecha_prestamo)->format('d/m/Y') }}</td>
+                        <td class="text-truncate">{{ $prestamo->lector->nombre ?? 'N/A' }}</td>
+                        <td>{{ $prestamo->lector->grado->subGrado ?? 'N/A' }}</td>
+                        <td class="text-truncate">{{ $prestamo->ejemplar->libro->titulo ?? 'N/A' }}</td>
+                        <td>
+                            <span class="badge badge-{{ strtolower($prestamo->estado) }}">
+                                {{ $prestamo->estado }}
+                            </span>
+                        </td>
+                        <td>
+                            {{ $prestamo->fecha_devuelto 
+                                ? \Carbon\Carbon::parse($prestamo->fecha_devuelto)->format('d/m/Y')
+                                : \Carbon\Carbon::parse($prestamo->fecha_devolucion)->format('d/m/Y')
+                            }}
+                        </td>
+                    </tr>
+                    @endif
                 @endforeach
-                @if($prestamos->count() > 50)
+                @if(count($prestamos) > 30)
                 <tr>
-                    <td colspan="6" style="text-align: center; font-style: italic; color: #6b7280;">
-                        ... y {{ $prestamos->count() - 50 }} préstamos más
+                    <td colspan="6" class="text-center" style="font-style: italic; color: #6b7280;">
+                        ... y {{ count($prestamos) - 30 }} prestamos mas
                     </td>
                 </tr>
                 @endif
@@ -197,7 +205,7 @@
     </div>
 
     <div class="footer">
-        Sistema de Gestión Bibliotecaria - Informe generado automáticamente
+        Sistema de Gestion Bibliotecaria - Informe generado automaticamente
     </div>
 </body>
 </html>

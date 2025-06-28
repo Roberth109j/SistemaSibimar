@@ -1,5 +1,5 @@
 import React from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { 
   BarChart, 
   Bar, 
@@ -49,6 +49,45 @@ const COLORS_SEVERIDAD = {
   activos: '#3B82F6'
 };
 
+// Función mejorada para formatear fechas
+const formatearFecha = (fecha: string | null | undefined): string => {
+  if (!fecha) return 'N/A';
+  
+  try {
+    // Limpiar la fecha de posibles caracteres extra
+    const fechaLimpia = fecha.toString().split('T')[0]; // Tomar solo YYYY-MM-DD
+    
+    // Debug: mostrar la fecha original en consola
+    console.log('Fecha original:', fecha, 'Fecha limpia:', fechaLimpia);
+    
+    // Si viene en formato YYYY-MM-DD
+    if (fechaLimpia.includes('-')) {
+      const partes = fechaLimpia.split('-');
+      if (partes.length === 3) {
+        const [año, mes, dia] = partes;
+        return `${dia.padStart(2, '0')}/${mes.padStart(2, '0')}/${año}`;
+      }
+    }
+    
+    // Si viene en formato DD/MM/YYYY (ya formateada)
+    if (fechaLimpia.includes('/') && fechaLimpia.length <= 10) {
+      return fechaLimpia;
+    }
+    
+    // Fallback: crear fecha con zona horaria específica
+    const fechaObj = new Date(fechaLimpia + 'T12:00:00.000Z');
+    return fechaObj.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit', 
+      year: 'numeric',
+      timeZone: 'UTC'
+    });
+  } catch (error) {
+    console.error('Error formateando fecha:', fecha, error);
+    return fecha.toString();
+  }
+};
+
 export default function LibrosNoDevueltos({ 
   prestamos_no_devueltos, 
   estadisticas, 
@@ -62,21 +101,15 @@ export default function LibrosNoDevueltos({
       return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
     };
 
-    const datos = {
+    const params = new URLSearchParams({
       fecha_inicio: convertirFecha(periodo.inicio),
       fecha_fin: convertirFecha(periodo.fin),
-      periodo: periodo.tipo !== 'personalizado' ? periodo.tipo : null,
-      formato: 'pdf'
-    };
-
-    router.post('/informes/libros-no-devueltos', datos, {
-      onError: (errors) => {
-        console.error('Error descargando PDF:', errors);
-      },
-      onSuccess: () => {
-        console.log('PDF generado exitosamente');
-      }
+      ...(periodo.tipo !== 'personalizado' && { periodo: periodo.tipo })
     });
+
+    const url = `/informes/descargar-no-devueltos?${params}`;
+    console.log('Descargando PDF no devueltos desde vista previa:', url);
+    window.open(url, '_blank');
   };
 
   const getSeveridadColor = (dias: number) => {
@@ -330,7 +363,7 @@ export default function LibrosNoDevueltos({
             </div>
           )}
 
-          {/* Tabla Detallada */}
+          {/* Tabla Detallada - FECHAS CORREGIDAS */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -392,7 +425,7 @@ export default function LibrosNoDevueltos({
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900 dark:text-white">
-                        {new Date(prestamo.fecha_devolucion).toLocaleDateString('es-ES')}
+                        {formatearFecha(prestamo.fecha_devolucion)}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getSeveridadColor(prestamo.dias_retraso)}`}>

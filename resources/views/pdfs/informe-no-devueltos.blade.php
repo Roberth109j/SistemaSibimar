@@ -1,79 +1,78 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <title>Informe de Libros No Devueltos</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            font-size: 12px;
-            line-height: 1.4;
+            font-size: 10px;
+            line-height: 1.2;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
+            color: #333;
         }
         .header {
             text-align: center;
             border-bottom: 2px solid #dc2626;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
         }
         .title {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: bold;
             color: #dc2626;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
         .subtitle {
             color: #6b7280;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
+            font-size: 9px;
         }
         .alert-box {
             background-color: #fef2f2;
             border: 1px solid #fecaca;
             border-left: 4px solid #dc2626;
-            padding: 15px;
-            margin-bottom: 30px;
-            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 15px;
+            border-radius: 2px;
         }
         .alert-title {
             font-weight: bold;
             color: #dc2626;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
+            font-size: 10px;
         }
-        .stats-grid {
-            display: table;
+        .stats-table {
             width: 100%;
-            margin-bottom: 30px;
-        }
-        .stats-row {
-            display: table-row;
+            border-collapse: collapse;
+            margin-bottom: 15px;
         }
         .stats-cell {
-            display: table-cell;
-            width: 20%;
-            padding: 15px;
+            width: 25%;
+            padding: 8px;
             border: 1px solid #e5e7eb;
             text-align: center;
             background-color: #fef2f2;
         }
         .stats-number {
-            font-size: 24px;
+            font-size: 16px;
             font-weight: bold;
             color: #dc2626;
         }
         .stats-label {
             color: #6b7280;
-            font-size: 11px;
+            font-size: 8px;
+            margin-top: 2px;
         }
-        .severity-grid {
-            display: table;
+        .severity-table {
             width: 100%;
-            margin-bottom: 30px;
+            border-collapse: collapse;
+            margin-bottom: 15px;
         }
         .severity-cell {
-            display: table-cell;
             width: 20%;
-            padding: 10px;
+            padding: 6px;
             border: 1px solid #e5e7eb;
             text-align: center;
         }
@@ -83,38 +82,35 @@
         .severity-bajo { background-color: #fef9c3; color: #a16207; }
         .severity-activo { background-color: #dbeafe; color: #1e40af; }
         .section {
-            margin-bottom: 30px;
+            margin-bottom: 15px;
         }
         .section-title {
-            font-size: 14px;
+            font-size: 11px;
             font-weight: bold;
             color: #374151;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
             border-bottom: 1px solid #d1d5db;
-            padding-bottom: 5px;
+            padding-bottom: 2px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
         th, td {
             border: 1px solid #e5e7eb;
-            padding: 8px;
+            padding: 4px;
             text-align: left;
+            font-size: 8px;
         }
         th {
             background-color: #f3f4f6;
             font-weight: bold;
-            font-size: 11px;
-        }
-        td {
-            font-size: 10px;
         }
         .badge {
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 9px;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-size: 7px;
             font-weight: bold;
         }
         .badge-activo { background-color: #dbeafe; color: #1e40af; }
@@ -127,105 +123,112 @@
         .dias-medio { color: #d97706; }
         .dias-bajo { color: #ca8a04; }
         .footer {
-            margin-top: 40px;
+            margin-top: 20px;
             text-align: center;
             color: #6b7280;
-            font-size: 10px;
+            font-size: 7px;
             border-top: 1px solid #e5e7eb;
-            padding-top: 10px;
+            padding-top: 5px;
+        }
+        .text-center { text-align: center; }
+        .text-truncate {
+            max-width: 80px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="title">INFORME DE LIBROS NO DEVUELTOS</div>
-        <div class="subtitle">Período: {{ $periodo['inicio'] }} - {{ $periodo['fin'] }}</div>
+        <div class="subtitle">Periodo: {{ $periodo['inicio'] }} - {{ $periodo['fin'] }}</div>
         <div class="subtitle">Generado el: {{ date('d/m/Y H:i') }}</div>
     </div>
 
     <!-- Alerta Principal -->
     @if($estadisticas['total_no_devueltos'] > 0)
     <div class="alert-box">
-        <div class="alert-title">⚠️ ATENCIÓN REQUERIDA</div>
-        <div>Se encontraron {{ $estadisticas['total_no_devueltos'] }} libros pendientes de devolución que requieren seguimiento.</div>
+        <div class="alert-title">ATENCION REQUERIDA</div>
+        <div>Se encontraron {{ $estadisticas['total_no_devueltos'] }} libros pendientes de devolucion que requieren seguimiento.</div>
     </div>
     @endif
 
-    <!-- Estadísticas Generales -->
-    <div class="stats-grid">
-        <div class="stats-row">
-            <div class="stats-cell">
+    <!-- Estadisticas Generales -->
+    <table class="stats-table">
+        <tr>
+            <td class="stats-cell">
                 <div class="stats-number">{{ $estadisticas['total_no_devueltos'] }}</div>
                 <div class="stats-label">Total No Devueltos</div>
-            </div>
-            <div class="stats-cell">
+            </td>
+            <td class="stats-cell">
                 <div class="stats-number">{{ $estadisticas['activos'] }}</div>
                 <div class="stats-label">En Tiempo</div>
-            </div>
-            <div class="stats-cell">
+            </td>
+            <td class="stats-cell">
                 <div class="stats-number">{{ $estadisticas['vencidos'] }}</div>
                 <div class="stats-label">Vencidos</div>
-            </div>
-            <div class="stats-cell">
+            </td>
+            <td class="stats-cell">
                 <div class="stats-number">{{ round($estadisticas['promedio_dias_retraso'] ?? 0) }}</div>
-                <div class="stats-label">Días Prom. Retraso</div>
-            </div>
-        </div>
-    </div>
+                <div class="stats-label">Dias Prom. Retraso</div>
+            </td>
+        </tr>
+    </table>
 
-    <!-- Análisis por Severidad -->
+    <!-- Analisis por Severidad -->
     @if($estadisticas['vencidos'] > 0)
     <div class="section">
-        <div class="section-title">Análisis por Severidad de Retraso</div>
-        <div class="severity-grid">
-            <div class="stats-row">
-                <div class="severity-cell severity-critico">
+        <div class="section-title">Analisis por Severidad de Retraso</div>
+        <table class="severity-table">
+            <tr>
+                <td class="severity-cell severity-critico">
                     <div class="stats-number">{{ $estadisticas['por_severidad']['critico'] }}</div>
-                    <div class="stats-label">Crítico (30+ días)</div>
-                </div>
-                <div class="severity-cell severity-alto">
+                    <div class="stats-label">Critico (30+ dias)</div>
+                </td>
+                <td class="severity-cell severity-alto">
                     <div class="stats-number">{{ $estadisticas['por_severidad']['alto'] }}</div>
-                    <div class="stats-label">Alto (15-29 días)</div>
-                </div>
-                <div class="severity-cell severity-medio">
+                    <div class="stats-label">Alto (15-29 dias)</div>
+                </td>
+                <td class="severity-cell severity-medio">
                     <div class="stats-number">{{ $estadisticas['por_severidad']['medio'] }}</div>
-                    <div class="stats-label">Medio (7-14 días)</div>
-                </div>
-                <div class="severity-cell severity-bajo">
+                    <div class="stats-label">Medio (7-14 dias)</div>
+                </td>
+                <td class="severity-cell severity-bajo">
                     <div class="stats-number">{{ $estadisticas['por_severidad']['bajo'] }}</div>
-                    <div class="stats-label">Bajo (1-6 días)</div>
-                </div>
-                <div class="severity-cell severity-activo">
+                    <div class="stats-label">Bajo (1-6 dias)</div>
+                </td>
+                <td class="severity-cell severity-activo">
                     <div class="stats-number">{{ $estadisticas['por_severidad']['activos'] }}</div>
                     <div class="stats-label">En Tiempo</div>
-                </div>
-            </div>
-        </div>
+                </td>
+            </tr>
+        </table>
     </div>
     @endif
 
-    <!-- Análisis por Grado -->
+    <!-- Analisis por Grado -->
     @if(count($estadisticas['por_grado']) > 0)
     <div class="section">
-        <div class="section-title">Análisis por Grado</div>
+        <div class="section-title">Analisis por Grado</div>
         <table>
             <thead>
                 <tr>
                     <th>Grado</th>
-                    <th>Total</th>
-                    <th>En Tiempo</th>
-                    <th>Vencidos</th>
-                    <th>% del Total</th>
+                    <th class="text-center">Total</th>
+                    <th class="text-center">En Tiempo</th>
+                    <th class="text-center">Vencidos</th>
+                    <th class="text-center">% del Total</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($estadisticas['por_grado'] as $grado)
                 <tr>
                     <td>{{ $grado['grado'] }}</td>
-                    <td>{{ $grado['cantidad'] }}</td>
-                    <td>{{ $grado['activos'] }}</td>
-                    <td>{{ $grado['vencidos'] }}</td>
-                    <td>{{ round(($grado['cantidad'] / $estadisticas['total_no_devueltos']) * 100, 1) }}%</td>
+                    <td class="text-center">{{ $grado['cantidad'] }}</td>
+                    <td class="text-center">{{ $grado['activos'] }}</td>
+                    <td class="text-center">{{ $grado['vencidos'] }}</td>
+                    <td class="text-center">{{ round(($grado['cantidad'] / $estadisticas['total_no_devueltos']) * 100, 1) }}%</td>
                 </tr>
                 @endforeach
             </tbody>
@@ -235,54 +238,59 @@
 
     <!-- Detalle de Libros No Devueltos -->
     <div class="section">
-        <div class="section-title">Detalle de Libros No Devueltos ({{ $prestamos_no_devueltos->count() }} registros)</div>
+        <div class="section-title">Detalle de Libros No Devueltos ({{ count($prestamos_no_devueltos) }} registros)</div>
         <table>
             <thead>
                 <tr>
                     <th>Estudiante</th>
-                    <th>Código</th>
+                    <th>Codigo</th>
                     <th>Grado</th>
                     <th>Libro</th>
                     <th>Ejemplar</th>
-                    <th>F. Préstamo</th>
+                    <th>F. Prestamo</th>
                     <th>F. Vencimiento</th>
-                    <th>Días Retraso</th>
+                    <th>Dias Retraso</th>
                     <th>Estado</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($prestamos_no_devueltos->sortByDesc('dias_retraso')->take(50) as $prestamo)
                 @php
-                    $severidadClase = '';
-                    if ($prestamo->dias_retraso >= 30) $severidadClase = 'dias-critico';
-                    elseif ($prestamo->dias_retraso >= 15) $severidadClase = 'dias-alto';
-                    elseif ($prestamo->dias_retraso >= 7) $severidadClase = 'dias-medio';
-                    elseif ($prestamo->dias_retraso > 0) $severidadClase = 'dias-bajo';
+                    $prestamosOrdenados = collect($prestamos_no_devueltos)->sortByDesc('dias_retraso');
                 @endphp
-                <tr>
-                    <td>{{ $prestamo->lector->nombre }}</td>
-                    <td>{{ $prestamo->lector->codigo }}</td>
-                    <td>{{ $prestamo->lector->grado->subGrado ?? 'N/A' }}</td>
-                    <td>{{ Str::limit($prestamo->ejemplar->libro->titulo, 30) }}</td>
-                    <td>#{{ $prestamo->ejemplar->numEjemplar }}</td>
-                    <td>{{ \Carbon\Carbon::parse($prestamo->fecha_prestamo)->format('d/m/Y') }}</td>
-                    <td>{{ \Carbon\Carbon::parse($prestamo->fecha_devolucion)->format('d/m/Y') }}</td>
-                    <td>
-                        <span class="dias-retraso {{ $severidadClase }}">
-                            {{ $prestamo->dias_retraso > 0 ? $prestamo->dias_retraso : '0' }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="badge badge-{{ strtolower($prestamo->estado) }}">
-                            {{ $prestamo->estado }}
-                        </span>
-                    </td>
-                </tr>
+                @foreach($prestamosOrdenados as $index => $prestamo)
+                    @if($index < 25)
+                    @php
+                        $severidadClase = '';
+                        if ($prestamo->dias_retraso >= 30) $severidadClase = 'dias-critico';
+                        elseif ($prestamo->dias_retraso >= 15) $severidadClase = 'dias-alto';
+                        elseif ($prestamo->dias_retraso >= 7) $severidadClase = 'dias-medio';
+                        elseif ($prestamo->dias_retraso > 0) $severidadClase = 'dias-bajo';
+                    @endphp
+                    <tr>
+                        <td class="text-truncate">{{ $prestamo->lector->nombre ?? 'N/A' }}</td>
+                        <td>{{ $prestamo->lector->codigo ?? 'N/A' }}</td>
+                        <td>{{ $prestamo->lector->grado->subGrado ?? 'N/A' }}</td>
+                        <td class="text-truncate">{{ $prestamo->ejemplar->libro->titulo ?? 'N/A' }}</td>
+                        <td class="text-center">#{{ $prestamo->ejemplar->numEjemplar ?? 'N/A' }}</td>
+                        <td>{{ \Carbon\Carbon::parse($prestamo->fecha_prestamo)->format('d/m/Y') }}</td>
+                        <td>{{ \Carbon\Carbon::parse($prestamo->fecha_devolucion)->format('d/m/Y') }}</td>
+                        <td class="text-center">
+                            <span class="dias-retraso {{ $severidadClase }}">
+                                {{ $prestamo->dias_retraso > 0 ? $prestamo->dias_retraso : '0' }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-{{ strtolower($prestamo->estado) }}">
+                                {{ $prestamo->estado }}
+                            </span>
+                        </td>
+                    </tr>
+                    @endif
                 @endforeach
-                @if($prestamos_no_devueltos->count() > 50)
+                @if(count($prestamos_no_devueltos) > 25)
                 <tr>
-                    <td colspan="9" style="text-align: center; font-style: italic; color: #6b7280;">
-                        ... y {{ $prestamos_no_devueltos->count() - 50 }} préstamos más
+                    <td colspan="9" class="text-center" style="font-style: italic; color: #6b7280;">
+                        ... y {{ count($prestamos_no_devueltos) - 25 }} prestamos mas
                     </td>
                 </tr>
                 @endif
@@ -292,28 +300,28 @@
 
     <!-- Recomendaciones -->
     <div class="section">
-        <div class="section-title">Recomendaciones de Acción</div>
-        <div style="font-size: 11px; line-height: 1.6;">
+        <div class="section-title">Recomendaciones de Accion</div>
+        <div style="font-size: 9px; line-height: 1.3;">
             @if($estadisticas['por_severidad']['critico'] > 0)
-            <p><strong>🔴 Acción Inmediata:</strong> {{ $estadisticas['por_severidad']['critico'] }} préstamos con más de 30 días de retraso requieren contacto inmediato y posible aplicación de sanciones.</p>
+            <p><strong>Accion Inmediata:</strong> {{ $estadisticas['por_severidad']['critico'] }} prestamos con mas de 30 dias de retraso requieren contacto inmediato y posible aplicacion de sanciones.</p>
             @endif
             
             @if($estadisticas['por_severidad']['alto'] > 0)
-            <p><strong>🟠 Seguimiento Urgente:</strong> {{ $estadisticas['por_severidad']['alto'] }} préstamos con 15-29 días de retraso necesitan seguimiento telefónico o citación.</p>
+            <p><strong>Seguimiento Urgente:</strong> {{ $estadisticas['por_severidad']['alto'] }} prestamos con 15-29 dias de retraso necesitan seguimiento telefonico o citacion.</p>
             @endif
             
             @if($estadisticas['por_severidad']['medio'] > 0)
-            <p><strong>🟡 Recordatorio:</strong> {{ $estadisticas['por_severidad']['medio'] }} préstamos con 7-14 días de retraso requieren envío de recordatorios.</p>
+            <p><strong>Recordatorio:</strong> {{ $estadisticas['por_severidad']['medio'] }} prestamos con 7-14 dias de retraso requieren envio de recordatorios.</p>
             @endif
             
             @if($estadisticas['activos'] > 0)
-            <p><strong>🔵 Preventivo:</strong> {{ $estadisticas['activos'] }} préstamos activos próximos a vencer requieren recordatorio preventivo.</p>
+            <p><strong>Preventivo:</strong> {{ $estadisticas['activos'] }} prestamos activos proximos a vencer requieren recordatorio preventivo.</p>
             @endif
         </div>
     </div>
 
     <div class="footer">
-        Sistema de Gestión Bibliotecaria - Informe de Control y Seguimiento
+        Sistema de Gestion Bibliotecaria - Informe de Control y Seguimiento
     </div>
 </body>
 </html>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { 
   FileBarChart, 
   Download, 
@@ -11,7 +11,8 @@ import {
   Filter,
   CheckCircle,
   AlertCircle,
-  X
+  X,
+  Eye
 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -90,6 +91,9 @@ function AlertNotification({
 }
 
 export default function Index({ auth, flash }: InformesProps) {
+  // Obtener datos de la página de Inertia
+  const { props } = usePage();
+  
   // Estados del formulario
   const [tipoInforme, setTipoInforme] = useState<TipoInforme>('prestamos-realizados');
   const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodo>('mensual');
@@ -133,14 +137,19 @@ export default function Index({ auth, flash }: InformesProps) {
     }
   }, [tipoPeriodo, rangosFecha]);
 
-  // Generar informe
-  const generarInforme = (formato: 'vista' | 'pdf') => {
+  // Función para obtener el token CSRF
+  const getCSRFToken = () => {
+    const metaTag = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement;
+    return metaTag ? metaTag.getAttribute('content') : '';
+  };
+
+  // Generar vista previa - MÉTODO CORREGIDO
+  const generarVistaPrevia = () => {
     if (!fechaInicio || !fechaFin) {
       setAlerts(prev => ({ ...prev, error: 'Debe seleccionar fechas de inicio y fin' }));
       return;
     }
 
-    // Validar que la fecha de inicio no sea mayor a la fecha de fin
     if (new Date(fechaInicio) > new Date(fechaFin)) {
       setAlerts(prev => ({ ...prev, error: 'La fecha de inicio no puede ser mayor a la fecha de fin' }));
       return;
@@ -149,41 +158,91 @@ export default function Index({ auth, flash }: InformesProps) {
     setCargando(true);
 
     const datos = {
+      _token: getCSRFToken(),
       fecha_inicio: fechaInicio,
       fecha_fin: fechaFin,
       periodo: tipoPeriodo !== 'personalizado' ? tipoPeriodo : null,
-      formato
+      formato: 'vista'
     };
 
-    console.log('Enviando datos:', datos); // Para debug
+    console.log('Vista previa - Datos enviados:', datos);
 
+    // Usar router.post con método explícito
     const url = tipoInforme === 'prestamos-realizados' 
       ? '/informes/prestamos-realizados'
       : '/informes/libros-no-devueltos';
 
     router.post(url, datos, {
+      preserveScroll: false,
+      preserveState: false,
+      forceFormData: true,
+      onStart: () => {
+        console.log('Iniciando petición POST para vista previa');
+      },
       onSuccess: (page) => {
         setCargando(false);
-        console.log('Éxito:', page);
-        if (formato === 'vista') {
-          // La navegación se manejará automáticamente
-        }
+        console.log('Vista previa generada exitosamente', page);
       },
       onError: (errors) => {
         setCargando(false);
-        console.error('Error:', errors);
-        const errorMessage = typeof errors === 'object' 
-          ? Object.values(errors).flat().join(', ')
-          : 'Error al generar el informe';
-        setAlerts(prev => ({ 
-          ...prev, 
-          error: errorMessage
-        }));
+        console.error('Error en vista previa:', errors);
+        
+        // Manejar errores específicos
+        if (errors.message && errors.message.includes('419')) {
+          setAlerts(prev => ({ 
+            ...prev, 
+            error: 'Sesión expirada. Recargue la página e intente nuevamente.' 
+          }));
+        } else {
+          const errorMessage = typeof errors === 'object' 
+            ? Object.values(errors).flat().join(', ')
+            : 'Error al generar la vista previa';
+          setAlerts(prev => ({ 
+            ...prev, 
+            error: errorMessage
+          }));
+        }
       },
       onFinish: () => {
         setCargando(false);
       }
     });
+  };
+
+  // Descargar PDF
+  const descargarPDF = () => {
+    if (!fechaInicio || !fechaFin) {
+      setAlerts(prev => ({ ...prev, error: 'Debe seleccionar fechas de inicio y fin' }));
+      return;
+    }
+
+    if (new Date(fechaInicio) > new Date(fechaFin)) {
+      setAlerts(prev => ({ ...prev, error: 'La fecha de inicio no puede ser mayor a la fecha de fin' }));
+      return;
+    }
+
+    setCargando(true);
+
+    const params = new URLSearchParams({
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+      ...(tipoPeriodo !== 'personalizado' && { periodo: tipoPeriodo })
+    });
+
+    const url = tipoInforme === 'prestamos-realizados' 
+      ? `/informes/descargar-prestamos?${params}`
+      : `/informes/descargar-no-devueltos?${params}`;
+
+    // Método de descarga universal
+    window.open(url, '_blank');
+    
+    setTimeout(() => {
+      setCargando(false);
+      setAlerts(prev => ({ 
+        ...prev, 
+        success: 'PDF generado exitosamente. Verifique su carpeta de descargas.' 
+      }));
+    }, 2000);
   };
 
   return (
@@ -397,23 +456,32 @@ export default function Index({ auth, flash }: InformesProps) {
               {/* Botones de Acción */}
               <div className="flex items-center justify-end space-x-4">
                 <button
-                  onClick={() => generarInforme('vista')}
+                  onClick={generarVistaPrevia}
                   disabled={cargando || !fechaInicio || !fechaFin}
                   className="px-6 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center space-x-2 disabled:cursor-not-allowed"
                 >
-                  <BarChart3 className="w-5 h-5" />
-                  <span>Vista Previa</span>
+                  {cargando ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Generando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-5 h-5" />
+                      <span>Vista Previa</span>
+                    </>
+                  )}
                 </button>
 
                 <button
-                  onClick={() => generarInforme('pdf')}
+                  onClick={descargarPDF}
                   disabled={cargando || !fechaInicio || !fechaFin}
                   className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg font-medium transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none disabled:cursor-not-allowed flex items-center space-x-2"
                 >
                   {cargando ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Generando...</span>
+                      <span>Descargando...</span>
                     </>
                   ) : (
                     <>
@@ -441,7 +509,7 @@ export default function Index({ auth, flash }: InformesProps) {
                 </li>
                 <li className="flex items-center space-x-2">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                  <span>Análisis por períodos predefinidos o personalizados</span>
+                  <span>Vista previa en pantalla con datos interactivos</span>
                 </li>
                 <li className="flex items-center space-x-2">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -450,6 +518,10 @@ export default function Index({ auth, flash }: InformesProps) {
                 <li className="flex items-center space-x-2">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                   <span>Datos organizados por grado y estado</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span>Compatible con todos los navegadores</span>
                 </li>
               </ul>
             </div>
@@ -470,7 +542,11 @@ export default function Index({ auth, flash }: InformesProps) {
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">3</div>
-                  <span>Use "Vista Previa" para ver el informe o "Descargar PDF" para generar el archivo</span>
+                  <span>Use "Vista Previa" para ver el informe en pantalla con gráficos interactivos</span>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center text-xs font-bold text-red-600 dark:text-red-400 flex-shrink-0">4</div>
+                  <span>Use "Descargar PDF" para obtener el archivo listo para imprimir</span>
                 </div>
               </div>
             </div>

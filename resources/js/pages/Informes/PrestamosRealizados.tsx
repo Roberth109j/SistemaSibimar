@@ -1,5 +1,5 @@
 import React from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { 
   BarChart, 
   Bar, 
@@ -42,6 +42,42 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
+// Función mejorada para formatear fechas
+const formatearFecha = (fecha: string | null | undefined): string => {
+  if (!fecha) return 'N/A';
+  
+  try {
+    // Limpiar la fecha de posibles caracteres extra
+    const fechaLimpia = fecha.split('T')[0]; // Tomar solo YYYY-MM-DD
+    
+    // Si viene en formato YYYY-MM-DD
+    if (fechaLimpia.includes('-')) {
+      const partes = fechaLimpia.split('-');
+      if (partes.length === 3) {
+        const [año, mes, dia] = partes;
+        return `${dia}/${mes}/${año}`;
+      }
+    }
+    
+    // Si viene en formato DD/MM/YYYY
+    if (fechaLimpia.includes('/')) {
+      return fechaLimpia;
+    }
+    
+    // Fallback: crear fecha con zona horaria específica
+    const fechaObj = new Date(fechaLimpia + 'T12:00:00.000Z');
+    return fechaObj.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit', 
+      year: 'numeric',
+      timeZone: 'UTC'
+    });
+  } catch (error) {
+    console.error('Error formateando fecha:', fecha, error);
+    return fecha.toString();
+  }
+};
+
 export default function PrestamosRealizados({ 
   prestamos, 
   estadisticas, 
@@ -55,21 +91,15 @@ export default function PrestamosRealizados({
       return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
     };
 
-    const datos = {
+    const params = new URLSearchParams({
       fecha_inicio: convertirFecha(periodo.inicio),
       fecha_fin: convertirFecha(periodo.fin),
-      periodo: periodo.tipo !== 'personalizado' ? periodo.tipo : null,
-      formato: 'pdf'
-    };
-
-    router.post('/informes/prestamos-realizados', datos, {
-      onError: (errors) => {
-        console.error('Error descargando PDF:', errors);
-      },
-      onSuccess: () => {
-        console.log('PDF generado exitosamente');
-      }
+      ...(periodo.tipo !== 'personalizado' && { periodo: periodo.tipo })
     });
+
+    const url = `/informes/descargar-prestamos?${params}`;
+    console.log('Descargando PDF desde vista previa:', url);
+    window.open(url, '_blank');
   };
 
   return (
@@ -283,7 +313,7 @@ export default function PrestamosRealizados({
             </div>
           )}
 
-          {/* Tabla de Préstamos Recientes */}
+          {/* Tabla de Préstamos Recientes - FECHAS CORREGIDAS */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -315,7 +345,7 @@ export default function PrestamosRealizados({
                   {prestamos.slice(0, 20).map((prestamo) => (
                     <tr key={prestamo.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {new Date(prestamo.fecha_prestamo).toLocaleDateString('es-ES')}
+                        {formatearFecha(prestamo.fecha_prestamo)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -343,8 +373,8 @@ export default function PrestamosRealizados({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         {prestamo.fecha_devuelto 
-                          ? new Date(prestamo.fecha_devuelto).toLocaleDateString('es-ES')
-                          : new Date(prestamo.fecha_devolucion).toLocaleDateString('es-ES')
+                          ? formatearFecha(prestamo.fecha_devuelto)
+                          : formatearFecha(prestamo.fecha_devolucion)
                         }
                       </td>
                     </tr>
