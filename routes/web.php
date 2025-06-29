@@ -13,6 +13,7 @@ use App\Http\Controllers\LectorController;
 use App\Http\Controllers\PrestamoController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\InformeController;
+use App\Http\Controllers\InventarioController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -132,6 +133,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/descargar-no-devueltos', [InformeController::class, 'descargarPDFNoDevueltos'])
             ->name('informes.descargar-no-devueltos');
     });
+    Route::get('inventario', [InventarioController::class, 'index'])->name('inventario.index');
 });
 
 require __DIR__ . '/settings.php';
