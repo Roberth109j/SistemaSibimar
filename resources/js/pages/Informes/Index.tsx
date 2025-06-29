@@ -433,7 +433,7 @@ export default function Index({ auth, flash }: InformesProps) {
                           Período {obtenerNombrePeriodo(tipoPeriodo)} Seleccionado
                         </p>
                         <p className="text-sm text-blue-700 dark:text-blue-300">
-                          Desde: <span className="font-medium">{formatearFecha(fechaInicio)}</span> hasta <span className="font-medium">{formatearFecha(fechaFin)}</span>
+                          Desde: <span className="font-medium">{fechaInicio ? new Date(fechaInicio + 'T00:00:00').toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : ''}</span> hasta <span className="font-medium">{fechaFin ? new Date(fechaFin + 'T00:00:00').toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : ''}</span>
                         </p>
                       </div>
                     </div>
@@ -527,7 +527,7 @@ export default function Index({ auth, flash }: InformesProps) {
                     <div className="flex items-center space-x-2">
                       <Filter className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                       <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                        Período personalizado: {formatearFecha(fechaInicio)} - {formatearFecha(fechaFin)}
+                        Período personalizado: {fechaInicio ? new Date(fechaInicio + 'T00:00:00').toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : ''} - {fechaFin ? new Date(fechaFin + 'T00:00:00').toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : ''}
                       </span>
                     </div>
                   </div>

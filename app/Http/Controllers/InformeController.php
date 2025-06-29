@@ -47,35 +47,53 @@ class InformeController extends Controller
                 return back()->with('error', 'No hay préstamos registrados en la base de datos.');
             }
 
-            // Consulta base de préstamos
-            $prestamos = Prestamo::with(['ejemplar.libro.autor', 'lector.grado'])
+            // Consulta base de préstamos con paginación para vista
+            $prestamosQuery = Prestamo::with(['ejemplar.libro.autor', 'lector.grado'])
                 ->whereBetween('fecha_prestamo', [$fechaInicio, $fechaFin])
-                ->orderBy('fecha_prestamo', 'desc')
-                ->get();
+                ->orderBy('fecha_prestamo', 'desc');
+
+            // Para estadísticas usamos todos los registros
+            $todosPrestamos = $prestamosQuery->get();
+
+            // Para vista con paginación
+            $prestamos = $validated['formato'] === 'vista' 
+                ? $prestamosQuery->paginate(50) 
+                : $todosPrestamos;
 
             // Estadísticas generales
             $estadisticas = [
-                'total_prestamos' => $prestamos->count(),
-                'prestamos_activos' => $prestamos->where('estado', 'ACTIVO')->count(),
-                'prestamos_devueltos' => $prestamos->where('estado', 'DEVUELTO')->count(),
-                'prestamos_vencidos' => $prestamos->where('estado', 'VENCIDO')->count(),
-                'libros_mas_prestados' => $this->getLibrosMasPrestados($prestamos),
-                'prestamos_por_mes' => $this->getPrestamosPorMes($prestamos, $fechaInicio, $fechaFin),
-                'prestamos_por_grado' => $this->getPrestamosPorGrado($prestamos),
-                'prestamos_por_estado' => $this->getPrestamosPorEstado($prestamos)
+                'total_prestamos' => $todosPrestamos->count(),
+                'prestamos_activos' => $todosPrestamos->where('estado', 'ACTIVO')->count(),
+                'prestamos_devueltos' => $todosPrestamos->where('estado', 'DEVUELTO')->count(),
+                'prestamos_vencidos' => $todosPrestamos->where('estado', 'VENCIDO')->count(),
+                'libros_mas_prestados' => $this->getLibrosMasPrestados($todosPrestamos),
+                'prestamos_por_mes' => $this->getPrestamosPorMes($todosPrestamos, $fechaInicio, $fechaFin),
+                'prestamos_por_grado' => $this->getPrestamosPorGrado($todosPrestamos),
+                'prestamos_por_estado' => $this->getPrestamosPorEstado($todosPrestamos)
             ];
 
             $datos = [
-                'prestamos' => $prestamos,
+                'prestamos' => $validated['formato'] === 'vista' ? $prestamos->items() : $prestamos,
                 'estadisticas' => $estadisticas,
                 'periodo' => [
                     'inicio' => $fechaInicio->format('d/m/Y'),
                     'fin' => $fechaFin->format('d/m/Y'),
                     'tipo' => $validated['periodo'] ?? 'personalizado'
-                ]
+                ],
+                'pagination' => $validated['formato'] === 'vista' ? [
+                    'current_page' => $prestamos->currentPage(),
+                    'last_page' => $prestamos->lastPage(),
+                    'per_page' => $prestamos->perPage(),
+                    'total' => $prestamos->total(),
+                    'from' => $prestamos->firstItem(),
+                    'to' => $prestamos->lastItem(),
+                    'has_pages' => $prestamos->hasPages()
+                ] : null
             ];
 
             if ($validated['formato'] === 'pdf') {
+                // Para PDF usamos todos los registros sin paginación
+                $datos['prestamos'] = $todosPrestamos;
                 return $this->descargarPDF('prestamos', $datos);
             }
 
@@ -88,7 +106,7 @@ class InformeController extends Controller
     }
 
     /**
-     * Generar informe de libros no devueltos - CORREGIDO CÁLCULO DE DÍAS
+     * Generar informe de libros no devueltos - CORREGIDO COMPLETAMENTE
      */
     public function librosNoDevueltos(Request $request)
     {
@@ -102,8 +120,9 @@ class InformeController extends Controller
         try {
             $fechaInicio = Carbon::parse($validated['fecha_inicio'])->startOfDay();
             $fechaFin = Carbon::parse($validated['fecha_fin'])->endOfDay();
+            $hoy = Carbon::now();
 
-            // SOLO préstamos VENCIDOS
+            // SOLO préstamos VENCIDOS con cálculo CORRECTO de días
             $prestamosNoDevueltos = Prestamo::with([
                 'ejemplar.libro.autor', 
                 'lector.grado'
@@ -112,15 +131,23 @@ class InformeController extends Controller
                 ->whereBetween('fecha_prestamo', [$fechaInicio, $fechaFin])
                 ->orderBy('fecha_devolucion', 'asc')
                 ->get()
-                ->map(function ($prestamo) {
-                    // CORRECCIÓN: Cálculo preciso de días enteros
+                ->map(function ($prestamo) use ($hoy) {
+                    // CORRECCIÓN CRÍTICA: Calcular días de retraso correctamente
                     $fechaVencimiento = Carbon::parse($prestamo->fecha_devolucion)->startOfDay();
-                    $hoy = Carbon::now()->startOfDay();
                     
-                    // Calcular diferencia en días enteros
-                    $prestamo->dias_retraso = (int) $hoy->diffInDays($fechaVencimiento);
+                    // Si la fecha de vencimiento ya pasó, calcular días de retraso positivos
+                    if ($hoy->startOfDay()->greaterThan($fechaVencimiento)) {
+                        $prestamo->dias_retraso = (int) $fechaVencimiento->diffInDays($hoy->startOfDay());
+                    } else {
+                        // Si aún no vence, no debería estar en vencidos, pero por seguridad ponemos 0
+                        $prestamo->dias_retraso = 0;
+                    }
                     
                     return $prestamo;
+                })
+                ->filter(function ($prestamo) {
+                    // Solo incluir préstamos con días de retraso positivos
+                    return $prestamo->dias_retraso > 0;
                 });
 
             // Estadísticas específicas - CORREGIDAS
@@ -219,6 +246,7 @@ class InformeController extends Controller
         try {
             $fechaInicio = Carbon::parse($validated['fecha_inicio'])->startOfDay();
             $fechaFin = Carbon::parse($validated['fecha_fin'])->endOfDay();
+            $hoy = Carbon::now();
 
             // SOLO VENCIDOS con cálculo corregido
             $prestamosNoDevueltos = Prestamo::with(['ejemplar.libro.autor', 'lector.grado'])
@@ -226,14 +254,20 @@ class InformeController extends Controller
                 ->whereBetween('fecha_prestamo', [$fechaInicio, $fechaFin])
                 ->orderBy('fecha_devolucion', 'asc')
                 ->get()
-                ->map(function ($prestamo) {
-                    // CORRECCIÓN: Cálculo preciso de días enteros
+                ->map(function ($prestamo) use ($hoy) {
+                    // CORRECCIÓN CRÍTICA: Calcular días de retraso correctamente
                     $fechaVencimiento = Carbon::parse($prestamo->fecha_devolucion)->startOfDay();
-                    $hoy = Carbon::now()->startOfDay();
                     
-                    $prestamo->dias_retraso = (int) $hoy->diffInDays($fechaVencimiento);
+                    if ($hoy->startOfDay()->greaterThan($fechaVencimiento)) {
+                        $prestamo->dias_retraso = (int) $fechaVencimiento->diffInDays($hoy->startOfDay());
+                    } else {
+                        $prestamo->dias_retraso = 0;
+                    }
                     
                     return $prestamo;
+                })
+                ->filter(function ($prestamo) {
+                    return $prestamo->dias_retraso > 0;
                 });
 
             $estadisticas = [
@@ -265,7 +299,7 @@ class InformeController extends Controller
     }
 
     /**
-     * Obtener rangos de fechas predefinidos
+     * Obtener rangos de fechas predefinidos - CORREGIDO
      */
     public function getRangosFecha()
     {
@@ -414,12 +448,28 @@ class InformeController extends Controller
 
     private function getNoDevueltosPorSeveridad($prestamos)
     {
-        // Solo trabajar con préstamos vencidos
+        // CORRECCIÓN: Usar where en lugar de whereBetween para evitar problemas
+        $critico = $prestamos->filter(function ($prestamo) {
+            return $prestamo->dias_retraso >= 30;
+        })->count();
+
+        $alto = $prestamos->filter(function ($prestamo) {
+            return $prestamo->dias_retraso >= 15 && $prestamo->dias_retraso <= 29;
+        })->count();
+
+        $medio = $prestamos->filter(function ($prestamo) {
+            return $prestamo->dias_retraso >= 7 && $prestamo->dias_retraso <= 14;
+        })->count();
+
+        $bajo = $prestamos->filter(function ($prestamo) {
+            return $prestamo->dias_retraso >= 1 && $prestamo->dias_retraso <= 6;
+        })->count();
+
         return [
-            'critico' => $prestamos->where('dias_retraso', '>=', 30)->count(),
-            'alto' => $prestamos->whereBetween('dias_retraso', [15, 29])->count(),
-            'medio' => $prestamos->whereBetween('dias_retraso', [7, 14])->count(),
-            'bajo' => $prestamos->where('dias_retraso', '<', 7)->where('dias_retraso', '>', 0)->count(),
+            'critico' => $critico,
+            'alto' => $alto,
+            'medio' => $medio,
+            'bajo' => $bajo,
         ];
     }
 
