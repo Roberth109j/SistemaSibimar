@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Informe de Libros No Devueltos</title>
+    <title>Informe de Libros Vencidos No Devueltos</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -49,7 +49,7 @@
             margin-bottom: 15px;
         }
         .stats-cell {
-            width: 25%;
+            width: 33.33%;
             padding: 8px;
             border: 1px solid #e5e7eb;
             text-align: center;
@@ -71,7 +71,7 @@
             margin-bottom: 15px;
         }
         .severity-cell {
-            width: 20%;
+            width: 25%;
             padding: 6px;
             border: 1px solid #e5e7eb;
             text-align: center;
@@ -80,7 +80,6 @@
         .severity-alto { background-color: #fed7aa; color: #9a3412; }
         .severity-medio { background-color: #fef3c7; color: #92400e; }
         .severity-bajo { background-color: #fef9c3; color: #a16207; }
-        .severity-activo { background-color: #dbeafe; color: #1e40af; }
         .section {
             margin-bottom: 15px;
         }
@@ -113,7 +112,6 @@
             font-size: 7px;
             font-weight: bold;
         }
-        .badge-activo { background-color: #dbeafe; color: #1e40af; }
         .badge-vencido { background-color: #fecaca; color: #dc2626; }
         .dias-retraso {
             font-weight: bold;
@@ -141,7 +139,7 @@
 </head>
 <body>
     <div class="header">
-        <div class="title">INFORME DE LIBROS NO DEVUELTOS</div>
+        <div class="title">INFORME DE LIBROS VENCIDOS NO DEVUELTOS</div>
         <div class="subtitle">Periodo: {{ $periodo['inicio'] }} - {{ $periodo['fin'] }}</div>
         <div class="subtitle">Generado el: {{ date('d/m/Y H:i') }}</div>
     </div>
@@ -150,24 +148,20 @@
     @if($estadisticas['total_no_devueltos'] > 0)
     <div class="alert-box">
         <div class="alert-title">ATENCION REQUERIDA</div>
-        <div>Se encontraron {{ $estadisticas['total_no_devueltos'] }} libros pendientes de devolucion que requieren seguimiento.</div>
+        <div>Se encontraron {{ $estadisticas['total_no_devueltos'] }} libros vencidos no devueltos que requieren seguimiento inmediato.</div>
     </div>
     @endif
 
-    <!-- Estadisticas Generales -->
+    <!-- Estadisticas Generales - CORREGIDAS -->
     <table class="stats-table">
         <tr>
             <td class="stats-cell">
                 <div class="stats-number">{{ $estadisticas['total_no_devueltos'] }}</div>
-                <div class="stats-label">Total No Devueltos</div>
+                <div class="stats-label">Total Vencidos</div>
             </td>
             <td class="stats-cell">
-                <div class="stats-number">{{ $estadisticas['activos'] }}</div>
-                <div class="stats-label">En Tiempo</div>
-            </td>
-            <td class="stats-cell">
-                <div class="stats-number">{{ $estadisticas['vencidos'] }}</div>
-                <div class="stats-label">Vencidos</div>
+                <div class="stats-number">{{ $estadisticas['por_severidad']['critico'] }}</div>
+                <div class="stats-label">Criticos (30+ dias)</div>
             </td>
             <td class="stats-cell">
                 <div class="stats-number">{{ round($estadisticas['promedio_dias_retraso'] ?? 0) }}</div>
@@ -177,7 +171,7 @@
     </table>
 
     <!-- Analisis por Severidad -->
-    @if($estadisticas['vencidos'] > 0)
+    @if($estadisticas['total_no_devueltos'] > 0)
     <div class="section">
         <div class="section-title">Analisis por Severidad de Retraso</div>
         <table class="severity-table">
@@ -198,10 +192,6 @@
                     <div class="stats-number">{{ $estadisticas['por_severidad']['bajo'] }}</div>
                     <div class="stats-label">Bajo (1-6 dias)</div>
                 </td>
-                <td class="severity-cell severity-activo">
-                    <div class="stats-number">{{ $estadisticas['por_severidad']['activos'] }}</div>
-                    <div class="stats-label">En Tiempo</div>
-                </td>
             </tr>
         </table>
     </div>
@@ -215,9 +205,7 @@
             <thead>
                 <tr>
                     <th>Grado</th>
-                    <th class="text-center">Total</th>
-                    <th class="text-center">En Tiempo</th>
-                    <th class="text-center">Vencidos</th>
+                    <th class="text-center">Total Vencidos</th>
                     <th class="text-center">% del Total</th>
                 </tr>
             </thead>
@@ -226,8 +214,6 @@
                 <tr>
                     <td>{{ $grado['grado'] }}</td>
                     <td class="text-center">{{ $grado['cantidad'] }}</td>
-                    <td class="text-center">{{ $grado['activos'] }}</td>
-                    <td class="text-center">{{ $grado['vencidos'] }}</td>
                     <td class="text-center">{{ round(($grado['cantidad'] / $estadisticas['total_no_devueltos']) * 100, 1) }}%</td>
                 </tr>
                 @endforeach
@@ -236,9 +222,9 @@
     </div>
     @endif
 
-    <!-- Detalle de Libros No Devueltos -->
+    <!-- Detalle de Libros Vencidos No Devueltos -->
     <div class="section">
-        <div class="section-title">Detalle de Libros No Devueltos ({{ count($prestamos_no_devueltos) }} registros)</div>
+        <div class="section-title">Detalle de Libros Vencidos No Devueltos ({{ count($prestamos_no_devueltos) }} registros)</div>
         <table>
             <thead>
                 <tr>
@@ -250,7 +236,7 @@
                     <th>F. Prestamo</th>
                     <th>F. Vencimiento</th>
                     <th>Dias Retraso</th>
-                    <th>Estado</th>
+                    <th>Severidad</th>
                 </tr>
             </thead>
             <tbody>
@@ -260,11 +246,24 @@
                 @foreach($prestamosOrdenados as $index => $prestamo)
                     @if($index < 25)
                     @php
+                        // CORRECCIÓN: Asegurar que días_retraso sea un entero
+                        $diasRetraso = (int) floor($prestamo->dias_retraso);
+                        
                         $severidadClase = '';
-                        if ($prestamo->dias_retraso >= 30) $severidadClase = 'dias-critico';
-                        elseif ($prestamo->dias_retraso >= 15) $severidadClase = 'dias-alto';
-                        elseif ($prestamo->dias_retraso >= 7) $severidadClase = 'dias-medio';
-                        elseif ($prestamo->dias_retraso > 0) $severidadClase = 'dias-bajo';
+                        $severidadTexto = '';
+                        if ($diasRetraso >= 30) {
+                            $severidadClase = 'dias-critico';
+                            $severidadTexto = 'Crítico';
+                        } elseif ($diasRetraso >= 15) {
+                            $severidadClase = 'dias-alto';
+                            $severidadTexto = 'Alto';
+                        } elseif ($diasRetraso >= 7) {
+                            $severidadClase = 'dias-medio';
+                            $severidadTexto = 'Medio';
+                        } else {
+                            $severidadClase = 'dias-bajo';
+                            $severidadTexto = 'Bajo';
+                        }
                     @endphp
                     <tr>
                         <td class="text-truncate">{{ $prestamo->lector->nombre ?? 'N/A' }}</td>
@@ -276,13 +275,11 @@
                         <td>{{ \Carbon\Carbon::parse($prestamo->fecha_devolucion)->format('d/m/Y') }}</td>
                         <td class="text-center">
                             <span class="dias-retraso {{ $severidadClase }}">
-                                {{ $prestamo->dias_retraso > 0 ? $prestamo->dias_retraso : '0' }}
+                                {{ $diasRetraso }}
                             </span>
                         </td>
-                        <td>
-                            <span class="badge badge-{{ strtolower($prestamo->estado) }}">
-                                {{ $prestamo->estado }}
-                            </span>
+                        <td class="text-center">
+                            <span class="{{ $severidadClase }}">{{ $severidadTexto }}</span>
                         </td>
                     </tr>
                     @endif
@@ -290,7 +287,7 @@
                 @if(count($prestamos_no_devueltos) > 25)
                 <tr>
                     <td colspan="9" class="text-center" style="font-style: italic; color: #6b7280;">
-                        ... y {{ count($prestamos_no_devueltos) - 25 }} prestamos mas
+                        ... y {{ count($prestamos_no_devueltos) - 25 }} prestamos vencidos mas
                     </td>
                 </tr>
                 @endif
@@ -314,14 +311,14 @@
             <p><strong>Recordatorio:</strong> {{ $estadisticas['por_severidad']['medio'] }} prestamos con 7-14 dias de retraso requieren envio de recordatorios.</p>
             @endif
             
-            @if($estadisticas['activos'] > 0)
-            <p><strong>Preventivo:</strong> {{ $estadisticas['activos'] }} prestamos activos proximos a vencer requieren recordatorio preventivo.</p>
+            @if($estadisticas['por_severidad']['bajo'] > 0)
+            <p><strong>Atencion:</strong> {{ $estadisticas['por_severidad']['bajo'] }} prestamos con 1-6 dias de retraso requieren seguimiento.</p>
             @endif
         </div>
     </div>
 
     <div class="footer">
-        Sistema de Gestion Bibliotecaria - Informe de Control y Seguimiento
+        Sistema de Gestion Bibliotecaria - Informe de Control y Seguimiento de Libros Vencidos
     </div>
 </body>
 </html>

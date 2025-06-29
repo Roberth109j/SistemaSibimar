@@ -1,5 +1,5 @@
 import React from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { 
   BarChart, 
   Bar, 
@@ -19,7 +19,9 @@ import {
   TrendingUp, 
   Users, 
   Calendar,
-  ArrowLeft
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -32,6 +34,15 @@ interface PrestamosRealizadosProps {
     inicio: string;
     fin: string;
     tipo: string;
+  };
+  pagination?: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    has_pages: boolean;
   };
 }
 
@@ -47,10 +58,8 @@ const formatearFecha = (fecha: string | null | undefined): string => {
   if (!fecha) return 'N/A';
   
   try {
-    // Limpiar la fecha de posibles caracteres extra
-    const fechaLimpia = fecha.split('T')[0]; // Tomar solo YYYY-MM-DD
+    const fechaLimpia = fecha.split('T')[0];
     
-    // Si viene en formato YYYY-MM-DD
     if (fechaLimpia.includes('-')) {
       const partes = fechaLimpia.split('-');
       if (partes.length === 3) {
@@ -59,12 +68,10 @@ const formatearFecha = (fecha: string | null | undefined): string => {
       }
     }
     
-    // Si viene en formato DD/MM/YYYY
     if (fechaLimpia.includes('/')) {
       return fechaLimpia;
     }
     
-    // Fallback: crear fecha con zona horaria específica
     const fechaObj = new Date(fechaLimpia + 'T12:00:00.000Z');
     return fechaObj.toLocaleDateString('es-ES', {
       day: '2-digit',
@@ -81,11 +88,11 @@ const formatearFecha = (fecha: string | null | undefined): string => {
 export default function PrestamosRealizados({ 
   prestamos, 
   estadisticas, 
-  periodo 
+  periodo,
+  pagination
 }: PrestamosRealizadosProps) {
   
   const descargarPDF = () => {
-    // Convertir fechas del formato d/m/Y a Y-m-d
     const convertirFecha = (fechaStr: string) => {
       const partes = fechaStr.split('/');
       return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
@@ -100,6 +107,14 @@ export default function PrestamosRealizados({
     const url = `/informes/descargar-prestamos?${params}`;
     console.log('Descargando PDF desde vista previa:', url);
     window.open(url, '_blank');
+  };
+
+  // Función para construir URL con parámetros de página
+  const buildPageUrl = (page: number) => {
+    const currentUrl = new URL(window.location.href);
+    const params = new URLSearchParams(currentUrl.search);
+    params.set('page', page.toString());
+    return `${currentUrl.pathname}?${params.toString()}`;
   };
 
   return (
@@ -313,11 +328,18 @@ export default function PrestamosRealizados({
             </div>
           )}
 
-          {/* Tabla de Préstamos Recientes - FECHAS CORREGIDAS */}
+          {/* Información de paginación */}
+          {pagination && pagination.total > 0 && (
+            <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+              Mostrando {pagination.from || 1} a {pagination.to || prestamos.length} de {pagination.total} préstamos
+            </div>
+          )}
+
+          {/* Tabla de Préstamos Recientes - CON PAGINACIÓN */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Préstamos Recientes ({prestamos.length} registros)
+                Préstamos del Período ({pagination ? pagination.total : prestamos.length} registros)
               </h3>
             </div>
             <div className="overflow-x-auto">
@@ -333,6 +355,9 @@ export default function PrestamosRealizados({
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Libro
                     </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Ejemplar
+                    </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Estado
                     </th>
@@ -342,7 +367,7 @@ export default function PrestamosRealizados({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {prestamos.slice(0, 20).map((prestamo) => (
+                  {prestamos.map((prestamo) => (
                     <tr key={prestamo.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         {formatearFecha(prestamo.fecha_prestamo)}
@@ -359,6 +384,11 @@ export default function PrestamosRealizados({
                         <div className="text-sm text-gray-900 dark:text-white max-w-xs truncate">
                           {prestamo.ejemplar.libro.titulo}
                         </div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="text-sm font-mono text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                          #{prestamo.ejemplar.numEjemplar}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -381,16 +411,99 @@ export default function PrestamosRealizados({
                   ))}
                 </tbody>
               </table>
-              
-              {prestamos.length > 20 && (
-                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 text-center">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Mostrando 20 de {prestamos.length} préstamos. Descargue el PDF para ver el informe completo.
-                  </p>
-                </div>
-              )}
             </div>
           </div>
+
+          {/* Paginación */}
+          {pagination && pagination.has_pages && pagination.last_page > 1 && (
+            <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+              {/* Información de paginación */}
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Página {pagination.current_page} de {pagination.last_page}
+              </div>
+
+              {/* Controles de paginación */}
+              <div className="flex items-center space-x-2">
+                {/* Botón anterior */}
+                <Link
+                  href={pagination.current_page > 1 ? buildPageUrl(pagination.current_page - 1) : '#'}
+                  className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+                    pagination.current_page > 1
+                      ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                  }`}
+                  onClick={(e) => {
+                    if (pagination.current_page <= 1) e.preventDefault();
+                  }}
+                  preserveState
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </Link>
+
+                {/* Números de página */}
+                {[...Array(pagination.last_page)].map((_, index) => {
+                  const pageNum = index + 1;
+                  const maxVisiblePages = 5;
+                  const currentPage = pagination.current_page;
+                  const halfVisible = Math.floor(maxVisiblePages / 2);
+
+                  let showPage = false;
+                  if (pagination.last_page <= maxVisiblePages) {
+                    showPage = true;
+                  } else if (
+                    pageNum === 1 ||
+                    pageNum === pagination.last_page ||
+                    (pageNum >= currentPage - halfVisible && pageNum <= currentPage + halfVisible)
+                  ) {
+                    showPage = true;
+                  }
+
+                  if (showPage) {
+                    return (
+                      <Link
+                        key={pageNum}
+                        href={buildPageUrl(pageNum)}
+                        className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                        }`}
+                        preserveState
+                      >
+                        {pageNum}
+                      </Link>
+                    );
+                  } else if (
+                    (pageNum === 2 && currentPage > halfVisible + 1) ||
+                    (pageNum === pagination.last_page - 1 && currentPage < pagination.last_page - halfVisible)
+                  ) {
+                    return (
+                      <span key={pageNum} className="flex items-center justify-center w-10 h-10 text-sm font-medium text-gray-500 dark:text-gray-400">
+                        ...
+                      </span>
+                    );
+                  }
+                  return null;
+                })}
+
+                {/* Botón siguiente */}
+                <Link
+                  href={pagination.current_page < pagination.last_page ? buildPageUrl(pagination.current_page + 1) : '#'}
+                  className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+                    pagination.current_page < pagination.last_page
+                      ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                  }`}
+                  onClick={(e) => {
+                    if (pagination.current_page >= pagination.last_page) e.preventDefault();
+                  }}
+                  preserveState
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>

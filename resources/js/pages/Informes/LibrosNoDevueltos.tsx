@@ -7,7 +7,6 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  Legend, 
   PieChart, 
   Pie, 
   Cell, 
@@ -16,18 +15,70 @@ import {
 import { 
   Download, 
   AlertTriangle, 
-  Clock, 
-  Users, 
   BookX,
   ArrowLeft,
   TrendingUp
 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type EstadisticasNoDevueltos, type PrestamoDetalle } from './types';
+
+// Interfaces corregidas
+interface EstadisticasNoDevueltos {
+  total_no_devueltos: number;
+  vencidos: number;
+  promedio_dias_retraso: number;
+  por_grado: NoDevueltoPorGrado[];
+  por_severidad: NoDevueltoPorSeveridad;
+}
+
+interface NoDevueltoPorGrado {
+  grado: string;
+  cantidad: number;
+  vencidos: number;
+}
+
+interface NoDevueltoPorSeveridad {
+  critico: number;
+  alto: number;
+  medio: number;
+  bajo: number;
+}
+
+interface PrestamoDetalle {
+  id: number;
+  fecha_prestamo: string;
+  fecha_devolucion: string;
+  fecha_devuelto?: string;
+  estado: string;
+  observaciones?: string;
+  dias_retraso: number;
+  ejemplar: {
+    id?: number;
+    codigo?: string;
+    numEjemplar?: number;
+    libro: {
+      id?: number;
+      titulo: string;
+      isbn?: string;
+      autor: {
+        nombres: string;
+        apellidos: string;
+      };
+    };
+  };
+  lector: {
+    id?: number;
+    nombre: string;
+    codigo: string;
+    grado?: {
+      id?: number;
+      subGrado: string;
+    };
+  };
+}
 
 interface LibrosNoDevueltosProps {
-  prestamos_no_devueltos: (PrestamoDetalle & { dias_retraso: number })[];
+  prestamos_no_devueltos: PrestamoDetalle[];
   estadisticas: EstadisticasNoDevueltos;
   periodo: {
     inicio: string;
@@ -41,26 +92,21 @@ const breadcrumbs: BreadcrumbItem[] = [
   { title: 'Libros No Devueltos', href: '#' },
 ];
 
+// COLORES CONSISTENTES CON PRÉSTAMOS REALIZADOS
 const COLORS_SEVERIDAD = {
-  critico: '#DC2626',
-  alto: '#EA580C', 
-  medio: '#D97706',
-  bajo: '#CA8A04',
-  activos: '#3B82F6'
+  critico: '#EF4444',    // Rojo (como vencidos en préstamos)
+  alto: '#F59E0B',       // Amarillo (como activos en préstamos) 
+  medio: '#3B82F6',      // Azul (como total en préstamos)
+  bajo: '#10B981'        // Verde (como devueltos en préstamos)
 };
 
-// Función mejorada para formatear fechas
+// Función para formatear fechas
 const formatearFecha = (fecha: string | null | undefined): string => {
   if (!fecha) return 'N/A';
   
   try {
-    // Limpiar la fecha de posibles caracteres extra
-    const fechaLimpia = fecha.toString().split('T')[0]; // Tomar solo YYYY-MM-DD
+    const fechaLimpia = fecha.toString().split('T')[0];
     
-    // Debug: mostrar la fecha original en consola
-    console.log('Fecha original:', fecha, 'Fecha limpia:', fechaLimpia);
-    
-    // Si viene en formato YYYY-MM-DD
     if (fechaLimpia.includes('-')) {
       const partes = fechaLimpia.split('-');
       if (partes.length === 3) {
@@ -69,12 +115,10 @@ const formatearFecha = (fecha: string | null | undefined): string => {
       }
     }
     
-    // Si viene en formato DD/MM/YYYY (ya formateada)
     if (fechaLimpia.includes('/') && fechaLimpia.length <= 10) {
       return fechaLimpia;
     }
     
-    // Fallback: crear fecha con zona horaria específica
     const fechaObj = new Date(fechaLimpia + 'T12:00:00.000Z');
     return fechaObj.toLocaleDateString('es-ES', {
       day: '2-digit',
@@ -88,14 +132,19 @@ const formatearFecha = (fecha: string | null | undefined): string => {
   }
 };
 
+// Función para formatear días
+const formatearDias = (dias: number): string => {
+  const diasEnteros = Math.floor(Number(dias) || 0);
+  return diasEnteros.toString();
+};
+
 export default function LibrosNoDevueltos({ 
   prestamos_no_devueltos, 
   estadisticas, 
-  periodo 
+  periodo
 }: LibrosNoDevueltosProps) {
   
   const descargarPDF = () => {
-    // Convertir fechas del formato d/m/Y a Y-m-d
     const convertirFecha = (fechaStr: string) => {
       const partes = fechaStr.split('/');
       return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
@@ -108,33 +157,34 @@ export default function LibrosNoDevueltos({
     });
 
     const url = `/informes/descargar-no-devueltos?${params}`;
-    console.log('Descargando PDF no devueltos desde vista previa:', url);
     window.open(url, '_blank');
   };
 
+  // COLORES CONSISTENTES para severidad
   const getSeveridadColor = (dias: number) => {
-    if (dias >= 30) return 'bg-red-600 text-white';
-    if (dias >= 15) return 'bg-orange-500 text-white';
-    if (dias >= 7) return 'bg-yellow-500 text-black';
-    if (dias > 0) return 'bg-yellow-400 text-black';
-    return 'bg-blue-500 text-white';
+    const diasEnteros = Math.floor(Number(dias) || 0);
+    if (diasEnteros >= 30) return 'bg-red-500 text-white';         // Rojo para crítico
+    if (diasEnteros >= 15) return 'bg-yellow-500 text-white';      // Amarillo para alto
+    if (diasEnteros >= 7) return 'bg-blue-500 text-white';        // Azul para medio
+    if (diasEnteros > 0) return 'bg-green-500 text-white';        // Verde para bajo
+    return 'bg-gray-500 text-white';
   };
 
   const getSeveridadLabel = (dias: number) => {
-    if (dias >= 30) return 'Crítico';
-    if (dias >= 15) return 'Alto';
-    if (dias >= 7) return 'Medio';
-    if (dias > 0) return 'Bajo';
-    return 'En Tiempo';
+    const diasEnteros = Math.floor(Number(dias) || 0);
+    if (diasEnteros >= 30) return 'Crítico';
+    if (diasEnteros >= 15) return 'Alto';
+    if (diasEnteros >= 7) return 'Medio';
+    if (diasEnteros > 0) return 'Bajo';
+    return 'Sin retraso';
   };
 
-  // Preparar datos para gráfico de severidad
+  // Preparar datos para gráfico de severidad - COLORES CONSISTENTES
   const datosSeveridad = [
     { name: 'Crítico (30+ días)', value: estadisticas.por_severidad.critico, color: COLORS_SEVERIDAD.critico },
     { name: 'Alto (15-29 días)', value: estadisticas.por_severidad.alto, color: COLORS_SEVERIDAD.alto },
     { name: 'Medio (7-14 días)', value: estadisticas.por_severidad.medio, color: COLORS_SEVERIDAD.medio },
-    { name: 'Bajo (1-6 días)', value: estadisticas.por_severidad.bajo, color: COLORS_SEVERIDAD.bajo },
-    { name: 'En Tiempo', value: estadisticas.por_severidad.activos, color: COLORS_SEVERIDAD.activos }
+    { name: 'Bajo (1-6 días)', value: estadisticas.por_severidad.bajo, color: COLORS_SEVERIDAD.bajo }
   ].filter(item => item.value > 0);
 
   return (
@@ -147,11 +197,11 @@ export default function LibrosNoDevueltos({
           {/* Header */}
           <div className="mb-8 flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
-                Libros No Devueltos
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Libros Vencidos No Devueltos
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-2">
-                Período: {periodo.inicio} - {periodo.fin} • Total: {estadisticas.total_no_devueltos} libros pendientes
+                Período: {periodo.inicio} - {periodo.fin} • Total: {estadisticas.total_no_devueltos} libros vencidos
               </p>
             </div>
             
@@ -174,7 +224,7 @@ export default function LibrosNoDevueltos({
             </div>
           </div>
 
-          {/* Alerta Principal */}
+          {/* Alerta Principal - COLORES CONSISTENTES */}
           {estadisticas.total_no_devueltos > 0 && (
             <div className="mb-8 p-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg">
               <div className="flex items-start">
@@ -184,22 +234,22 @@ export default function LibrosNoDevueltos({
                     ⚠️ Atención Requerida
                   </h3>
                   <p className="text-red-700 dark:text-red-300">
-                    Se encontraron <strong>{estadisticas.total_no_devueltos}</strong> libros pendientes de devolución que requieren seguimiento inmediato.
+                    Se encontraron <strong>{estadisticas.total_no_devueltos}</strong> libros vencidos no devueltos que requieren seguimiento.
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Estadísticas Principales */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          {/* Estadísticas Principales - COLORES CONSISTENTES CON PRÉSTAMOS */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex items-center">
-                <div className="p-3 bg-red-100 dark:bg-red-900/50 rounded-lg">
-                  <BookX className="w-8 h-8 text-red-600 dark:text-red-400" />
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+                  <BookX className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total No Devueltos</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Vencidos</p>
                   <p className="text-3xl font-bold text-gray-900 dark:text-white">{estadisticas.total_no_devueltos}</p>
                 </div>
               </div>
@@ -207,24 +257,12 @@ export default function LibrosNoDevueltos({
 
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex items-center">
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-                  <Clock className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                <div className="p-3 bg-red-100 dark:bg-red-900/50 rounded-lg">
+                  <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">En Tiempo</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{estadisticas.activos}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-              <div className="flex items-center">
-                <div className="p-3 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
-                  <AlertTriangle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Vencidos</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{estadisticas.vencidos}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Críticos (30+ días)</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{estadisticas.por_severidad.critico}</p>
                 </div>
               </div>
             </div>
@@ -236,7 +274,7 @@ export default function LibrosNoDevueltos({
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Días Prom. Retraso</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{Math.round(estadisticas.promedio_dias_retraso || 0)}</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{Math.floor(estadisticas.promedio_dias_retraso || 0)}</p>
                 </div>
               </div>
             </div>
@@ -249,7 +287,7 @@ export default function LibrosNoDevueltos({
             {datosSeveridad.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Análisis por Severidad
+                  Análisis por Severidad de Retraso
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
@@ -277,7 +315,7 @@ export default function LibrosNoDevueltos({
             {estadisticas.por_grado.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  No Devueltos por Grado
+                  Vencidos por Grado
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={estadisticas.por_grado.slice(0, 8)}>
@@ -302,23 +340,22 @@ export default function LibrosNoDevueltos({
                         color: 'white'
                       }}
                     />
-                    <Bar dataKey="cantidad" fill="#DC2626" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="vencidos" fill="#EA580C" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="cantidad" fill="#3B82F6" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             )}
           </div>
 
-          {/* Tabla de Severidad */}
-          {estadisticas.vencidos > 0 && (
+          {/* Tabla de Severidad - COLORES CONSISTENTES */}
+          {estadisticas.total_no_devueltos > 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 mb-8">
               <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Análisis por Severidad de Retraso
                 </h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-gray-200 dark:divide-gray-700">
+              <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-gray-200 dark:divide-gray-700">
                 <div className="p-6 text-center bg-red-50 dark:bg-red-900/20">
                   <div className="text-3xl font-bold text-red-600 dark:text-red-400">
                     {estadisticas.por_severidad.critico}
@@ -327,47 +364,39 @@ export default function LibrosNoDevueltos({
                     Crítico (30+ días)
                   </div>
                 </div>
-                <div className="p-6 text-center bg-orange-50 dark:bg-orange-900/20">
-                  <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">
+                <div className="p-6 text-center bg-yellow-50 dark:bg-yellow-900/20">
+                  <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
                     {estadisticas.por_severidad.alto}
                   </div>
-                  <div className="text-sm font-medium text-orange-700 dark:text-orange-300 mt-1">
+                  <div className="text-sm font-medium text-yellow-700 dark:text-yellow-300 mt-1">
                     Alto (15-29 días)
-                  </div>
-                </div>
-                <div className="p-6 text-center bg-yellow-50 dark:bg-yellow-900/20">
-                  <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-500">
-                    {estadisticas.por_severidad.medio}
-                  </div>
-                  <div className="text-sm font-medium text-yellow-700 dark:text-yellow-400 mt-1">
-                    Medio (7-14 días)
-                  </div>
-                </div>
-                <div className="p-6 text-center bg-yellow-50 dark:bg-yellow-900/20">
-                  <div className="text-3xl font-bold text-yellow-500 dark:text-yellow-400">
-                    {estadisticas.por_severidad.bajo}
-                  </div>
-                  <div className="text-sm font-medium text-yellow-600 dark:text-yellow-400 mt-1">
-                    Bajo (1-6 días)
                   </div>
                 </div>
                 <div className="p-6 text-center bg-blue-50 dark:bg-blue-900/20">
                   <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                    {estadisticas.por_severidad.activos}
+                    {estadisticas.por_severidad.medio}
                   </div>
                   <div className="text-sm font-medium text-blue-700 dark:text-blue-300 mt-1">
-                    En Tiempo
+                    Medio (7-14 días)
+                  </div>
+                </div>
+                <div className="p-6 text-center bg-green-50 dark:bg-green-900/20">
+                  <div className="text-3xl font-bold text-green-600 dark:text-green-400">
+                    {estadisticas.por_severidad.bajo}
+                  </div>
+                  <div className="text-sm font-medium text-green-700 dark:text-green-300 mt-1">
+                    Bajo (1-6 días)
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Tabla Detallada - FECHAS CORREGIDAS */}
+          {/* Tabla Detallada - SIN PAGINACIÓN */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Detalle de Libros No Devueltos ({prestamos_no_devueltos.length} registros)
+                Detalle de Libros Vencidos No Devueltos ({prestamos_no_devueltos.length} registros)
               </h3>
             </div>
             <div className="overflow-x-auto">
@@ -393,70 +422,69 @@ export default function LibrosNoDevueltos({
                       Días Retraso
                     </th>
                     <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Estado
+                      Severidad
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {prestamos_no_devueltos
-                    .sort((a, b) => b.dias_retraso - a.dias_retraso)
+                    .sort((a, b) => Math.floor(Number(b.dias_retraso) || 0) - Math.floor(Number(a.dias_retraso) || 0))
                     .slice(0, 30)
-                    .map((prestamo) => (
-                    <tr key={prestamo.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {prestamo.lector.nombre}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {prestamo.lector.codigo}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {prestamo.lector.grado?.subGrado || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 dark:text-white max-w-xs truncate">
-                          {prestamo.ejemplar.libro.titulo}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="text-sm font-mono text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                          #{prestamo.ejemplar.numEjemplar}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900 dark:text-white">
-                        {formatearFecha(prestamo.fecha_devolucion)}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getSeveridadColor(prestamo.dias_retraso)}`}>
-                          {prestamo.dias_retraso > 0 ? `${prestamo.dias_retraso} días` : 'En tiempo'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          prestamo.estado === 'ACTIVO'
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                        }`}>
-                          {prestamo.estado}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                    .map((prestamo) => {
+                      const diasEnteros = Math.floor(Number(prestamo.dias_retraso) || 0);
+                      return (
+                        <tr key={prestamo.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {prestamo.lector.nombre}
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {prestamo.lector.codigo}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            {prestamo.lector.grado?.subGrado || 'N/A'}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 dark:text-white max-w-xs truncate">
+                              {prestamo.ejemplar.libro.titulo}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="text-sm font-mono text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                              #{prestamo.ejemplar.numEjemplar}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900 dark:text-white">
+                            {formatearFecha(prestamo.fecha_devolucion)}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getSeveridadColor(diasEnteros)}`}>
+                              {formatearDias(diasEnteros)} días
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getSeveridadColor(diasEnteros)}`}>
+                              {getSeveridadLabel(diasEnteros)}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
               
               {prestamos_no_devueltos.length > 30 && (
                 <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 text-center">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Mostrando 30 de {prestamos_no_devueltos.length} libros no devueltos. Descargue el PDF para ver el informe completo.
+                    Mostrando 30 de {prestamos_no_devueltos.length} libros vencidos no devueltos. Descargue el PDF para ver el informe completo.
                   </p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Recomendaciones */}
+          {/* Recomendaciones - COLORES MEJORADOS */}
           {estadisticas.total_no_devueltos > 0 && (
             <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800 p-6">
               <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-4">
@@ -466,28 +494,28 @@ export default function LibrosNoDevueltos({
                 {estadisticas.por_severidad.critico > 0 && (
                   <div className="flex items-start space-x-2">
                     <span className="text-red-600 font-bold">🔴</span>
-                    <span><strong>Acción Inmediata:</strong> {estadisticas.por_severidad.critico} préstamos con más de 30 días requieren contacto inmediato y posible aplicación de sanciones.</span>
+                    <span><strong>Acción Prioritaria:</strong> {estadisticas.por_severidad.critico} préstamos con más de 30 días requieren contacto inmediato.</span>
                   </div>
                 )}
                 
                 {estadisticas.por_severidad.alto > 0 && (
                   <div className="flex items-start space-x-2">
-                    <span className="text-orange-600 font-bold">🟠</span>
-                    <span><strong>Seguimiento Urgente:</strong> {estadisticas.por_severidad.alto} préstamos con 15-29 días necesitan seguimiento telefónico o citación.</span>
+                    <span className="text-yellow-600 font-bold">🟡</span>
+                    <span><strong>Seguimiento Urgente:</strong> {estadisticas.por_severidad.alto} préstamos con 15-29 días necesitan seguimiento telefónico.</span>
                   </div>
                 )}
                 
                 {estadisticas.por_severidad.medio > 0 && (
                   <div className="flex items-start space-x-2">
-                    <span className="text-yellow-600 font-bold">🟡</span>
+                    <span className="text-blue-600 font-bold">🔵</span>
                     <span><strong>Recordatorio:</strong> {estadisticas.por_severidad.medio} préstamos con 7-14 días requieren envío de recordatorios.</span>
                   </div>
                 )}
                 
-                {estadisticas.activos > 0 && (
+                {estadisticas.por_severidad.bajo > 0 && (
                   <div className="flex items-start space-x-2">
-                    <span className="text-blue-600 font-bold">🔵</span>
-                    <span><strong>Preventivo:</strong> {estadisticas.activos} préstamos activos próximos a vencer requieren recordatorio preventivo.</span>
+                    <span className="text-green-600 font-bold">🟢</span>
+                    <span><strong>Seguimiento Leve:</strong> {estadisticas.por_severidad.bajo} préstamos con 1-6 días requieren seguimiento preventivo.</span>
                   </div>
                 )}
               </div>

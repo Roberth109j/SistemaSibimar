@@ -63,10 +63,10 @@ export interface PrestamoDetalle {
   };
 }
 
+// ACTUALIZADA PARA SOLO VENCIDOS
 export interface EstadisticasNoDevueltos {
   total_no_devueltos: number;
-  activos: number;
-  vencidos: number;
+  vencidos: number; // Ahora todos son vencidos
   promedio_dias_retraso: number;
   por_grado: NoDevueltoPorGrado[];
   por_severidad: NoDevueltoPorSeveridad;
@@ -75,19 +75,17 @@ export interface EstadisticasNoDevueltos {
 export interface NoDevueltoPorGrado {
   grado: string;
   cantidad: number;
-  activos: number;
-  vencidos: number;
+  vencidos: number; // Todos son vencidos
 }
 
+// ACTUALIZADA - Removido 'activos' ya que solo trabajamos con vencidos
 export interface NoDevueltoPorSeveridad {
-  critico: number;
-  alto: number;
-  medio: number;
-  bajo: number;
-  activos: number;
+  critico: number;  // 30+ días
+  alto: number;     // 15-29 días
+  medio: number;    // 7-14 días
+  bajo: number;     // 1-6 días
 }
 
-// NUEVAS INTERFACES AGREGADAS PARA SOLUCIONAR EL ERROR
 export interface PeriodoInforme {
   inicio: string;
   fin: string;

@@ -114,23 +114,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolver'])->name('prestamos.devolver');
     Route::delete('prestamos/{prestamo}', [PrestamoController::class, 'destroy'])->name('prestamos.destroy');
     
-     // RUTAS DE INFORMES - SIMPLIFICADAS
+
     Route::prefix('informes')->group(function () {
-        // Página principal de informes
         Route::get('/', [InformeController::class, 'index'])->name('informes.index');
-        
-        // API para rangos de fecha
         Route::get('/rangos-fecha', [InformeController::class, 'getRangosFecha']);
-        
-        // Rutas POST para vista previa (formularios)
+        Route::get('/prestamos-realizados', function() {
+            return redirect()->route('informes.index');
+        })->name('informes.prestamos-realizados');
+        Route::get('/libros-no-devueltos', function() {
+            return redirect()->route('informes.index');
+        })->name('informes.libros-no-devueltos');
         Route::post('/prestamos-realizados', [InformeController::class, 'prestamosRealizados']);
         Route::post('/libros-no-devueltos', [InformeController::class, 'librosNoDevueltos']);
-        
-        // Rutas GET para descarga de PDF (Universal)
         Route::get('/descargar-prestamos', [InformeController::class, 'descargarPDFPrestamos'])
-            ->name('informes.descargar-prestamos');
+               ->name('informes.descargar-prestamos');
         Route::get('/descargar-no-devueltos', [InformeController::class, 'descargarPDFNoDevueltos'])
-            ->name('informes.descargar-no-devueltos');
+               ->name('informes.descargar-no-devueltos');
     });
 });
 

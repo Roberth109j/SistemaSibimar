@@ -96,7 +96,7 @@
         }
         .text-center { text-align: center; }
         .text-truncate {
-            max-width: 100px;
+            max-width: 80px;
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
@@ -157,7 +157,7 @@
     </div>
     @endif
 
-    <!-- Detalle de Prestamos -->
+    <!-- Detalle de Prestamos - CON NUMERO DE EJEMPLAR -->
     <div class="section">
         <div class="section-title">Detalle de Prestamos ({{ count($prestamos) }} registros)</div>
         <table>
@@ -167,6 +167,7 @@
                     <th>Lector</th>
                     <th>Grado</th>
                     <th>Libro</th>
+                    <th class="text-center">Ejemplar</th>
                     <th>Estado</th>
                     <th>F. Devolucion</th>
                 </tr>
@@ -179,6 +180,7 @@
                         <td class="text-truncate">{{ $prestamo->lector->nombre ?? 'N/A' }}</td>
                         <td>{{ $prestamo->lector->grado->subGrado ?? 'N/A' }}</td>
                         <td class="text-truncate">{{ $prestamo->ejemplar->libro->titulo ?? 'N/A' }}</td>
+                        <td class="text-center">#{{ $prestamo->ejemplar->numEjemplar ?? 'N/A' }}</td>
                         <td>
                             <span class="badge badge-{{ strtolower($prestamo->estado) }}">
                                 {{ $prestamo->estado }}
@@ -195,7 +197,7 @@
                 @endforeach
                 @if(count($prestamos) > 30)
                 <tr>
-                    <td colspan="6" class="text-center" style="font-style: italic; color: #6b7280;">
+                    <td colspan="7" class="text-center" style="font-style: italic; color: #6b7280;">
                         ... y {{ count($prestamos) - 30 }} prestamos mas
                     </td>
                 </tr>

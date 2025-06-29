@@ -12,7 +12,8 @@ import {
   CheckCircle,
   AlertCircle,
   X,
-  Eye
+  Eye,
+  Clock
 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -141,6 +142,27 @@ export default function Index({ auth, flash }: InformesProps) {
   const getCSRFToken = () => {
     const metaTag = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement;
     return metaTag ? metaTag.getAttribute('content') : '';
+  };
+
+  // Función para formatear la fecha en español
+  const formatearFecha = (fecha: string) => {
+    return new Date(fecha).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  // Función para obtener el nombre del período
+  const obtenerNombrePeriodo = (tipo: TipoPeriodo) => {
+    const nombres = {
+      mensual: 'Mensual',
+      trimestral: 'Trimestral',
+      semestral: 'Semestral',
+      anual: 'Anual',
+      personalizado: 'Personalizado'
+    };
+    return nombres[tipo];
   };
 
   // Generar vista previa - MÉTODO CORREGIDO
@@ -380,10 +402,10 @@ export default function Index({ auth, flash }: InformesProps) {
                 <div className="mb-6">
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { key: 'mensual', label: 'Este Mes' },
-                      { key: 'trimestral', label: 'Este Trimestre' },
-                      { key: 'semestral', label: 'Este Semestre' },
-                      { key: 'anual', label: 'Este Año' },
+                      { key: 'mensual', label: 'Mensual' },
+                      { key: 'trimestral', label: 'Trimestral' },
+                      { key: 'semestral', label: 'Semestral' },
+                      { key: 'anual', label: 'Anual' },
                       { key: 'personalizado', label: 'Personalizado' }
                     ].map(({ key, label }) => (
                       <button
@@ -401,11 +423,33 @@ export default function Index({ auth, flash }: InformesProps) {
                   </div>
                 </div>
 
+                {/* Información del período predefinido seleccionado */}
+                {tipoPeriodo !== 'personalizado' && fechaInicio && fechaFin && (
+                  <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <div>
+                        <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                          Período {obtenerNombrePeriodo(tipoPeriodo)} Seleccionado
+                        </p>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          Desde: <span className="font-medium">{formatearFecha(fechaInicio)}</span> hasta <span className="font-medium">{formatearFecha(fechaFin)}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Selección de Fechas */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Fecha de Inicio
+                      {tipoPeriodo !== 'personalizado' && (
+                        <span className="ml-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
+                          Base: {obtenerNombrePeriodo(tipoPeriodo)}
+                        </span>
+                      )}
                     </label>
                     <div className="relative">
                       <input
@@ -413,17 +457,38 @@ export default function Index({ auth, flash }: InformesProps) {
                         value={fechaInicio}
                         onChange={(e) => {
                           setFechaInicio(e.target.value);
-                          setTipoPeriodo('personalizado');
+                          // Solo cambiar a personalizado si las fechas ya no coinciden con el período seleccionado
+                          if (tipoPeriodo !== 'personalizado' && rangosFecha) {
+                            const rango = rangosFecha[tipoPeriodo];
+                            if (rango && (e.target.value !== rango.inicio || fechaFin !== rango.fin)) {
+                              setTipoPeriodo('personalizado');
+                            }
+                          }
                         }}
-                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className={`w-full px-4 py-3 border rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                          tipoPeriodo !== 'personalizado'
+                            ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                            : 'bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600'
+                        }`}
+                        placeholder="Seleccione fecha de inicio"
                       />
                       <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
                     </div>
+                    {tipoPeriodo !== 'personalizado' && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                        💡 Puede editar esta fecha manualmente
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Fecha de Fin
+                      {tipoPeriodo !== 'personalizado' && (
+                        <span className="ml-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
+                          Base: {obtenerNombrePeriodo(tipoPeriodo)}
+                        </span>
+                      )}
                     </label>
                     <div className="relative">
                       <input
@@ -431,22 +496,38 @@ export default function Index({ auth, flash }: InformesProps) {
                         value={fechaFin}
                         onChange={(e) => {
                           setFechaFin(e.target.value);
-                          setTipoPeriodo('personalizado');
+                          // Solo cambiar a personalizado si las fechas ya no coinciden con el período seleccionado
+                          if (tipoPeriodo !== 'personalizado' && rangosFecha) {
+                            const rango = rangosFecha[tipoPeriodo];
+                            if (rango && (fechaInicio !== rango.inicio || e.target.value !== rango.fin)) {
+                              setTipoPeriodo('personalizado');
+                            }
+                          }
                         }}
-                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className={`w-full px-4 py-3 border rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                          tipoPeriodo !== 'personalizado'
+                            ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                            : 'bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600'
+                        }`}
+                        placeholder="Seleccione fecha de fin"
                       />
                       <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
                     </div>
+                    {tipoPeriodo !== 'personalizado' && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                        💡 Puede editar esta fecha manualmente
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {/* Información del período seleccionado */}
-                {fechaInicio && fechaFin && (
-                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                {/* Información del período personalizado */}
+                {tipoPeriodo === 'personalizado' && fechaInicio && fechaFin && (
+                  <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg">
                     <div className="flex items-center space-x-2">
-                      <Filter className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                      <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                        Período seleccionado: {new Date(fechaInicio).toLocaleDateString('es-ES')} - {new Date(fechaFin).toLocaleDateString('es-ES')}
+                      <Filter className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                        Período personalizado: {formatearFecha(fechaInicio)} - {formatearFecha(fechaFin)}
                       </span>
                     </div>
                   </div>
@@ -547,6 +628,11 @@ export default function Index({ auth, flash }: InformesProps) {
                 <div className="flex items-start space-x-3">
                   <div className="w-6 h-6 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center text-xs font-bold text-red-600 dark:text-red-400 flex-shrink-0">4</div>
                   <span>Use "Descargar PDF" para obtener el archivo listo para imprimir</span>
+                </div>
+                <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+                  <p className="text-xs text-yellow-800 dark:text-yellow-200 font-medium">
+                    💡 <strong>Tip:</strong> Puede editar manualmente las fechas incluso cuando tenga seleccionado un período predefinido. El sistema cambiará automáticamente a "Personalizado" si las fechas no coinciden.
+                  </p>
                 </div>
               </div>
             </div>
