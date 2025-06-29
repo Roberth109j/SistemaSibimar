@@ -132,10 +132,83 @@ const formatearFecha = (fecha: string | null | undefined): string => {
   }
 };
 
-// Función para formatear días
+// Función para formatear días - CORREGIDA PARA ASEGURAR VALORES POSITIVOS
 const formatearDias = (dias: number): string => {
-  const diasEnteros = Math.floor(Number(dias) || 0);
+  const diasEnteros = Math.abs(Math.floor(Number(dias) || 0)); // Asegurar valor positivo
   return diasEnteros.toString();
+};
+
+// Función para ordenar grados de manera lógica
+const ordenarGrados = (grado: string): number => {
+  const gradoLower = grado.toLowerCase();
+  
+  // Transición
+  if (gradoLower.includes('transición') || gradoLower.includes('transicion')) {
+    return 0;
+  }
+  
+  // Primero
+  if (gradoLower.includes('primero')) {
+    return 1;
+  }
+  
+  // Segundo
+  if (gradoLower.includes('segundo')) {
+    return 2;
+  }
+  
+  // Tercero
+  if (gradoLower.includes('tercero')) {
+    return 3;
+  }
+  
+  // Cuarto
+  if (gradoLower.includes('cuarto')) {
+    return 4;
+  }
+  
+  // Quinto
+  if (gradoLower.includes('quinto')) {
+    return 5;
+  }
+  
+  // Sexto
+  if (gradoLower.includes('sexto')) {
+    return 6;
+  }
+  
+  // Séptimo
+  if (gradoLower.includes('séptimo') || gradoLower.includes('septimo')) {
+    return 7;
+  }
+  
+  // Octavo
+  if (gradoLower.includes('octavo')) {
+    return 8;
+  }
+  
+  // Noveno
+  if (gradoLower.includes('noveno')) {
+    return 9;
+  }
+  
+  // Décimo
+  if (gradoLower.includes('décimo') || gradoLower.includes('decimo')) {
+    return 10;
+  }
+  
+  // Once
+  if (gradoLower.includes('once') || gradoLower.includes('11')) {
+    return 11;
+  }
+  
+  // Sin grado al final
+  if (gradoLower.includes('sin grado')) {
+    return 999;
+  }
+  
+  // Por defecto
+  return 500;
 };
 
 export default function LibrosNoDevueltos({ 
@@ -160,9 +233,9 @@ export default function LibrosNoDevueltos({
     window.open(url, '_blank');
   };
 
-  // COLORES CONSISTENTES para severidad
+  // COLORES CONSISTENTES para severidad - CORREGIDO PARA VALORES POSITIVOS
   const getSeveridadColor = (dias: number) => {
-    const diasEnteros = Math.floor(Number(dias) || 0);
+    const diasEnteros = Math.abs(Math.floor(Number(dias) || 0)); // Asegurar valor positivo
     if (diasEnteros >= 30) return 'bg-red-500 text-white';         // Rojo para crítico
     if (diasEnteros >= 15) return 'bg-yellow-500 text-white';      // Amarillo para alto
     if (diasEnteros >= 7) return 'bg-blue-500 text-white';        // Azul para medio
@@ -171,7 +244,7 @@ export default function LibrosNoDevueltos({
   };
 
   const getSeveridadLabel = (dias: number) => {
-    const diasEnteros = Math.floor(Number(dias) || 0);
+    const diasEnteros = Math.abs(Math.floor(Number(dias) || 0)); // Asegurar valor positivo
     if (diasEnteros >= 30) return 'Crítico';
     if (diasEnteros >= 15) return 'Alto';
     if (diasEnteros >= 7) return 'Medio';
@@ -186,6 +259,25 @@ export default function LibrosNoDevueltos({
     { name: 'Medio (7-14 días)', value: estadisticas.por_severidad.medio, color: COLORS_SEVERIDAD.medio },
     { name: 'Bajo (1-6 días)', value: estadisticas.por_severidad.bajo, color: COLORS_SEVERIDAD.bajo }
   ].filter(item => item.value > 0);
+
+  // Ordenar préstamos por grado y luego por días de retraso
+  const prestamosOrdenados = [...prestamos_no_devueltos].sort((a, b) => {
+    const gradoA = a.lector?.grado?.subGrado || 'Sin grado';
+    const gradoB = b.lector?.grado?.subGrado || 'Sin grado';
+    
+    const ordenA = ordenarGrados(gradoA);
+    const ordenB = ordenarGrados(gradoB);
+    
+    // Primero ordenar por grado
+    if (ordenA !== ordenB) {
+      return ordenA - ordenB;
+    }
+    
+    // Si el grado es igual, ordenar por días de retraso (mayor retraso primero)
+    const diasA = Math.abs(Math.floor(Number(a.dias_retraso) || 0));
+    const diasB = Math.abs(Math.floor(Number(b.dias_retraso) || 0));
+    return diasB - diasA;
+  });
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -274,7 +366,7 @@ export default function LibrosNoDevueltos({
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Días Prom. Retraso</p>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{Math.floor(estadisticas.promedio_dias_retraso || 0)}</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{Math.abs(Math.floor(estadisticas.promedio_dias_retraso || 0))}</p>
                 </div>
               </div>
             </div>
@@ -392,7 +484,7 @@ export default function LibrosNoDevueltos({
             </div>
           )}
 
-          {/* Tabla Detallada - SIN PAGINACIÓN */}
+          {/* Tabla Detallada - CON ORDENAMIENTO POR GRADO */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -427,11 +519,10 @@ export default function LibrosNoDevueltos({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {prestamos_no_devueltos
-                    .sort((a, b) => Math.floor(Number(b.dias_retraso) || 0) - Math.floor(Number(a.dias_retraso) || 0))
+                  {prestamosOrdenados
                     .slice(0, 30)
                     .map((prestamo) => {
-                      const diasEnteros = Math.floor(Number(prestamo.dias_retraso) || 0);
+                      const diasEnteros = Math.abs(Math.floor(Number(prestamo.dias_retraso) || 0)); // Asegurar valor positivo
                       return (
                         <tr key={prestamo.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                           <td className="px-6 py-4">
@@ -452,7 +543,7 @@ export default function LibrosNoDevueltos({
                           </td>
                           <td className="px-6 py-4 text-center">
                             <span className="text-sm font-mono text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                              #{prestamo.ejemplar.numEjemplar}
+                              {prestamo.ejemplar.numEjemplar}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900 dark:text-white">

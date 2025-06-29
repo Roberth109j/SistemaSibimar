@@ -157,7 +157,7 @@
     </div>
     @endif
 
-    <!-- Detalle de Prestamos - CON NUMERO DE EJEMPLAR -->
+    <!-- Detalle de Prestamos - SIN SÍMBOLO # EN NÚMERO DE EJEMPLAR -->
     <div class="section">
         <div class="section-title">Detalle de Prestamos ({{ count($prestamos) }} registros)</div>
         <table>
@@ -180,7 +180,7 @@
                         <td class="text-truncate">{{ $prestamo->lector->nombre ?? 'N/A' }}</td>
                         <td>{{ $prestamo->lector->grado->subGrado ?? 'N/A' }}</td>
                         <td class="text-truncate">{{ $prestamo->ejemplar->libro->titulo ?? 'N/A' }}</td>
-                        <td class="text-center">#{{ $prestamo->ejemplar->numEjemplar ?? 'N/A' }}</td>
+                        <td class="text-center">{{ $prestamo->ejemplar->numEjemplar ?? 'N/A' }}</td>
                         <td>
                             <span class="badge badge-{{ strtolower($prestamo->estado) }}">
                                 {{ $prestamo->estado }}

@@ -78,8 +78,8 @@
         }
         .severity-critico { background-color: #fecaca; color: #7f1d1d; }
         .severity-alto { background-color: #fed7aa; color: #9a3412; }
-        .severity-medio { background-color: #fef3c7; color: #92400e; }
-        .severity-bajo { background-color: #fef9c3; color: #a16207; }
+        .severity-medio { background-color: #dbeafe; color: #1e3a8a; }
+        .severity-bajo { background-color: #dcfce7; color: #14532d; }
         .section {
             margin-bottom: 15px;
         }
@@ -118,8 +118,8 @@
         }
         .dias-critico { color: #dc2626; }
         .dias-alto { color: #ea580c; }
-        .dias-medio { color: #d97706; }
-        .dias-bajo { color: #ca8a04; }
+        .dias-medio { color: #2563eb; }
+        .dias-bajo { color: #059669; }
         .footer {
             margin-top: 20px;
             text-align: center;
@@ -222,7 +222,7 @@
     </div>
     @endif
 
-    <!-- Detalle de Libros Vencidos No Devueltos -->
+    <!-- Detalle de Libros Vencidos No Devueltos - SIN SÍMBOLO # EN NÚMERO DE EJEMPLAR -->
     <div class="section">
         <div class="section-title">Detalle de Libros Vencidos No Devueltos ({{ count($prestamos_no_devueltos) }} registros)</div>
         <table>
@@ -240,14 +240,11 @@
                 </tr>
             </thead>
             <tbody>
-                @php
-                    $prestamosOrdenados = collect($prestamos_no_devueltos)->sortByDesc('dias_retraso');
-                @endphp
-                @foreach($prestamosOrdenados as $index => $prestamo)
+                @foreach($prestamos_no_devueltos as $index => $prestamo)
                     @if($index < 25)
                     @php
-                        // CORRECCIÓN: Asegurar que días_retraso sea un entero
-                        $diasRetraso = (int) floor($prestamo->dias_retraso);
+                        // CORRECCIÓN CRÍTICA: Asegurar que días_retraso sea siempre positivo
+                        $diasRetraso = abs((int) floor($prestamo->dias_retraso ?? 0));
                         
                         $severidadClase = '';
                         $severidadTexto = '';
@@ -270,7 +267,7 @@
                         <td>{{ $prestamo->lector->codigo ?? 'N/A' }}</td>
                         <td>{{ $prestamo->lector->grado->subGrado ?? 'N/A' }}</td>
                         <td class="text-truncate">{{ $prestamo->ejemplar->libro->titulo ?? 'N/A' }}</td>
-                        <td class="text-center">#{{ $prestamo->ejemplar->numEjemplar ?? 'N/A' }}</td>
+                        <td class="text-center">{{ $prestamo->ejemplar->numEjemplar ?? 'N/A' }}</td>
                         <td>{{ \Carbon\Carbon::parse($prestamo->fecha_prestamo)->format('d/m/Y') }}</td>
                         <td>{{ \Carbon\Carbon::parse($prestamo->fecha_devolucion)->format('d/m/Y') }}</td>
                         <td class="text-center">
