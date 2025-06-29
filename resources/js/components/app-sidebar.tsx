@@ -98,6 +98,12 @@ const mainNavItems: NavItem[] = [
         href: '/informes',
         icon: FileBarChart,
     },
+
+    {
+        title: 'Inventario',
+        href: '/inventario',
+        icon: FileBarChart,
+    },
 ];
 
 const footerNavItems: NavItem[] = [];
@@ -144,6 +150,7 @@ export function AppSidebar() {
         ['Prestamos', 'Devoluciones', 'Préstamos Vencidos', 'Historial de préstamos'].includes(item.title)
     );
     const informesItem = mainNavItems.find(item => item.title === 'Generación de Informes')!;
+    const inventarioItem = mainNavItems.find(item => item.title === 'Inventario')!;
 
     return (
         <Sidebar 
@@ -270,6 +277,17 @@ export function AppSidebar() {
                                     <Link href={informesItem.href!}>
                                         {informesItem.icon && <informesItem.icon className="h-5 w-5" />}
                                         <span>{informesItem.title}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            {/* Inventario - Individual */}
+                            
+                            {/* Generación de Informes - Individual */}
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild>
+                                    <Link href={inventarioItem.href!}>
+                                        {inventarioItem.icon && <inventarioItem.icon className="h-5 w-5" />}
+                                        <span>{inventarioItem.title}</span>
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
