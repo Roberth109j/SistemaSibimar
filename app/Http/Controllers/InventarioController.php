@@ -4,13 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Libro;
 use App\Models\Ejemplar;
-use App\Models\Estanteria;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\InventarioExport;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\RedirectResponse;
 
 class InventarioController extends Controller
 {
@@ -22,11 +22,11 @@ class InventarioController extends Controller
      */
     public function index(Request $request)
     {
-        // Obtener los filtros de la solicitud
+        // Obtener los filtros de la solicitud (SIN estanteria)
         $filters = $request->only(['search', 'clase', 'idioma', 'estado']);
         
-        // Consulta base con ejemplares y sus estados
-        $query = Libro::with(['ejemplares', 'estanteria', 'autor', 'editorial', 'seccion'])
+        // Consulta base con ejemplares y sus estados (SIN estanteria)
+        $query = Libro::with(['ejemplares', 'autor', 'editorial', 'seccion'])
             ->withCount([
                 'ejemplares',
                 'ejemplares as ejemplares_disponibles_count' => function ($query) {
@@ -110,16 +110,16 @@ class InventarioController extends Controller
             'inactivos' => 'Inactivos',
         ];
         
-        $estanterias = Estanteria::select('id', 'cod_estante')->orderBy('cod_estante')->get();
+        // REMOVIDO: $estanterias = Estanteria::select('id', 'cod_estante')->orderBy('cod_estante')->get();
         
-        // Renderizar la vista de Inertia con los datos
+        // Renderizar la vista de Inertia con los datos (SIN estanterias)
         return Inertia::render('Inventario/Index', [
             'libros' => $libros,
-            'estadisticas' => $estadisticasGlobales, // <- NUEVO
+            'estadisticas' => $estadisticasGlobales,
             'clases' => $clases,
             'idiomas' => $idiomas,
             'estados' => $estados,
-            'estanterias' => $estanterias,
+            // REMOVIDO: 'estanterias' => $estanterias,
             'filters' => $filters,
         ]);
     }
@@ -155,12 +155,12 @@ class InventarioController extends Controller
      * Genera un Excel con el inventario de libros según los filtros aplicados.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\RedirectResponse
      */
     public function exportarExcel(Request $request)
     {
         try {
-            // Obtener los filtros de la solicitud (los mismos que el index)
+            // Obtener los filtros de la solicitud (SIN estanteria)
             $filters = $request->only(['search', 'clase', 'idioma', 'estado']);
             
             // Generar nombre de archivo dinámico
@@ -176,7 +176,8 @@ class InventarioController extends Controller
             return Excel::download(new InventarioExport($filters), $filename);
             
         } catch (\Exception $e) {
-            return back()->with('error', 'Error al generar el Excel: ' . $e->getMessage());
+            // En caso de error, redirigir con mensaje
+            return redirect()->back()->with('error', 'Error al generar el Excel: ' . $e->getMessage());
         }
     }
 }

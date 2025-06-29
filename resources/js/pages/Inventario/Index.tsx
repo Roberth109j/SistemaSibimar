@@ -105,10 +105,10 @@ const Index: React.FC<InventarioProps> = ({
   // Estados del componente
   const [terminoBusqueda, setTerminoBusqueda] = useState(filtrosIniciales.search || '');
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [exportandoExcel, setExportandoExcel] = useState(false);
   const [filtrosSeleccionados, setFiltrosSeleccionados] = useState({
     clase: filtrosIniciales.clase || '',
     idioma: filtrosIniciales.idioma || '',
-    estanteria: filtrosIniciales.estanteria || '',
     seccion: filtrosIniciales.seccion || '',
     grado: filtrosIniciales.grado || '',
     estado: filtrosIniciales.estado || ''
@@ -172,7 +172,6 @@ const Index: React.FC<InventarioProps> = ({
     setFiltrosSeleccionados({
       clase: '',
       idioma: '',
-      estanteria: '',
       seccion: '',
       grado: '',
       estado: ''
@@ -180,19 +179,79 @@ const Index: React.FC<InventarioProps> = ({
     router.get('/inventario');
   };
 
-  const exportarExcel = () => {
-    const params = new URLSearchParams();
-    if (terminoBusqueda) params.set('search', terminoBusqueda);
-    Object.entries(filtrosSeleccionados).forEach(([clave, valor]) => {
-      if (valor) params.set(clave, valor);
-    });
+  // ✅ FUNCIÓN EXPORTAR EXCEL CORREGIDA
+  const exportarExcel = async () => {
+    if (exportandoExcel) return; // Prevenir clics múltiples
     
-    window.open(`/inventario/exportar-excel?${params.toString()}`, '_blank');
+    setExportandoExcel(true);
+    
+    try {
+      const params = new URLSearchParams();
+      
+      // Agregar parámetro de búsqueda si existe
+      if (terminoBusqueda.trim()) {
+        params.set('search', terminoBusqueda.trim());
+      }
+      
+      // Agregar filtros que tengan valor
+      Object.entries(filtrosSeleccionados).forEach(([clave, valor]) => {
+        if (valor && valor.trim()) {
+          params.set(clave, valor);
+        }
+      });
+      
+      // Construir URL - CORREGIDA AQUÍ
+      const baseUrl = '/inventario/exportar'; // Cambiado de exportar-excel a exportar
+      const queryString = params.toString();
+      const fullUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+      
+      // Mostrar mensaje de inicio
+      setAlertas(prev => ({ 
+        ...prev, 
+        success: 'Generando archivo Excel...' 
+      }));
+      
+      // Crear elemento de descarga
+      const link = document.createElement('a');
+      link.href = fullUrl;
+      link.target = '_blank';
+      
+      // Simular clic
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Esperar un momento y mostrar mensaje de finalización
+      setTimeout(() => {
+        setAlertas(prev => ({ 
+          ...prev, 
+          success: 'Archivo Excel descargado exitosamente' 
+        }));
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error al exportar Excel:', error);
+      setAlertas(prev => ({ 
+        ...prev, 
+        error: 'Error al generar el archivo Excel. Por favor, inténtalo de nuevo.' 
+      }));
+    } finally {
+      setExportandoExcel(false);
+    }
   };
 
   const toggleFiltros = () => {
     setMostrarFiltros(!mostrarFiltros);
   };
+
+  // Limpiar timeout al desmontar el componente
+  useEffect(() => {
+    return () => {
+      if (timeoutBusquedaRef.current) {
+        clearTimeout(timeoutBusquedaRef.current);
+      }
+    };
+  }, []);
 
   return (
     <AppLayout
@@ -236,9 +295,9 @@ const Index: React.FC<InventarioProps> = ({
             onExportarExcel={exportarExcel}
             clases={clases}
             idiomas={idiomas}
-            estanterias={estanterias}
             secciones={secciones}
             grados={grados}
+            exportandoExcel={exportandoExcel}
           />
 
           {/* Tabla de libros */}

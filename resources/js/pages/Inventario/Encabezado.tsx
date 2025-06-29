@@ -35,7 +35,7 @@ const TarjetaEstadistica: React.FC<TarjetaEstadisticaProps> = ({ titulo, valor, 
   );
 };
 
-// --- Props del componente ---
+// --- Props del componente (SIN estanterías) ---
 interface EncabezadoInventarioProps {
   totalLibros: number;
   totalEjemplares: number;
@@ -49,7 +49,6 @@ interface EncabezadoInventarioProps {
   filtrosSeleccionados: {
     clase: string;
     idioma: string;
-    estanteria: string;
     seccion: string;
     grado: string;
     estado: string;
@@ -59,9 +58,9 @@ interface EncabezadoInventarioProps {
   onExportarExcel: () => void;
   clases: string[];
   idiomas: string[];
-  estanterias: { id: number; cod_estante: string }[];
   secciones: string[];
   grados: string[];
+  exportandoExcel?: boolean;
 }
 
 const EncabezadoInventario: React.FC<EncabezadoInventarioProps> = ({
@@ -80,9 +79,9 @@ const EncabezadoInventario: React.FC<EncabezadoInventarioProps> = ({
   onExportarExcel,
   clases,
   idiomas,
-  estanterias,
   secciones,
-  grados
+  grados,
+  exportandoExcel = false
 }) => {
   return (
     <>
@@ -151,10 +150,11 @@ const EncabezadoInventario: React.FC<EncabezadoInventarioProps> = ({
               </button>
               <button
                 onClick={onExportarExcel}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                disabled={exportandoExcel}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
               >
                 <Download className="h-4 w-4 mr-2" />
-                Exportar Excel
+                {exportandoExcel ? 'Exportando...' : 'Exportar Excel'}
               </button>
               <Link
                 href="/libros/create"
@@ -166,10 +166,10 @@ const EncabezadoInventario: React.FC<EncabezadoInventarioProps> = ({
             </div>
           </div>
 
-          {/* Panel de filtros */}
+          {/* Panel de filtros (SIN estanterías) */}
           {mostrarFiltros && (
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 <select
                   value={filtrosSeleccionados.clase}
                   onChange={(e) => onCambioFiltro('clase', e.target.value)}
@@ -192,18 +192,7 @@ const EncabezadoInventario: React.FC<EncabezadoInventarioProps> = ({
                   ))}
                 </select>
 
-                <select
-                  value={filtrosSeleccionados.estanteria}
-                  onChange={(e) => onCambioFiltro('estanteria', e.target.value)}
-                  className="block w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="">Todas las estanterías</option>
-                  {estanterias.map((estanteria) => (
-                    <option key={estanteria.id} value={estanteria.id}>
-                      {estanteria.cod_estante}
-                    </option>
-                  ))}
-                </select>
+                {/* REMOVIDO: Select de estanterías */}
 
                 {secciones && secciones.length > 0 && (
                   <select
