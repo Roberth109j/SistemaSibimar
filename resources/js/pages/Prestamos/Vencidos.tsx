@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
-import { Search, Calendar, BookX, Filter, X, CheckCircle, Clock, User, Book, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Head, router, usePage } from '@inertiajs/react'; // Asegúrate de que usePage esté importado
+import { Search, Calendar, BookX, Filter, X, CheckCircle, Clock, User, Book, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+// @ts-ignore
+import debounce from 'lodash/debounce';
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -36,27 +38,94 @@ interface Prestamo {
   estado: string;
 }
 
+interface PaginationLinks {
+  url: string | null;
+  label: string;
+  active: boolean;
+}
+
 interface Props {
   prestamos: {
     data: Prestamo[];
-    links: any;
+    current_page: number;
+    per_page: number;
+    last_page: number;
     total: number;
+    from: number;
+    to: number;
+    links: PaginationLinks[];
+  };
+  filters?: {
+    search?: string;
+    dias_vencido?: string;
   };
 }
 
-export default function Vencidos({ prestamos }: Props) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [diasVencido, setDiasVencido] = useState('');
-  const [notification, setNotification] = useState({
-    show: false,
-    type: '',
-    message: ''
-  });
+export default function Vencidos({ prestamos, filters }: Props) {
+  // --- INICIO DE HOOKS Y ESTADOS DENTRO DEL COMPONENTE ---
+  // Ahora usePage() se llama dentro del cuerpo de la función del componente
+  const { props: pageProps } = usePage(); // Obtener las props de la página
+  const currentFilters = (pageProps.filters as Props['filters']) || {};
+
+  const [searchTerm, setSearchTerm] = useState(currentFilters.search || '');
+  const [diasVencido, setDiasVencido] = useState(currentFilters.dias_vencido || '');
+  const [isSearching, setIsSearching] = useState(false);
 
   const [modalAbierto, setModalAbierto] = useState(false);
   const [prestamoSeleccionado, setPrestamoSeleccionado] = useState<number | null>(null);
   const [fechaDevuelto, setFechaDevuelto] = useState('');
   const [observaciones, setObservaciones] = useState('');
+
+  // Función para realizar búsqueda en el servidor
+  const performServerSearch = useCallback((search: string, dias: string, page: number = 1) => {
+    setIsSearching(true);
+
+    const params: any = {};
+    const searchValue = search.trim();
+    const diasValue = dias;
+
+    if (searchValue) {
+      params.search = searchValue;
+    }
+    if (diasValue) {
+      params.dias_vencido = diasValue;
+    }
+    if (page) {
+      params.page = page;
+    }
+
+    router.visit('/prestamos/vencidos', {
+      data: params,
+      preserveState: true,
+      preserveScroll: false,
+      replace: true,
+      onSuccess: () => {
+        setIsSearching(false);
+      },
+      onError: () => {
+        setIsSearching(false);
+      }
+    });
+  }, []);
+
+  // Debounced search para búsquedas automáticas
+  const debouncedSearch = useCallback(
+    debounce((term: string, dias: string) => {
+      performServerSearch(term, dias, 1);
+    }, 500),
+    [performServerSearch]
+  );
+
+  // Sincronizar con filtros del servidor cuando cambien
+  // Este useEffect sigue siendo importante para actualizar el estado local
+  // cuando la URL cambia por navegación o paginación.
+  useEffect(() => {
+    // Usamos 'filters' prop directamente aquí, ya que es la que se pasa al componente
+    // No usamos usePage() de nuevo aquí, ya que 'filters' ya viene de ahí.
+    setSearchTerm(filters?.search || '');
+    setDiasVencido(filters?.dias_vencido || '');
+  }, [filters]); // Depende de la prop 'filters'
+
 
   const handleDevolucion = (prestamoId: number) => {
     setPrestamoSeleccionado(prestamoId);
@@ -68,11 +137,26 @@ export default function Vencidos({ prestamos }: Props) {
   const confirmarDevolucion = () => {
     if (!prestamoSeleccionado || !fechaDevuelto) return;
 
+    const currentParams = {
+      search: searchTerm,
+      dias_vencido: diasVencido,
+      page: prestamos.current_page
+    };
+
     router.post(`/prestamos/${prestamoSeleccionado}/devolver`, {
       fecha_devuelto: fechaDevuelto,
-      observaciones: observaciones
+      observaciones: observaciones,
+      ...currentParams
+    }, {
+      onSuccess: () => {
+        setModalAbierto(false);
+      },
+      onError: (errors) => {
+        console.error("Error al devolver el préstamo:", errors);
+        alert('Hubo un error al devolver el préstamo. Por favor, intente de nuevo.');
+        setModalAbierto(false);
+      }
     });
-    setModalAbierto(false);
   };
 
   const cerrarModal = () => {
@@ -82,29 +166,57 @@ export default function Vencidos({ prestamos }: Props) {
     setObservaciones('');
   };
 
-  const handleSearch = () => {
-    router.get(
-      '/prestamos/vencidos',
-      { search: searchTerm, dias_vencido: diasVencido },
-      { preserveState: true }
-    );
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    debouncedSearch(value, diasVencido);
+  };
+
+  const handleSearch = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    debouncedSearch.cancel();
+    performServerSearch(searchTerm, diasVencido, 1);
   };
 
   const handleFilterChange = (dias: string) => {
     setDiasVencido(dias);
-    router.get(
-      '/prestamos/vencidos',
-      { search: searchTerm, dias_vencido: dias },
-      { preserveState: true }
-    );
+    debouncedSearch.cancel();
+    performServerSearch(searchTerm, dias, 1);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+    debouncedSearch.cancel();
+    performServerSearch('', diasVencido, 1);
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setDiasVencido('');
+    debouncedSearch.cancel();
+
+    router.visit('/prestamos/vencidos', {
+      data: {},
+      preserveState: false,
+      replace: true,
+      preserveScroll: false,
+    });
   };
 
   const calcularDiasVencido = (fechaDevolucion: string) => {
-    const dias = differenceInDays(
-      new Date(),
-      new Date(fechaDevolucion + 'T00:00:00Z')
-    );
-    return dias > 0 ? dias : 0;
+    if (!fechaDevolucion) return 0;
+
+    try {
+      const devDate = new Date(fechaDevolucion + 'T00:00:00Z');
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+
+      const dias = differenceInDays(today, devDate);
+      return dias > 0 ? dias : 0;
+    } catch (error) {
+      console.error('Error calculando días vencidos:', error);
+      return 0;
+    }
   };
 
   const getSeverityColor = (dias: number) => {
@@ -112,6 +224,15 @@ export default function Vencidos({ prestamos }: Props) {
     if (dias >= 15) return 'bg-orange-500 text-white';
     if (dias >= 7) return 'bg-yellow-500 text-black';
     return 'bg-red-500 text-white';
+  };
+
+  const goToPage = (url: string | null) => {
+    if (!url) return;
+
+    const urlObj = new URL(url, window.location.origin);
+    const page = urlObj.searchParams.get('page');
+
+    performServerSearch(searchTerm, diasVencido, page ? parseInt(page) : 1);
   };
 
   return (
@@ -141,20 +262,33 @@ export default function Vencidos({ prestamos }: Props) {
           {/* Filtros y búsqueda */}
           <div className="bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700/50 rounded-xl p-6 shadow-sm">
             <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1">
+              <form onSubmit={handleSearch} className="flex-1">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
+                    isSearching ? 'text-blue-500 animate-spin' : 'text-gray-400'
+                  }`} />
                   <input
-                    type="text"
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600/50 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
-                    placeholder="Buscar por título, código o lector..."
+                    type="search"
+                    className="w-full pl-10 pr-10 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600/50 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+                    placeholder="Buscar por nombre del lector, código o título del libro..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    onChange={handleInputChange}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(e); }}
+                    disabled={isSearching}
                   />
+                  {searchTerm?.trim() && (
+                    <button
+                      type="button"
+                      onClick={clearSearch}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      disabled={isSearching}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-              </div>
-              
+              </form>
+
               <div className="lg:w-64">
                 <div className="relative">
                   <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -162,6 +296,7 @@ export default function Vencidos({ prestamos }: Props) {
                     className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600/50 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 appearance-none"
                     value={diasVencido}
                     onChange={(e) => handleFilterChange(e.target.value)}
+                    disabled={isSearching}
                   >
                     <option value="">Todos los vencidos</option>
                     <option value="7">7 días o más</option>
@@ -172,13 +307,59 @@ export default function Vencidos({ prestamos }: Props) {
               </div>
 
               <button
+                type="button"
                 onClick={handleSearch}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
+                disabled={isSearching}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
               >
-                <Search className="w-4 h-4" />
-                Buscar
+                <Search className={`w-4 h-4 ${isSearching ? 'animate-spin' : ''}`} />
+                {isSearching ? 'Buscando...' : 'Buscar'}
               </button>
             </div>
+
+            {/* Indicadores de filtros activos */}
+            {(searchTerm?.trim() || diasVencido) && (
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700/50">
+                <div className="flex flex-wrap gap-2 items-center">
+                  {searchTerm?.trim() && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-600/20 text-blue-800 dark:text-blue-300 text-sm rounded-full">
+                      Búsqueda: "{searchTerm}"
+                      <button
+                        type="button"
+                        onClick={clearSearch}
+                        className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-600/30 rounded-full p-0.5"
+                        disabled={isSearching}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {diasVencido && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 dark:bg-orange-600/20 text-orange-800 dark:text-orange-300 text-sm rounded-full">
+                      {diasVencido} días o más
+                      <button
+                        type="button"
+                        onClick={() => handleFilterChange('')}
+                        className="ml-1 hover:bg-orange-200 dark:hover:bg-orange-600/30 rounded-full p-0.5"
+                        disabled={isSearching}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+
+                  {/* Botón para limpiar todos los filtros */}
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="px-3 py-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-full transition-colors duration-200"
+                    disabled={isSearching}
+                  >
+                    Limpiar todo
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -186,10 +367,10 @@ export default function Vencidos({ prestamos }: Props) {
         <div className="space-y-4">
           {prestamos.data.length > 0 ? (
             prestamos.data.map((prestamo) => {
-              const diasVencidos = calcularDiasVencido(prestamo.fecha_devolucion);
+              const diasVencidos = calcularDiasVencido(prestamo?.fecha_devolucion || '');
               return (
                 <div
-                  key={prestamo.id}
+                  key={prestamo?.id || Math.random()}
                   className="bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700/50 rounded-xl p-6 hover:bg-gray-50 dark:hover:bg-gray-900/70 transition-all duration-200 shadow-sm"
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -202,10 +383,10 @@ export default function Vencidos({ prestamos }: Props) {
                         </div>
                         <div className="min-w-0">
                           <p className="text-gray-900 dark:text-white font-medium truncate">
-                            {prestamo.lector.nombre}
+                            {prestamo?.lector?.nombre || 'Sin nombre'}
                           </p>
                           <p className="text-gray-500 dark:text-gray-400 text-sm">
-                            Código: {prestamo.lector.codigo}
+                            Código: {prestamo?.lector?.codigo || 'Sin código'}
                           </p>
                         </div>
                       </div>
@@ -217,10 +398,10 @@ export default function Vencidos({ prestamos }: Props) {
                         </div>
                         <div className="min-w-0">
                           <p className="text-gray-900 dark:text-white font-medium line-clamp-2">
-                            {prestamo.ejemplar.libro.titulo}
+                            {prestamo?.ejemplar?.libro?.titulo || 'Sin título'}
                           </p>
                           <p className="text-gray-500 dark:text-gray-400 text-sm">
-                            Ejemplar #{prestamo.ejemplar.codigo}
+                            Ejemplar #{prestamo?.ejemplar?.id || 'Sin ID'}
                           </p>
                         </div>
                       </div>
@@ -232,10 +413,10 @@ export default function Vencidos({ prestamos }: Props) {
                         </div>
                         <div className="min-w-0">
                           <p className="text-gray-900 dark:text-white font-medium">
-                            {format(new Date(prestamo.fecha_prestamo + 'T00:00:00Z'), 'dd/MM/yyyy', { locale: es })}
+                            {prestamo?.fecha_prestamo ? format(new Date(prestamo.fecha_prestamo + 'T00:00:00Z'), 'dd/MM/yyyy', { locale: es }) : 'Sin fecha'}
                           </p>
                           <p className="text-gray-500 dark:text-gray-400 text-sm">
-                            Vencía: {format(new Date(prestamo.fecha_devolucion + 'T00:00:00Z'), 'dd/MM/yyyy', { locale: es })}
+                            Vencía: {prestamo?.fecha_devolucion ? format(new Date(prestamo.fecha_devolucion + 'T00:00:00Z'), 'dd/MM/yyyy', { locale: es }) : 'Sin fecha'}
                           </p>
                         </div>
                       </div>
@@ -259,8 +440,9 @@ export default function Vencidos({ prestamos }: Props) {
                     {/* Acciones */}
                     <div className="flex items-center gap-3 lg:flex-col lg:items-end">
                       <button
-                        onClick={() => handleDevolucion(prestamo.id)}
+                        onClick={() => handleDevolucion(prestamo?.id || 0)}
                         className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
+                        disabled={!prestamo?.id}
                       >
                         <CheckCircle className="w-4 h-4" />
                         Devolver
@@ -279,31 +461,94 @@ export default function Vencidos({ prestamos }: Props) {
                 No hay préstamos vencidos
               </h3>
               <p className="text-gray-500 dark:text-gray-400">
-                No se encontraron préstamos vencidos con los filtros actuales.
+                {searchTerm?.trim()
+                  ? `No se encontraron préstamos que coincidan con "${searchTerm}".`
+                  : diasVencido
+                    ? 'No se encontraron préstamos vencidos con los filtros actuales.'
+                    : 'No se encontraron préstamos vencidos.'
+                }
               </p>
+              {(searchTerm?.trim() || diasVencido) && (
+                <button
+                  onClick={clearAllFilters}
+                  className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200"
+                >
+                  Limpiar filtros
+                </button>
+              )}
             </div>
           )}
         </div>
 
-        {/* Paginación */}
-        {prestamos.links && (
-          <div className="mt-8 flex items-center justify-center gap-2">
-            {prestamos.links.prev && (
-              <a
-                href={prestamos.links.prev}
-                className="px-4 py-2 bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-200"
-              >
-                Anterior
-              </a>
-            )}
-            {prestamos.links.next && (
-              <a
-                href={prestamos.links.next}
-                className="px-4 py-2 bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-200"
-              >
-                Siguiente
-              </a>
-            )}
+        {/* Paginación mejorada */}
+        {prestamos.total > 0 && (
+          <div className="mt-8">
+            {/* Información de resultados */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Mostrando {prestamos.from || 0} a {prestamos.to || 0} de {prestamos.total} préstamos vencidos
+                {(searchTerm?.trim() || diasVencido) && (
+                  <span className="ml-1">
+                    {searchTerm?.trim() && `(filtrado por "${searchTerm}")`}
+                    {searchTerm?.trim() && diasVencido && ' y '}
+                    {diasVencido && `(${diasVencido}+ días)`}
+                  </span>
+                )}
+              </div>
+
+              {/* Controles de paginación */}
+              <div className="flex items-center gap-2">
+                {/* Botón Anterior */}
+                <button
+                  onClick={() => {
+                    const prevLink = prestamos.links.find(link => link.label === '&laquo; Previous');
+                    if (prevLink?.url) {
+                      goToPage(prevLink.url);
+                    }
+                  }}
+                  disabled={prestamos.current_page === 1 || isSearching}
+                  className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Anterior
+                </button>
+
+                {/* Números de página */}
+                <div className="flex items-center gap-1">
+                  {prestamos.links
+                    .filter(link => link.label !== '&laquo; Previous' && link.label !== 'Next &raquo;')
+                    .map((link, index) => (
+                      <button
+                        key={index}
+                        onClick={() => goToPage(link.url)}
+                        disabled={!link.url || isSearching}
+                        className={`min-w-[40px] h-10 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                          link.active
+                            ? 'bg-blue-600 text-white'
+                            : link.url
+                            ? 'bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                            : 'text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        {link.label === '...' ? '...' : link.label}
+                      </button>
+                    ))}
+                </div>
+
+                {/* Botón Siguiente */}
+                <button
+                  onClick={() => {
+                    const nextUrl = prestamos.links.find(link => link.label === 'Next &raquo;')?.url || null;
+                    goToPage(nextUrl);
+                  }}
+                  disabled={prestamos.current_page === prestamos.last_page || isSearching}
+                  className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                >
+                  Siguiente
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

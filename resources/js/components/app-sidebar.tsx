@@ -79,7 +79,7 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Devoluciones',
-        href: '/prestamos/devoluciones',
+        href: '/prestamos/listado',
         icon: Undo2,
     },
     {

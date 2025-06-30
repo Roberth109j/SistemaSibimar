@@ -1,97 +1,17 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Book, UserCheck, Calendar, CheckCircle, Search, X, AlertCircle } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
-import { type PrestamoPageProps, type Prestamo } from './types';
+import { type PrestamoPageProps, type Prestamo } from '../Prestamos/types';
 import { useState, useEffect } from 'react';
+import { obtenerFechaActual, formatearFecha, calcularDiasRestantes } from './utils';
+import AlertNotification from './AlertNotification';
 
 const breadcrumbs = [
   {
-    title: 'Préstamos',
-    href: '/prestamos',
-  },
-  {
     title: 'Listado de Préstamos Activos',
-    href: '/prestamos/listado',
+    href: '/prestamos/devoluciones',
   },
 ];
-
-// Función para obtener la fecha actual en formato YYYY-MM-DD (hora local)
-const obtenerFechaActual = () => {
-  const hoy = new Date();
-  const año = hoy.getFullYear();
-  const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-  const dia = String(hoy.getDate()).padStart(2, '0');
-  return `${año}-${mes}-${dia}`;
-};
-
-function AlertNotification({
-  type,
-  message,
-  className = '',
-  autoClose = true,
-  duration = 4000,
-}: {
-  type: 'success' | 'error';
-  message: string;
-  className?: string;
-  autoClose?: boolean;
-  duration?: number;
-}) {
-  const [isVisible, setIsVisible] = useState(true);
-  const [animateOut, setAnimateOut] = useState(false);
-
-  useEffect(() => {
-    if (autoClose && message) {
-      const timer = setTimeout(() => {
-        setAnimateOut(true);
-        const hideTimer = setTimeout(() => {
-          setIsVisible(false);
-        }, 500);
-        return () => clearTimeout(hideTimer);
-      }, duration);
-      return () => clearTimeout(timer);
-    }
-  }, [autoClose, duration, message]);
-
-  if (!isVisible || !message) return null;
-
-  const colors = {
-    success: {
-      light: { bg: 'bg-green-100', border: 'border-green-500', text: 'text-green-800', icon: 'text-green-500' },
-      dark: { bg: 'dark:bg-green-800/40', border: 'dark:border-green-500', text: 'dark:text-green-100', icon: 'dark:text-green-400' }
-    },
-    error: {
-      light: { bg: 'bg-red-100', border: 'border-red-500', text: 'text-red-800', icon: 'text-red-500' },
-      dark: { bg: 'dark:bg-red-800/40', border: 'dark:border-red-500', text: 'dark:text-red-100', icon: 'dark:text-red-400' }
-    }
-  };
-
-  const Icon = type === 'success' ? CheckCircle : AlertCircle;
-
-  return (
-    <div className={`fixed top-6 right-6 z-50 ${animateOut ? 'opacity-0 translate-x-20' : 'opacity-100 translate-x-0'} transition-all duration-500 ease-in-out transform ${className}`}>
-      <div
-        className={`max-w-md rounded-lg shadow-xl border-l-4 
-                    ${colors[type].light.border} ${colors[type].dark.border}
-                    ${colors[type].light.bg} ${colors[type].dark.bg} 
-                    flex items-start p-5 transition-all duration-300 animate-slide-in-right`}
-      >
-        <Icon className={`h-6 w-6 mt-0.5 mr-4 flex-shrink-0 ${colors[type].light.icon} ${colors[type].dark.icon}`} />
-        <div className="flex-grow">
-          <p className={`text-base font-semibold ${colors[type].light.text} ${colors[type].dark.text}`}>
-            {message}
-          </p>
-        </div>
-        <button
-          onClick={() => setAnimateOut(true)}
-          className="ml-4 flex-shrink-0 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export default function Listado({ auth, prestamos, flash }: PrestamoPageProps) {
   const [codigoLector, setCodigoLector] = useState('');
@@ -355,162 +275,203 @@ export default function Listado({ auth, prestamos, flash }: PrestamoPageProps) {
                 <div className="p-6 space-y-6">
                   {prestamos?.data
                     .filter(prestamo => prestamo.estado === 'ACTIVO')
-                    .map((prestamo: Prestamo, index) => (
-                      <div key={prestamo.id} className="group relative">
-                        <div className="bg-gradient-to-r from-white to-gray-50/60 dark:from-gray-800 dark:to-gray-800/60
-                                      border border-gray-200 dark:border-gray-700 rounded-2xl p-8
-                                      hover:shadow-2xl hover:shadow-blue-500/10 dark:hover:shadow-blue-400/10
-                                      transition-all duration-500 transform hover:-translate-y-2
-                                      hover:border-blue-300 dark:hover:border-blue-500/50
-                                      backdrop-blur-sm">
+                    .map((prestamo: Prestamo, index) => {
+                      // CORREGIDO: Calcular días restantes usando la nueva función
+                      const tiempoRestante = calcularDiasRestantes(prestamo.fecha_devolucion);
+                      
+                      return (
+                        <div key={prestamo.id} className="group relative">
+                          <div className="bg-gradient-to-r from-white to-gray-50/60 dark:from-gray-800 dark:to-gray-800/60
+                                        border border-gray-200 dark:border-gray-700 rounded-2xl p-8
+                                        hover:shadow-2xl hover:shadow-blue-500/10 dark:hover:shadow-blue-400/10
+                                        transition-all duration-500 transform hover:-translate-y-2
+                                        hover:border-blue-300 dark:hover:border-blue-500/50
+                                        backdrop-blur-sm">
 
-                          {/* Header de la tarjeta mejorado */}
-                          <div className="flex items-start justify-between mb-6">
-                            <div className="flex items-center gap-4">
-                              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 dark:from-blue-400 dark:via-blue-500 dark:to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                <Book className="h-8 w-8 text-white" />
-                              </div>
-                              <div>
-                                <h4 className="text-xl font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                  {prestamo.ejemplar?.libro?.titulo}
-                                </h4>
-                                <p className="text-gray-500 dark:text-gray-400 font-medium">
-                                  ISBN: {prestamo.ejemplar?.libro?.isbn}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-3">
-                              <div className="bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-500/15 dark:to-indigo-500/15 
-                                            text-blue-800 dark:text-blue-200 px-4 py-2 rounded-xl text-sm font-bold
-                                            border border-blue-200 dark:border-blue-500/25">
-                                Préstamo #{index + 1}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Grid de información mejorado */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                            {/* Ejemplar */}
-                            <div className="bg-white/70 dark:bg-gray-700/50 backdrop-blur-sm rounded-xl p-5 border border-gray-200/60 dark:border-gray-600/60 hover:shadow-lg transition-all duration-300">
-                              <div className="flex items-center gap-3 mb-3">
-                                <div className="w-8 h-8 bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-500/20 dark:to-indigo-500/15 rounded-lg flex items-center justify-center">
-                                  <Book className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                            {/* Header de la tarjeta mejorado */}
+                            <div className="flex items-start justify-between mb-6">
+                              <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 dark:from-blue-400 dark:via-blue-500 dark:to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                  <Book className="h-8 w-8 text-white" />
                                 </div>
-                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ejemplar</span>
-                              </div>
-                              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">#{prestamo.ejemplar?.numEjemplar}</div>
-                              <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">{prestamo.ejemplar?.codigo}</div>
-                            </div>
-
-                            {/* Lector */}
-                            <div className="bg-white/70 dark:bg-gray-700/50 backdrop-blur-sm rounded-xl p-5 border border-gray-200/60 dark:border-gray-600/60 hover:shadow-lg transition-all duration-300">
-                              <div className="flex items-center gap-3 mb-3">
-                                <div className="w-8 h-8 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-500/20 dark:to-purple-500/15 rounded-lg flex items-center justify-center">
-                                  <UserCheck className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                <div>
+                                  <h4 className="text-xl font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                    {prestamo.ejemplar?.libro?.titulo}
+                                  </h4>
+                                  <p className="text-gray-500 dark:text-gray-400 font-medium">
+                                    ISBN: {prestamo.ejemplar?.libro?.isbn}
+                                  </p>
                                 </div>
-                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Lector</span>
                               </div>
-                              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{(prestamo as any).lector?.nombre || 'Usuario'}</div>
-                              <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">Usuario activo</div>
-                            </div>
 
-                            {/* Fecha Préstamo */}
-                            <div className="bg-white/70 dark:bg-gray-700/50 backdrop-blur-sm rounded-xl p-5 border border-gray-200/60 dark:border-gray-600/60 hover:shadow-lg transition-all duration-300">
-                              <div className="flex items-center gap-3 mb-3">
-                                <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-500/20 dark:to-emerald-500/15 rounded-lg flex items-center justify-center">
-                                  <Calendar className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                              <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-500/15 dark:to-indigo-500/15 
+                                              text-blue-800 dark:text-blue-200 px-4 py-2 rounded-xl text-sm font-bold
+                                              border border-blue-200 dark:border-blue-500/25">
+                                  Préstamo #{index + 1}
                                 </div>
-                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Préstamo</span>
-                              </div>
-                              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                                {new Date(prestamo.fecha_prestamo).toLocaleDateString('es-ES', {
-                                  day: 'numeric',
-                                  month: 'short'
-                                })}
-                              </div>
-                              <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                                {new Date(prestamo.fecha_prestamo).getFullYear()}
                               </div>
                             </div>
 
-                            {/* Fecha Devolución - MEJORADO con estilo del modal */}
-                            <div className="bg-gradient-to-br from-amber-50/80 to-orange-50/80 dark:from-amber-500/10 dark:to-orange-500/10 
-                                          backdrop-blur-sm rounded-xl p-5 border-2 border-amber-200/60 dark:border-amber-500/30 
-                                          hover:shadow-xl hover:border-amber-300 dark:hover:border-amber-400 
-                                          transition-all duration-300 relative overflow-hidden">
-                              
-                              {/* Efecto de brillo */}
-                              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-amber-100/20 via-transparent to-orange-100/20 dark:from-amber-300/5 dark:via-transparent dark:to-orange-300/5"></div>
-                              
-                              <div className="relative z-10">
+                            {/* Grid de información mejorado */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                              {/* Ejemplar */}
+                              <div className="bg-white/70 dark:bg-gray-700/50 backdrop-blur-sm rounded-xl p-5 border border-gray-200/60 dark:border-gray-600/60 hover:shadow-lg transition-all duration-300">
                                 <div className="flex items-center gap-3 mb-3">
-                                  <div className="w-9 h-9 bg-gradient-to-br from-amber-200 to-orange-300 dark:from-amber-500/40 dark:to-orange-500/40 
-                                                rounded-xl flex items-center justify-center shadow-md">
-                                    <Calendar className="h-5 w-5 text-amber-700 dark:text-amber-300" />
+                                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-500/20 dark:to-indigo-500/15 rounded-lg flex items-center justify-center">
+                                    <Book className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                                   </div>
-                                  <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
-                                    Vencimiento
-                                  </span>
+                                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ejemplar</span>
                                 </div>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">#{prestamo.ejemplar?.numEjemplar}</div>
+                                <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">{prestamo.ejemplar?.codigo}</div>
+                              </div>
+
+                              {/* Lector */}
+                              <div className="bg-white/70 dark:bg-gray-700/50 backdrop-blur-sm rounded-xl p-5 border border-gray-200/60 dark:border-gray-600/60 hover:shadow-lg transition-all duration-300">
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div className="w-8 h-8 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-500/20 dark:to-purple-500/15 rounded-lg flex items-center justify-center">
+                                    <UserCheck className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                  </div>
+                                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Lector</span>
+                                </div>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{(prestamo as any).lector?.nombre || 'Usuario'}</div>
+                                <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">Usuario activo</div>
+                              </div>
+
+                              {/* Fecha Préstamo - CORREGIDO */}
+                              <div className="bg-white/70 dark:bg-gray-700/50 backdrop-blur-sm rounded-xl p-5 border border-gray-200/60 dark:border-gray-600/60 hover:shadow-lg transition-all duration-300">
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-500/20 dark:to-emerald-500/15 rounded-lg flex items-center justify-center">
+                                    <Calendar className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                  </div>
+                                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Préstamo</span>
+                                </div>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                                  {formatearFecha(prestamo.fecha_prestamo, { day: 'numeric', month: 'short' })}
+                                </div>
+                                <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                  {prestamo.fecha_prestamo && new Date(prestamo.fecha_prestamo).getFullYear()}
+                                </div>
+                              </div>
+
+                              {/* Fecha Devolución - CORREGIDO */}
+                              <div className={`backdrop-blur-sm rounded-xl p-5 border-2 hover:shadow-xl transition-all duration-300 relative overflow-hidden ${
+                                tiempoRestante.estado === 'vencido' 
+                                  ? 'bg-gradient-to-br from-red-50/80 to-red-100/80 dark:from-red-500/10 dark:to-red-600/10 border-red-200/60 dark:border-red-500/30 hover:border-red-300 dark:hover:border-red-400'
+                                  : tiempoRestante.estado === 'vence_hoy'
+                                  ? 'bg-gradient-to-br from-orange-50/80 to-yellow-50/80 dark:from-orange-500/10 dark:to-yellow-500/10 border-orange-200/60 dark:border-orange-500/30 hover:border-orange-300 dark:hover:border-orange-400'
+                                  : 'bg-gradient-to-br from-amber-50/80 to-orange-50/80 dark:from-amber-500/10 dark:to-orange-500/10 border-amber-200/60 dark:border-amber-500/30 hover:border-amber-300 dark:hover:border-amber-400'
+                              }`}>
                                 
-                                <div className="space-y-1">
-                                  <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
-                                    {new Date(prestamo.fecha_devolucion).toLocaleDateString('es-ES', {
-                                      day: 'numeric',
-                                      month: 'short'
-                                    })}
-                                  </div>
-                                  <div className="text-sm text-amber-600 dark:text-amber-400 font-semibold">
-                                    {new Date(prestamo.fecha_devolucion).getFullYear()}
-                                  </div>
-                                  
-                                  {/* Indicador de tiempo restante */}
-                                  <div className="flex items-center gap-2 mt-2">
-                                    <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-                                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                                      {(() => {
-                                        const hoy = new Date();
-                                        const fechaVencimiento = new Date(prestamo.fecha_devolucion);
-                                        const diffTime = fechaVencimiento.getTime() - hoy.getTime();
-                                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                        
-                                        if (diffDays > 0) {
-                                          return `${diffDays} día${diffDays !== 1 ? 's' : ''} restante${diffDays !== 1 ? 's' : ''}`;
-                                        } else if (diffDays === 0) {
-                                          return 'Vence hoy';
-                                        } else {
-                                          return `Vencido hace ${Math.abs(diffDays)} día${Math.abs(diffDays) !== 1 ? 's' : ''}`;
-                                        }
-                                      })()}
+                                {/* Efecto de brillo */}
+                                <div className={`absolute top-0 left-0 w-full h-full bg-gradient-to-br ${
+                                  tiempoRestante.estado === 'vencido'
+                                    ? 'from-red-100/20 via-transparent to-red-100/20 dark:from-red-300/5 dark:via-transparent dark:to-red-300/5'
+                                    : tiempoRestante.estado === 'vence_hoy'
+                                    ? 'from-orange-100/20 via-transparent to-yellow-100/20 dark:from-orange-300/5 dark:via-transparent dark:to-yellow-300/5'
+                                    : 'from-amber-100/20 via-transparent to-orange-100/20 dark:from-amber-300/5 dark:via-transparent dark:to-orange-300/5'
+                                }`}></div>
+                                
+                                <div className="relative z-10">
+                                  <div className="flex items-center gap-3 mb-3">
+                                    <div className={`w-9 h-9 bg-gradient-to-br rounded-xl flex items-center justify-center shadow-md ${
+                                      tiempoRestante.estado === 'vencido'
+                                        ? 'from-red-200 to-red-300 dark:from-red-500/40 dark:to-red-600/40'
+                                        : tiempoRestante.estado === 'vence_hoy'
+                                        ? 'from-orange-200 to-yellow-300 dark:from-orange-500/40 dark:to-yellow-500/40'
+                                        : 'from-amber-200 to-orange-300 dark:from-amber-500/40 dark:to-orange-500/40'
+                                    }`}>
+                                      <Calendar className={`h-5 w-5 ${
+                                        tiempoRestante.estado === 'vencido'
+                                          ? 'text-red-700 dark:text-red-300'
+                                          : tiempoRestante.estado === 'vence_hoy'
+                                          ? 'text-orange-700 dark:text-orange-300'
+                                          : 'text-amber-700 dark:text-amber-300'
+                                      }`} />
+                                    </div>
+                                    <span className={`text-xs font-bold uppercase tracking-wider ${
+                                      tiempoRestante.estado === 'vencido'
+                                        ? 'text-red-700 dark:text-red-300'
+                                        : tiempoRestante.estado === 'vence_hoy'
+                                        ? 'text-orange-700 dark:text-orange-300'
+                                        : 'text-amber-700 dark:text-amber-300'
+                                    }`}>
+                                      {tiempoRestante.estado === 'vencido' ? 'Vencido' : 'Vencimiento'}
                                     </span>
                                   </div>
+                                  
+                                  <div className="space-y-1">
+                                    <div className={`text-2xl font-bold ${
+                                      tiempoRestante.estado === 'vencido'
+                                        ? 'text-red-800 dark:text-red-200'
+                                        : tiempoRestante.estado === 'vence_hoy'
+                                        ? 'text-orange-800 dark:text-orange-200'
+                                        : 'text-amber-800 dark:text-amber-200'
+                                    }`}>
+                                      {formatearFecha(prestamo.fecha_devolucion, { day: 'numeric', month: 'short' })}
+                                    </div>
+                                    <div className={`text-sm font-semibold ${
+                                      tiempoRestante.estado === 'vencido'
+                                        ? 'text-red-600 dark:text-red-400'
+                                        : tiempoRestante.estado === 'vence_hoy'
+                                        ? 'text-orange-600 dark:text-orange-400'
+                                        : 'text-amber-600 dark:text-amber-400'
+                                    }`}>
+                                      {prestamo.fecha_devolucion && new Date(prestamo.fecha_devolucion).getFullYear()}
+                                    </div>
+                                    
+                                    {/* Indicador de tiempo restante/vencido */}
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <div className={`w-2 h-2 rounded-full animate-pulse ${
+                                        tiempoRestante.estado === 'vencido'
+                                          ? 'bg-red-500'
+                                          : tiempoRestante.estado === 'vence_hoy'
+                                          ? 'bg-orange-500'
+                                          : 'bg-amber-500'
+                                      }`}></div>
+                                      <span className={`text-xs font-medium ${
+                                        tiempoRestante.estado === 'vencido'
+                                          ? 'text-red-600 dark:text-red-400'
+                                          : tiempoRestante.estado === 'vence_hoy'
+                                          ? 'text-orange-600 dark:text-orange-400'
+                                          : 'text-amber-600 dark:text-amber-400'
+                                      }`}>
+                                        {tiempoRestante.estado === 'vencido'
+                                          ? `Vencido hace ${tiempoRestante.dias} día${tiempoRestante.dias !== 1 ? 's' : ''}`
+                                          : tiempoRestante.estado === 'vence_hoy'
+                                          ? 'Vence hoy'
+                                          : `${tiempoRestante.dias} día${tiempoRestante.dias !== 1 ? 's' : ''} restante${tiempoRestante.dias !== 1 ? 's' : ''}`
+                                        }
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
 
-                          {/* Footer con acción */}
-                          <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-600">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                              <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Préstamo Activo</span>
+                            {/* Footer con acción */}
+                            <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-600">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                                <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Préstamo Activo</span>
+                              </div>
+
+                              <button
+                                onClick={() => handleDevolucion(prestamo.id)}
+                                className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 
+                                         dark:from-emerald-500 dark:to-green-500 dark:hover:from-emerald-600 dark:hover:to-green-600
+                                         text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-300 
+                                         shadow-lg hover:shadow-xl transform hover:-translate-y-1 font-semibold"
+                              >
+                                <CheckCircle className="h-5 w-5" />
+                                Procesar Devolución
+                              </button>
                             </div>
-
-                            <button
-                              onClick={() => handleDevolucion(prestamo.id)}
-                              className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 
-                                       dark:from-emerald-500 dark:to-green-500 dark:hover:from-emerald-600 dark:hover:to-green-600
-                                       text-white px-6 py-3 rounded-xl flex items-center gap-3 transition-all duration-300 
-                                       shadow-lg hover:shadow-xl transform hover:-translate-y-1 font-semibold"
-                            >
-                              <CheckCircle className="h-5 w-5" />
-                              Procesar Devolución
-                            </button>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               </>
             )}

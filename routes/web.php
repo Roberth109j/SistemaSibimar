@@ -12,15 +12,14 @@ use App\Http\Controllers\GradoController;
 use App\Http\Controllers\LectorController;
 use App\Http\Controllers\PrestamoController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\DashboardController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Rutas específicas para el controlador de Autor
     Route::get('autores', [AutorController::class, 'index'])->name('autores.index');
@@ -30,8 +29,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('autores/{autor}/edit', [AutorController::class, 'edit'])->name('autores.edit');
     Route::put('autores/{autor}', [AutorController::class, 'update'])->name('autores.update');
     Route::patch('autores/{autor}', [AutorController::class, 'update']);
-
-
 
     // Rutas para EditorialController
     Route::get('editoriales', [EditorialController::class, 'index'])->name('editoriales.index');
@@ -105,12 +102,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('reportes/historial-prestamos', [ReporteController::class, 'historialPrestamos'])->name('reportes.historial-prestamos');
     Route::get('prestamos/listado', [PrestamoController::class, 'listado'])->name('prestamos.listado');
     Route::get('prestamos/devoluciones', [PrestamoController::class, 'listado'])->name('prestamos.devoluciones');
+    
+    // Ruta principal para préstamos vencidos con paginación
     Route::get('prestamos/vencidos', [PrestamoController::class, 'vencidos'])->name('prestamos.vencidos');
+    
     Route::post('prestamos', [PrestamoController::class, 'store'])->name('prestamos.store');
     Route::get('prestamos/{prestamo}', [PrestamoController::class, 'show'])->name('prestamos.show');
     Route::get('prestamos/{prestamo}/edit', [PrestamoController::class, 'edit'])->name('prestamos.edit');
     Route::put('prestamos/{prestamo}', [PrestamoController::class, 'update'])->name('prestamos.update');
-    Route::post('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolver'])->name('prestamos.devolver');
+    Route::post('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolverVencido'])->name('prestamos.devolver');
     Route::delete('prestamos/{prestamo}', [PrestamoController::class, 'destroy'])->name('prestamos.destroy');
 });
 
