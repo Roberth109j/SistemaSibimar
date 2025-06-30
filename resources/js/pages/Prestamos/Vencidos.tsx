@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Head, router, usePage } from '@inertiajs/react'; // Asegúrate de que usePage esté importado
+import { Head, router, usePage } from '@inertiajs/react';
 import { Search, Calendar, BookX, Filter, X, CheckCircle, Clock, User, Book, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -24,6 +24,7 @@ interface Prestamo {
   ejemplar: {
     id: number;
     codigo: string;
+    numEjemplar?: number;
     libro: {
       titulo: string;
     };
@@ -61,70 +62,141 @@ interface Props {
   };
 }
 
+function AlertNotification({
+  type,
+  message,
+  className = '',
+  autoClose = true,
+  duration = 4000,
+}: {
+  type: 'success' | 'error';
+  message: string;
+  className?: string;
+  autoClose?: boolean;
+  duration?: number;
+}) {
+  const [isVisible, setIsVisible] = useState(true);
+  const [animateOut, setAnimateOut] = useState(false);
+
+  useEffect(() => {
+    if (autoClose && message) {
+      const timer = setTimeout(() => {
+        setAnimateOut(true);
+        const hideTimer = setTimeout(() => {
+          setIsVisible(false);
+        }, 500);
+        return () => clearTimeout(hideTimer);
+      }, duration);
+      return () => clearTimeout(timer);
+    }
+  }, [autoClose, duration, message]);
+
+  if (!isVisible || !message) return null;
+
+  const colors = {
+    success: {
+      light: { bg: 'bg-green-100', border: 'border-green-500', text: 'text-green-800', icon: 'text-green-500' },
+      dark: { bg: 'dark:bg-green-800/40', border: 'dark:border-green-500', text: 'dark:text-green-100', icon: 'dark:text-green-400' }
+    },
+    error: {
+      light: { bg: 'bg-red-100', border: 'border-red-500', text: 'text-red-800', icon: 'text-red-500' },
+      dark: { bg: 'dark:bg-red-800/40', border: 'dark:border-red-500', text: 'dark:text-red-100', icon: 'dark:text-red-400' }
+    }
+  };
+
+  const Icon = type === 'success' ? CheckCircle : AlertTriangle;
+
+  return (
+    <div className={`fixed top-6 right-6 z-50 ${animateOut ? 'opacity-0 translate-x-20' : 'opacity-100 translate-x-0'} transition-all duration-500 ease-in-out transform ${className}`}>
+      <div
+        className={`max-w-md rounded-lg shadow-xl border-l-4 
+                    ${colors[type].light.border} ${colors[type].dark.border}
+                    ${colors[type].light.bg} ${colors[type].dark.bg} 
+                    flex items-start p-5 transition-all duration-300`}
+      >
+        <Icon className={`h-6 w-6 mt-0.5 mr-4 flex-shrink-0 ${colors[type].light.icon} ${colors[type].dark.icon}`} />
+        <div className="flex-grow">
+          <p className={`text-base font-semibold ${colors[type].light.text} ${colors[type].dark.text}`}>
+            {message}
+          </p>
+        </div>
+        <button
+          onClick={() => setAnimateOut(true)}
+          className="ml-4 flex-shrink-0 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Vencidos({ prestamos, filters }: Props) {
-  // --- INICIO DE HOOKS Y ESTADOS DENTRO DEL COMPONENTE ---
-  // Ahora usePage() se llama dentro del cuerpo de la función del componente
-  const { props: pageProps } = usePage(); // Obtener las props de la página
+  const { props: pageProps } = usePage();
   const currentFilters = (pageProps.filters as Props['filters']) || {};
 
   const [searchTerm, setSearchTerm] = useState(currentFilters.search || '');
+  const [showFilters, setShowFilters] = useState(false);
   const [diasVencido, setDiasVencido] = useState(currentFilters.dias_vencido || '');
   const [isSearching, setIsSearching] = useState(false);
+  const [filteredPrestamos, setFilteredPrestamos] = useState(prestamos.data);
+
 
   const [modalAbierto, setModalAbierto] = useState(false);
   const [prestamoSeleccionado, setPrestamoSeleccionado] = useState<number | null>(null);
   const [fechaDevuelto, setFechaDevuelto] = useState('');
   const [observaciones, setObservaciones] = useState('');
 
-  // Función para realizar búsqueda en el servidor
-  const performServerSearch = useCallback((search: string, dias: string, page: number = 1) => {
+  const [alerts, setAlerts] = useState<{
+    success: string | null;
+    error: string | null;
+    timestamp: number;
+  }>({
+    success: null,
+    error: null,
+    timestamp: 0
+  });
+
+  // Función para realizar búsqueda local
+
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value);
     setIsSearching(true);
 
-    const params: any = {};
-    const searchValue = search.trim();
-    const diasValue = dias;
+    const searchValue = value.toLowerCase().trim();
+    const filtered = prestamos.data.filter(prestamo => {
+      // Validar que el préstamo y sus propiedades existan
+      if (!prestamo) return false;
 
-    if (searchValue) {
-      params.search = searchValue;
-    }
-    if (diasValue) {
-      params.dias_vencido = diasValue;
-    }
-    if (page) {
-      params.page = page;
-    }
+      // Validar lector
+      const lectorNombre = prestamo.lector?.nombre?.toLowerCase() || '';
+      const lectorCodigo = prestamo.lector?.codigo?.toLowerCase() || '';
 
-    router.visit('/prestamos/vencidos', {
-      data: params,
-      preserveState: true,
-      preserveScroll: false,
-      replace: true,
-      onSuccess: () => {
-        setIsSearching(false);
-      },
-      onError: () => {
-        setIsSearching(false);
-      }
+      // Validar libro
+      const libroTitulo = prestamo.ejemplar?.libro?.titulo?.toLowerCase() || '';
+
+      // Validar ejemplar
+      const ejemplarCodigo = prestamo.ejemplar?.codigo?.toLowerCase() || '';
+
+      return lectorNombre.includes(searchValue) ||
+        lectorCodigo.includes(searchValue) ||
+        libroTitulo.includes(searchValue) ||
+        ejemplarCodigo.includes(searchValue);
     });
-  }, []);
 
-  // Debounced search para búsquedas automáticas
-  const debouncedSearch = useCallback(
-    debounce((term: string, dias: string) => {
-      performServerSearch(term, dias, 1);
-    }, 500),
-    [performServerSearch]
-  );
+    setFilteredPrestamos(filtered);
+    setIsSearching(false);
+  }, [prestamos.data]);
+
+
 
   // Sincronizar con filtros del servidor cuando cambien
-  // Este useEffect sigue siendo importante para actualizar el estado local
-  // cuando la URL cambia por navegación o paginación.
   useEffect(() => {
-    // Usamos 'filters' prop directamente aquí, ya que es la que se pasa al componente
-    // No usamos usePage() de nuevo aquí, ya que 'filters' ya viene de ahí.
-    setSearchTerm(filters?.search || '');
     setDiasVencido(filters?.dias_vencido || '');
-  }, [filters]); // Depende de la prop 'filters'
+    setFilteredPrestamos(prestamos.data);
+    // ✅ No sincronizar searchTerm con el servidor
+  }, [filters, prestamos.data]);
+
 
 
   const handleDevolucion = (prestamoId: number) => {
@@ -137,24 +209,34 @@ export default function Vencidos({ prestamos, filters }: Props) {
   const confirmarDevolucion = () => {
     if (!prestamoSeleccionado || !fechaDevuelto) return;
 
+    // Preparar los parámetros actuales de filtros
     const currentParams = {
-      search: searchTerm,
       dias_vencido: diasVencido,
       page: prestamos.current_page
     };
 
+    // Usar la ruta correcta para devolución de préstamos vencidos
     router.post(`/prestamos/${prestamoSeleccionado}/devolver`, {
       fecha_devuelto: fechaDevuelto,
       observaciones: observaciones,
-      ...currentParams
+      ...currentParams // Enviar los filtros actuales para preservarlos
     }, {
       onSuccess: () => {
         setModalAbierto(false);
+        setAlerts({
+          success: 'Préstamo devuelto exitosamente',
+          error: null,
+          timestamp: Date.now()
+        });
       },
       onError: (errors) => {
         console.error("Error al devolver el préstamo:", errors);
-        alert('Hubo un error al devolver el préstamo. Por favor, intente de nuevo.');
         setModalAbierto(false);
+        setAlerts({
+          success: null,
+          error: 'Hubo un error al devolver el préstamo. Por favor, intente de nuevo.',
+          timestamp: Date.now()
+        });
       }
     });
   };
@@ -166,41 +248,76 @@ export default function Vencidos({ prestamos, filters }: Props) {
     setObservaciones('');
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    debouncedSearch(value, diasVencido);
-  };
-
-  const handleSearch = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    debouncedSearch.cancel();
-    performServerSearch(searchTerm, diasVencido, 1);
-  };
-
   const handleFilterChange = (dias: string) => {
     setDiasVencido(dias);
-    debouncedSearch.cancel();
-    performServerSearch(searchTerm, dias, 1);
+    setIsSearching(true);
+    router.get(
+      '/prestamos/vencidos',
+      { dias_vencido: dias }, // ✅ Solo enviar filtro de días
+      {
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: () => setIsSearching(false),
+        onError: () => {
+          setIsSearching(false);
+          setAlerts({
+            success: null,
+            error: 'Error al aplicar los filtros. Por favor, intente de nuevo.',
+            timestamp: Date.now()
+          });
+        }
+      }
+    );
   };
 
-  const clearSearch = () => {
-    setSearchTerm('');
-    debouncedSearch.cancel();
-    performServerSearch('', diasVencido, 1);
-  };
-
-  const clearAllFilters = () => {
-    setSearchTerm('');
+  const clearFilters = () => {
+    setSearchTerm(''); // ✅ Limpiar búsqueda local
     setDiasVencido('');
-    debouncedSearch.cancel();
-
+    setFilteredPrestamos(prestamos.data); // ✅ Restaurar datos originales
+    setIsSearching(true);
     router.visit('/prestamos/vencidos', {
+      method: 'get',
       data: {},
       preserveState: false,
+      preserveScroll: true,
       replace: true,
-      preserveScroll: false,
+      onSuccess: () => {
+        setIsSearching(false);
+        setShowFilters(false);
+      },
+      onError: () => {
+        setIsSearching(false);
+        setAlerts({
+          success: null,
+          error: 'Error al restablecer los filtros. Por favor, intente de nuevo.',
+          timestamp: Date.now()
+        });
+      }
     });
+  };
+
+  const applyFilters = () => {
+    setIsSearching(true);
+    router.get(
+      '/prestamos/vencidos',
+      { dias_vencido: diasVencido }, // ✅ Solo filtro de días
+      {
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: () => {
+          setIsSearching(false);
+          setShowFilters(false);
+        },
+        onError: () => {
+          setIsSearching(false);
+          setAlerts({
+            success: null,
+            error: 'Error al aplicar los filtros. Por favor, intente de nuevo.',
+            timestamp: Date.now()
+          });
+        }
+      }
+    );
   };
 
   const calcularDiasVencido = (fechaDevolucion: string) => {
@@ -220,10 +337,10 @@ export default function Vencidos({ prestamos, filters }: Props) {
   };
 
   const getSeverityColor = (dias: number) => {
-    if (dias >= 30) return 'bg-red-600 text-white';
-    if (dias >= 15) return 'bg-orange-500 text-white';
-    if (dias >= 7) return 'bg-yellow-500 text-black';
-    return 'bg-red-500 text-white';
+    if (dias >= 30) return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+    if (dias >= 15) return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300';
+    if (dias >= 7) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+    return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
   };
 
   const goToPage = (url: string | null) => {
@@ -232,70 +349,125 @@ export default function Vencidos({ prestamos, filters }: Props) {
     const urlObj = new URL(url, window.location.origin);
     const page = urlObj.searchParams.get('page');
 
-    performServerSearch(searchTerm, diasVencido, page ? parseInt(page) : 1);
+    setIsSearching(true);
+    setSearchTerm(''); // ✅ Limpiar búsqueda al cambiar página
+    router.get('/prestamos/vencidos',
+      { dias_vencido: diasVencido, page: page || '1' }, // ✅ Solo filtro de días y página
+      {
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: () => setIsSearching(false),
+        onError: () => {
+          setIsSearching(false);
+          setAlerts({
+            success: null,
+            error: 'Error al cambiar de página. Por favor, intente de nuevo.',
+            timestamp: Date.now()
+          });
+        }
+      }
+    );
+  };
+
+  const renderAlerts = () => {
+    return (
+      <>
+        {alerts.success && (
+          <AlertNotification
+            key={`success-${alerts.timestamp}`}
+            type="success"
+            message={alerts.success}
+          />
+        )}
+        {alerts.error && (
+          <AlertNotification
+            key={`error-${alerts.timestamp}`}
+            type="error"
+            message={alerts.error}
+          />
+        )}
+      </>
+    );
   };
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Préstamos Vencidos" />
 
-      <div className="min-h-screen bg-white dark:bg-black p-6">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+      <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
+        {renderAlerts()}
+
+        {/* Fondo decorativo */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-red-500/5 filter blur-3xl dark:bg-red-600/10"></div>
+          <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-orange-500/5 filter blur-3xl dark:bg-orange-600/10"></div>
+        </div>
+
+        <div className="max-w-full mx-auto relative z-10 px-2 sm:px-4 lg:px-6">
+          {/* Header */}
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-8">
             <div>
-              <h1 className="text-3xl font-semibold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
                 Préstamos Vencidos
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Gestión de préstamos con fechas de devolución vencidas
               </p>
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
-              <span className="text-red-700 dark:text-red-300 font-medium">
-                {prestamos.total} vencidos
-              </span>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre del lector, código o título del libro..."
+                  className="w-full sm:w-80 pl-10 py-2.5 pr-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 
+                            text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500
+                            shadow-sm transition-all duration-200"
+                  value={searchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  disabled={isSearching}
+                />
+                <Search className={`w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 ${isSearching ? 'text-red-500 animate-spin' : 'text-gray-400'
+                  }`} />
+              </div>
+
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition shadow-sm border border-gray-300 dark:border-gray-700"
+              >
+                <Filter className="w-5 h-5" />
+                <span>Filtros</span>
+              </button>
+
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                <span className="text-red-700 dark:text-red-300 font-medium">
+                  {prestamos.total} vencidos
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Filtros y búsqueda */}
-          <div className="bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700/50 rounded-xl p-6 shadow-sm">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <form onSubmit={handleSearch} className="flex-1">
-                <div className="relative">
-                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
-                    isSearching ? 'text-blue-500 animate-spin' : 'text-gray-400'
-                  }`} />
-                  <input
-                    type="search"
-                    className="w-full pl-10 pr-10 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600/50 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
-                    placeholder="Buscar por nombre del lector, código o título del libro..."
-                    value={searchTerm}
-                    onChange={handleInputChange}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(e); }}
-                    disabled={isSearching}
-                  />
-                  {searchTerm?.trim() && (
-                    <button
-                      type="button"
-                      onClick={clearSearch}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                      disabled={isSearching}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </form>
+          {/* Panel de filtros */}
+          {showFilters && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-md border border-gray-100 dark:border-gray-700 mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Filtros avanzados</h3>
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                >
+                  Restablecer filtros
+                </button>
+              </div>
 
-              <div className="lg:w-64">
-                <div className="relative">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Días vencidos</label>
                   <select
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600/50 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 appearance-none"
                     value={diasVencido}
                     onChange={(e) => handleFilterChange(e.target.value)}
+                    className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isSearching}
                   >
                     <option value="">Todos los vencidos</option>
@@ -306,187 +478,165 @@ export default function Vencidos({ prestamos, filters }: Props) {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleSearch}
-                disabled={isSearching}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
-              >
-                <Search className={`w-4 h-4 ${isSearching ? 'animate-spin' : ''}`} />
-                {isSearching ? 'Buscando...' : 'Buscar'}
-              </button>
-            </div>
-
-            {/* Indicadores de filtros activos */}
-            {(searchTerm?.trim() || diasVencido) && (
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700/50">
-                <div className="flex flex-wrap gap-2 items-center">
-                  {searchTerm?.trim() && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-600/20 text-blue-800 dark:text-blue-300 text-sm rounded-full">
-                      Búsqueda: "{searchTerm}"
-                      <button
-                        type="button"
-                        onClick={clearSearch}
-                        className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-600/30 rounded-full p-0.5"
-                        disabled={isSearching}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {diasVencido && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 dark:bg-orange-600/20 text-orange-800 dark:text-orange-300 text-sm rounded-full">
-                      {diasVencido} días o más
-                      <button
-                        type="button"
-                        onClick={() => handleFilterChange('')}
-                        className="ml-1 hover:bg-orange-200 dark:hover:bg-orange-600/30 rounded-full p-0.5"
-                        disabled={isSearching}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-
-                  {/* Botón para limpiar todos los filtros */}
-                  <button
-                    type="button"
-                    onClick={clearAllFilters}
-                    className="px-3 py-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-full transition-colors duration-200"
-                    disabled={isSearching}
-                  >
-                    Limpiar todo
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Lista de préstamos */}
-        <div className="space-y-4">
-          {prestamos.data.length > 0 ? (
-            prestamos.data.map((prestamo) => {
-              const diasVencidos = calcularDiasVencido(prestamo?.fecha_devolucion || '');
-              return (
-                <div
-                  key={prestamo?.id || Math.random()}
-                  className="bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700/50 rounded-xl p-6 hover:bg-gray-50 dark:hover:bg-gray-900/70 transition-all duration-200 shadow-sm"
-                >
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    {/* Información del préstamo */}
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {/* Lector */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-600/20 rounded-full flex items-center justify-center flex-shrink-0">
-                          <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-gray-900 dark:text-white font-medium truncate">
-                            {prestamo?.lector?.nombre || 'Sin nombre'}
-                          </p>
-                          <p className="text-gray-500 dark:text-gray-400 text-sm">
-                            Código: {prestamo?.lector?.codigo || 'Sin código'}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Libro */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-green-100 dark:bg-green-600/20 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Book className="w-5 h-5 text-green-600 dark:text-green-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-gray-900 dark:text-white font-medium line-clamp-2">
-                            {prestamo?.ejemplar?.libro?.titulo || 'Sin título'}
-                          </p>
-                          <p className="text-gray-500 dark:text-gray-400 text-sm">
-                            Ejemplar #{prestamo?.ejemplar?.id || 'Sin ID'}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Fechas */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-purple-100 dark:bg-purple-600/20 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Calendar className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-gray-900 dark:text-white font-medium">
-                            {prestamo?.fecha_prestamo ? format(new Date(prestamo.fecha_prestamo + 'T00:00:00Z'), 'dd/MM/yyyy', { locale: es }) : 'Sin fecha'}
-                          </p>
-                          <p className="text-gray-500 dark:text-gray-400 text-sm">
-                            Vencía: {prestamo?.fecha_devolucion ? format(new Date(prestamo.fecha_devolucion + 'T00:00:00Z'), 'dd/MM/yyyy', { locale: es }) : 'Sin fecha'}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Estado */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-red-100 dark:bg-red-600/20 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Clock className="w-5 h-5 text-red-600 dark:text-red-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getSeverityColor(diasVencidos)}`}>
-                            {diasVencidos} días
-                          </span>
-                          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-                            de retraso
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Acciones */}
-                    <div className="flex items-center gap-3 lg:flex-col lg:items-end">
-                      <button
-                        onClick={() => handleDevolucion(prestamo?.id || 0)}
-                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
-                        disabled={!prestamo?.id}
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        Devolver
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700/50 rounded-xl p-12 text-center shadow-sm">
-              <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <BookX className="w-10 h-10 text-gray-400" />
-              </div>
-              <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
-                No hay préstamos vencidos
-              </h3>
-              <p className="text-gray-500 dark:text-gray-400">
-                {searchTerm?.trim()
-                  ? `No se encontraron préstamos que coincidan con "${searchTerm}".`
-                  : diasVencido
-                    ? 'No se encontraron préstamos vencidos con los filtros actuales.'
-                    : 'No se encontraron préstamos vencidos.'
-                }
-              </p>
-              {(searchTerm?.trim() || diasVencido) && (
+              <div className="flex justify-end gap-2 mt-4">
                 <button
-                  onClick={clearAllFilters}
-                  className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200"
+                  onClick={clearFilters}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSearching}
                 >
-                  Limpiar filtros
+                  Limpiar
                 </button>
-              )}
+                <button
+                  onClick={applyFilters}
+                  className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-red-600 to-orange-600 rounded-lg hover:from-red-700 hover:to-orange-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+                  disabled={isSearching}
+                >
+                  Aplicar
+                </button>
+              </div>
             </div>
           )}
-        </div>
 
-        {/* Paginación mejorada */}
-        {prestamos.total > 0 && (
-          <div className="mt-8">
-            {/* Información de resultados */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                Mostrando {prestamos.from || 0} a {prestamos.to || 0} de {prestamos.total} préstamos vencidos
+          {/* Información de resultados */}
+          {prestamos.total > 0 && (
+            <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+              {searchTerm ?
+                `Mostrando ${filteredPrestamos.length} resultados de ${prestamos.data.length} préstamos en esta página` :
+                `Mostrando ${prestamos.data.length} de ${prestamos.total} préstamos vencidos`
+              }
+            </div>
+          )}
+
+          {/* Tabla de préstamos vencidos */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
+            <div className="overflow-hidden">
+              <table className="w-full table-fixed">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-gray-700">
+                    <th className="w-1/5 px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
+                      Lector
+                    </th>
+                    <th className="w-1/5 px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
+                      Libro
+                    </th>
+                    <th className="w-20 px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
+                      Ejemplar
+                    </th>
+                    <th className="w-24 px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
+                      Fecha Préstamo
+                    </th>
+                    <th className="w-24 px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
+                      Fecha Vencimiento
+                    </th>
+                    <th className="w-24 px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
+                      Días Vencido
+                    </th>
+                    <th className="w-24 px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {(searchTerm ? filteredPrestamos : prestamos.data).length > 0 ? (
+                    (searchTerm ? filteredPrestamos : prestamos.data).filter(prestamo => prestamo != null).map((prestamo) => {
+                      const diasVencidos = calcularDiasVencido(prestamo?.fecha_devolucion || '');
+                      return (
+                        <tr key={prestamo?.id || Math.random()} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                          <td className="px-6 py-3">
+                            <div className="flex items-center">
+                              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
+                                <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100 break-words">
+                                  {prestamo?.lector?.nombre || 'Sin nombre'}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 break-words">
+                                  Código: {prestamo?.lector?.codigo || 'Sin código'}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-3">
+                            <div className="flex items-center">
+                              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
+                                <Book className="h-4 w-4 text-green-600 dark:text-green-400" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100 break-words">
+                                  {prestamo?.ejemplar?.libro?.titulo || 'Sin título'}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            <span className="text-sm font-mono text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                              #{prestamo?.ejemplar?.numEjemplar || prestamo?.ejemplar?.id || 'Sin ID'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">
+                            {prestamo?.fecha_prestamo ? format(new Date(prestamo.fecha_prestamo + 'T00:00:00Z'), 'dd/MM/yyyy', { locale: es }) : 'Sin fecha'}
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">
+                            {prestamo?.fecha_devolucion ? format(new Date(prestamo.fecha_devolucion + 'T00:00:00Z'), 'dd/MM/yyyy', { locale: es }) : 'Sin fecha'}
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(diasVencidos)}`}>
+                              {diasVencidos} días
+                            </span>
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            <button
+                              onClick={() => handleDevolucion(prestamo?.id || 0)}
+                              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg font-medium transition-colors duration-200 flex items-center gap-1"
+                              disabled={!prestamo?.id}
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                              Devolver
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center">
+                        <div className="flex flex-col items-center">
+                          <BookX className="w-12 h-12 text-gray-400 mb-4" />
+                          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                            No hay préstamos vencidos
+                          </h3>
+                          <p className="text-gray-500 dark:text-gray-400">
+                            {searchTerm?.trim()
+                              ? `No se encontraron préstamos que coincidan con "${searchTerm}".`
+                              : diasVencido
+                                ? 'No se encontraron préstamos vencidos con los filtros actuales.'
+                                : 'No se encontraron préstamos vencidos.'
+                            }
+                          </p>
+                          {(searchTerm?.trim() || diasVencido) && (
+                            <button
+                              onClick={clearFilters}
+                              className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors duration-200"
+                            >
+                              Limpiar filtros
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Paginación */}
+          {prestamos.links && prestamos.links.length > 3 && (
+            <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+              {/* Información de paginación */}
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                {prestamos.total > 0 && `Mostrando ${prestamos.from || 0} a ${prestamos.to || 0} de ${prestamos.total} préstamos vencidos`}
                 {(searchTerm?.trim() || diasVencido) && (
                   <span className="ml-1">
                     {searchTerm?.trim() && `(filtrado por "${searchTerm}")`}
@@ -497,60 +647,79 @@ export default function Vencidos({ prestamos, filters }: Props) {
               </div>
 
               {/* Controles de paginación */}
-              <div className="flex items-center gap-2">
-                {/* Botón Anterior */}
-                <button
-                  onClick={() => {
-                    const prevLink = prestamos.links.find(link => link.label === '&laquo; Previous');
-                    if (prevLink?.url) {
-                      goToPage(prevLink.url);
-                    }
-                  }}
-                  disabled={prestamos.current_page === 1 || isSearching}
-                  className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Anterior
-                </button>
-
-                {/* Números de página */}
-                <div className="flex items-center gap-1">
-                  {prestamos.links
-                    .filter(link => link.label !== '&laquo; Previous' && link.label !== 'Next &raquo;')
-                    .map((link, index) => (
+              <div className="flex items-center space-x-2">
+                {prestamos.links.map((link: any, index: number) => {
+                  // Botón anterior
+                  if (link.label.includes('Previous') || link.label.includes('Anterior') || link.label === '&laquo;') {
+                    return (
                       <button
                         key={index}
                         onClick={() => goToPage(link.url)}
                         disabled={!link.url || isSearching}
-                        className={`min-w-[40px] h-10 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                          link.active
-                            ? 'bg-blue-600 text-white'
-                            : link.url
-                            ? 'bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                            : 'text-gray-400 cursor-not-allowed'
-                        }`}
+                        className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${link.url
+                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                          }`}
                       >
-                        {link.label === '...' ? '...' : link.label}
+                        <ChevronLeft className="w-5 h-5" />
                       </button>
-                    ))}
-                </div>
+                    );
+                  }
 
-                {/* Botón Siguiente */}
-                <button
-                  onClick={() => {
-                    const nextUrl = prestamos.links.find(link => link.label === 'Next &raquo;')?.url || null;
-                    goToPage(nextUrl);
-                  }}
-                  disabled={prestamos.current_page === prestamos.last_page || isSearching}
-                  className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700/50 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                >
-                  Siguiente
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+
+                  // Botón siguiente
+                  if (link.label.includes('Next') || link.label.includes('Siguiente') || link.label === '&raquo;') {
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => goToPage(link.url)}
+                        disabled={!link.url || isSearching}
+                        className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${link.url
+                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                          }`}
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    );
+                  }
+
+                  // Números de página y puntos suspensivos
+                  if (!link.label.includes('Previous') && !link.label.includes('Next') &&
+                    !link.label.includes('Anterior') && !link.label.includes('Siguiente') &&
+                    link.label !== '&laquo;' && link.label !== '&raquo;') {
+
+                    // Si es "..." 
+                    if (link.label === '...') {
+                      return (
+                        <span key={index} className="flex items-center justify-center w-10 h-10 text-sm font-medium text-gray-500 dark:text-gray-400">
+                          ...
+                        </span>
+                      );
+                    }
+
+                    // Número de página
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => goToPage(link.url)}
+                        disabled={isSearching}
+                        className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors ${link.active
+                          ? 'bg-red-600 text-white shadow-md'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                          }`}
+                      >
+                        {link.label}
+                      </button>
+                    );
+                  }
+
+                  return null;
+                })}
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Modal de Devolución */}
@@ -580,7 +749,7 @@ export default function Vencidos({ prestamos, filters }: Props) {
                     type="date"
                     value={fechaDevuelto}
                     onChange={(e) => setFechaDevuelto(e.target.value)}
-                    className="w-full px-3 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+                    className="w-full px-3 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50"
                   />
                 </div>
 
@@ -592,7 +761,7 @@ export default function Vencidos({ prestamos, filters }: Props) {
                     value={observaciones}
                     onChange={(e) => setObservaciones(e.target.value)}
                     placeholder="Agregar observaciones (opcional)..."
-                    className="w-full px-3 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 resize-none"
+                    className="w-full px-3 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 resize-none"
                     rows={3}
                   />
                 </div>
@@ -607,7 +776,7 @@ export default function Vencidos({ prestamos, filters }: Props) {
                 </button>
                 <button
                   onClick={confirmarDevolucion}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
                 >
                   <CheckCircle className="w-4 h-4" />
                   Confirmar Devolución
