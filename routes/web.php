@@ -13,6 +13,9 @@ use App\Http\Controllers\LectorController;
 use App\Http\Controllers\PrestamoController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\InformeController;
+use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\ExcelTestController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -112,6 +115,31 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('prestamos/{prestamo}', [PrestamoController::class, 'update'])->name('prestamos.update');
     Route::post('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolverVencido'])->name('prestamos.devolver');
     Route::delete('prestamos/{prestamo}', [PrestamoController::class, 'destroy'])->name('prestamos.destroy');
+    
+
+    Route::prefix('informes')->group(function () {
+        Route::get('/', [InformeController::class, 'index'])->name('informes.index');
+        Route::get('/rangos-fecha', [InformeController::class, 'getRangosFecha']);
+        Route::get('/prestamos-realizados', function() {
+            return redirect()->route('informes.index');
+        })->name('informes.prestamos-realizados');
+        Route::get('/libros-no-devueltos', function() {
+            return redirect()->route('informes.index');
+        })->name('informes.libros-no-devueltos');
+        Route::post('/prestamos-realizados', [InformeController::class, 'prestamosRealizados']);
+        Route::post('/libros-no-devueltos', [InformeController::class, 'librosNoDevueltos']);
+        Route::get('/descargar-prestamos', [InformeController::class, 'descargarPDFPrestamos'])
+               ->name('informes.descargar-prestamos');
+        Route::get('/descargar-no-devueltos', [InformeController::class, 'descargarPDFNoDevueltos'])
+               ->name('informes.descargar-no-devueltos');
+    });
+
+    // Rutas para InventarioController
+    Route::get('inventario', [InventarioController::class, 'index'])->name('inventario.index');
+    Route::get('/inventario/exportar', [InventarioController::class, 'exportarExcel'])
+    ->name('inventario.exportar');
+
+
 });
 
 require __DIR__ . '/settings.php';
