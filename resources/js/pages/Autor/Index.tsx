@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Search, CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
 import AppLayout from '../../layouts/app-layout';
 import { type BreadcrumbItem } from './types';
 import CreateAutor from './Create';
@@ -53,6 +53,9 @@ type IndexProps = {
     to: number | null;
     has_pages: boolean;
   };
+  sort_order?: string;
+  search?: string;
+  start_number?: number;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -64,7 +67,7 @@ function AlertNotification({
   message,
   className = '',
   autoClose = true,
-  duration = 6000, // Aumentado de 4000 a 6000ms para errores
+  duration = 6000,
 }: {
   type: 'success' | 'error';
   message: string;
@@ -77,7 +80,6 @@ function AlertNotification({
 
   useEffect(() => {
     if (autoClose && message) {
-      // Duración extendida para errores de duplicado
       const alertDuration = type === 'error' ? 7000 : duration;
       const timer = setTimeout(() => {
         setAnimateOut(true);
@@ -135,11 +137,13 @@ const Index = ({
   autores, 
   flash, 
   errors = {},
-  pagination
+  pagination,
+  sort_order = 'asc', // Por defecto A-Z
+  search = '',
+  start_number = 0
 }: IndexProps) => {
   const page = usePage();
-
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(search);
 
   const [alerts, setAlerts] = useState<{
     success: string | null;
@@ -161,29 +165,61 @@ const Index = ({
     }
   }, [flash, page.props.flash]);
 
-  // Filtrar autores localmente solo para la búsqueda básica
-  const filteredAutores = searchTerm
-    ? autores.data.filter(autor => {
-        const search = searchTerm.toLowerCase().trim();
-        const firstName = autor.nombres.toLowerCase();
-        const lastName = autor.apellidos.toLowerCase();
-        const fullName = `${firstName} ${lastName}`;
-        const reversedFullName = `${lastName} ${firstName}`;
-
-        if (fullName.includes(search) || reversedFullName.includes(search)) {
-          return true;
+  // Debounce para la búsqueda automática
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      const currentParams = new URLSearchParams(window.location.search);
+      
+      if (searchTerm.trim() !== search) {
+        if (searchTerm.trim()) {
+          currentParams.set('search', searchTerm.trim());
+        } else {
+          currentParams.delete('search');
         }
+        
+        // Resetear a primera página al buscar
+        currentParams.set('page', '1');
+        
+        // Navegar con Inertia.js
+        router.visit(`${window.location.pathname}?${currentParams.toString()}`, {
+          preserveState: true,
+          preserveScroll: true
+        });
+      }
+    }, 500); // 500ms de delay
 
-        if (search.includes(' ')) {
-          const searchTerms = search.split(' ').filter(term => term.length > 0);
-          return searchTerms.every(term =>
-            firstName.includes(term) || lastName.includes(term)
-          );
-        }
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, search]);
 
-        return firstName.includes(search) || lastName.includes(search);
-      })
-    : autores.data;
+  // Función para manejar el ordenamiento - SOLO APELLIDOS
+  const handleSort = () => {
+    const currentParams = new URLSearchParams(window.location.search);
+    
+    // Alternar entre asc y desc
+    const newOrder = sort_order === 'asc' ? 'desc' : 'asc';
+    currentParams.set('sort_order', newOrder);
+    
+    // Resetear a primera página al cambiar ordenamiento
+    currentParams.set('page', '1');
+    
+    // Navegar con Inertia.js
+    router.visit(`${window.location.pathname}?${currentParams.toString()}`, {
+      preserveState: true,
+      preserveScroll: true
+    });
+  };
+
+  // Función para obtener el ícono de ordenamiento
+  const getSortIcon = () => {
+    return sort_order === 'asc' ? (
+      <ChevronUp className="w-4 h-4 text-blue-600" />
+    ) : (
+      <ChevronDown className="w-4 h-4 text-blue-600" />
+    );
+  };
+
+  // Filtrar autores localmente solo para la búsqueda básica - ELIMINADO
+  // Ya no filtramos localmente porque la búsqueda se maneja en el servidor
 
   // Usar datos de paginación si están disponibles, sino fallback a los originales
   const paginationData = pagination || {
@@ -232,7 +268,7 @@ const Index = ({
     <div className="relative py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
       {renderAlerts()}
       
-      {/* Background decorative elements - fixed positioning issue */}
+      {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
         <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
@@ -243,26 +279,26 @@ const Index = ({
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             Gestión de Autores
           </h1>
-          <div className="flex gap-4">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Buscar autores..."
-                className="w-64 pl-10 py-2.5 pr-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 
-                          text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                          shadow-sm transition-all duration-200"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-            </div>
+            <div className="flex gap-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Buscar autores..."
+                  className="w-64 pl-10 py-2.5 pr-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 
+                            text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                            shadow-sm transition-all duration-200"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              </div>
 
-            <CreateAutor
-              onSuccess={(message) => showAlert('success', message)}
-              onError={(message) => showAlert('error', message)}
-              errors={errors}
-            />
-          </div>
+              <CreateAutor
+                onSuccess={(message) => showAlert('success', message)}
+                onError={(message) => showAlert('error', message)}
+                errors={errors}
+              />
+            </div>
         </div>
 
         {/* Información de resultados */}
@@ -284,18 +320,30 @@ const Index = ({
               </colgroup>
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-700">
-                  <th className="px-3 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                  <th className="px-3 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    N°
+                  </th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nombres</th>
-                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Apellidos</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <button
+                      onClick={handleSort}
+                      className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      APELLIDOS
+                      {getSortIcon()}
+                    </button>
+                  </th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nombre Completo</th>
                   <th className="px-4 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredAutores.length > 0 ? (
-                  filteredAutores.map((autor) => (
+                {autores.data.length > 0 ? (
+                  autores.data.map((autor, index) => (
                     <tr key={autor.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="px-3 py-3 whitespace-nowrap text-center text-gray-600 dark:text-gray-400 text-sm font-medium">{autor.id}</td>
+                      <td className="px-3 py-3 whitespace-nowrap text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
+                        {start_number + index + 1}
+                      </td>
                       <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
                         <div className="truncate" title={autor.nombres}>
                           {autor.nombres}
@@ -339,14 +387,11 @@ const Index = ({
         {/* Paginación */}
         {paginationData.has_pages && paginationData.last_page > 1 && (
           <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-            {/* Información de paginación */}
             <div className="text-sm text-gray-600 dark:text-gray-400">
               Página {paginationData.current_page} de {paginationData.last_page}
             </div>
 
-            {/* Controles de paginación */}
             <div className="flex items-center space-x-2">
-              {/* Botón anterior */}
               <Link
                 href={paginationData.current_page > 1 ? 
                   `${window.location.pathname}?${new URLSearchParams({
@@ -366,7 +411,6 @@ const Index = ({
                 <ChevronLeft className="w-5 h-5" />
               </Link>
 
-              {/* Números de página */}
               {[...Array(paginationData.last_page)].map((_, index) => {
                 const pageNum = index + 1;
                 const maxVisiblePages = 5;
@@ -415,7 +459,6 @@ const Index = ({
                 return null;
               })}
 
-              {/* Botón siguiente */}
               <Link
                 href={paginationData.current_page < paginationData.last_page ? 
                   `${window.location.pathname}?${new URLSearchParams({
