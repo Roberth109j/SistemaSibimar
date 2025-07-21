@@ -36,6 +36,22 @@ class Editorial extends Model
     ];
 
     /**
+     * Especificar las propiedades de la clave primaria
+     */
+    protected $primaryKey = 'id';
+    public $incrementing = true;
+    protected $keyType = 'int';
+
+    /**
+     * Casting de tipos para asegurar que id sea integer
+     */
+    protected $casts = [
+        'id' => 'integer',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+
+    /**
      * Obtiene los libros publicados por esta editorial.
      */
     public function libros(): HasMany
