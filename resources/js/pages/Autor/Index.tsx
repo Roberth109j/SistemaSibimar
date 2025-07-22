@@ -218,9 +218,6 @@ const Index = ({
     );
   };
 
-  // Filtrar autores localmente solo para la búsqueda básica - ELIMINADO
-  // Ya no filtramos localmente porque la búsqueda se maneja en el servidor
-
   // Usar datos de paginación si están disponibles, sino fallback a los originales
   const paginationData = pagination || {
     current_page: 'current_page' in autores ? autores.current_page : 1,
@@ -361,7 +358,10 @@ const Index = ({
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex justify-center space-x-2">
-                          <ShowAutor autor={autor} />
+                          <ShowAutor 
+                            autor={autor} 
+                            position={start_number + index + 1}
+                          />
                           <EditAutor
                             autor={autor}
                             onSuccess={(message) => showAlert('success', message)}
