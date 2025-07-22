@@ -249,6 +249,7 @@ class LectorController extends Controller
         
         $lector = Lector::where('codigo', $codigo)
             ->where('estado', Lector::ESTADO_ACTIVO)
+             ->with('grado')
             ->first();
         
         \Log::info('Lector encontrado: ' . ($lector ? 'SÍ' : 'NO'));
