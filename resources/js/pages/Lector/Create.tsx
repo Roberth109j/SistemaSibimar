@@ -61,6 +61,12 @@ export default function Create({ auth, grados, flash }: CreateLectorProps) {
     }
   }, [flash]);
 
+  // Handler para convertir nombre a mayúsculas automáticamente
+  const handleNombreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const upperCaseValue = e.target.value.toUpperCase();
+    setData('nombre', upperCaseValue);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -211,7 +217,7 @@ export default function Create({ auth, grados, flash }: CreateLectorProps) {
                     "col-span-1 md:col-span-1 xl:col-span-1"
                   )}
 
-                  {/* Nombre con icono */}
+                  {/* Nombre con icono - MODIFICADO PARA MAYÚSCULAS AUTOMÁTICAS */}
                   {renderFormField('nombre', 'Nombre Completo', true, 
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -223,9 +229,10 @@ export default function Create({ auth, grados, flash }: CreateLectorProps) {
                         type="text"
                         id="nombre"
                         value={data.nombre}
-                        onChange={(e) => setData('nombre', e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
-                        placeholder="Ingrese el nombre completo del lector"
+                        onChange={handleNombreChange}
+                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500 uppercase"
+                        placeholder="INGRESE EL NOMBRE COMPLETO DEL LECTOR"
+                        style={{ textTransform: 'uppercase' }}
                       />
                     </div>,
                     "col-span-1 md:col-span-1 xl:col-span-2"

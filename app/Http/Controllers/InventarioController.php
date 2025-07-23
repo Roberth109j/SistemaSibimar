@@ -22,6 +22,10 @@ class InventarioController extends Controller
      */
     public function index(Request $request)
     {
+        // Validación de parámetros de paginación
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 15; // Mantienes 15 elementos por página
+
         // Obtener los filtros de la solicitud (SIN estanteria)
         $filters = $request->only(['search', 'clase', 'idioma', 'estado']);
         
@@ -83,7 +87,16 @@ class InventarioController extends Controller
         $estadisticasGlobales = $this->calcularEstadisticasGlobales(clone $query);
         
         // Ejecutar la consulta con paginación
-        $libros = $query->orderBy('titulo')->paginate(15)->withQueryString();
+        $libros = $query->orderBy('titulo')
+                       ->paginate($perPage, ['*'], 'page', $page)
+                       ->withQueryString();
+        
+        // Redirigir si la página solicitada no existe pero hay resultados
+        if ($page > $libros->lastPage() && $libros->lastPage() > 0) {
+            return redirect()->route('inventario.index', 
+                array_merge($request->query(), ['page' => $libros->lastPage()])
+            );
+        }
         
         // Obtener datos para filtros
         $clases = [
@@ -110,17 +123,24 @@ class InventarioController extends Controller
             'inactivos' => 'Inactivos',
         ];
         
-        // REMOVIDO: $estanterias = Estanteria::select('id', 'cod_estante')->orderBy('cod_estante')->get();
-        
-        // Renderizar la vista de Inertia con los datos (SIN estanterias)
+        // Renderizar la vista de Inertia con los datos
         return Inertia::render('Inventario/Index', [
             'libros' => $libros,
             'estadisticas' => $estadisticasGlobales,
             'clases' => $clases,
             'idiomas' => $idiomas,
             'estados' => $estados,
-            // REMOVIDO: 'estanterias' => $estanterias,
             'filters' => $filters,
+            // Información de paginación estructurada
+            'pagination' => [
+                'current_page' => $libros->currentPage(),
+                'last_page' => $libros->lastPage(),
+                'per_page' => $libros->perPage(),
+                'total' => $libros->total(),
+                'from' => $libros->firstItem(),
+                'to' => $libros->lastItem(),
+                'has_pages' => $libros->hasPages(),
+            ],
         ]);
     }
     
