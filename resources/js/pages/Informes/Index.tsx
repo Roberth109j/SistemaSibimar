@@ -25,9 +25,6 @@ interface RangoFecha {
 }
 
 interface RangosFecha {
-  mensual: RangoFecha;
-  trimestral: RangoFecha;
-  semestral: RangoFecha;
   anual: RangoFecha;
 }
 
@@ -40,7 +37,7 @@ interface InformesProps {
 }
 
 type TipoInforme = 'prestamos-realizados' | 'libros-no-devueltos';
-type TipoPeriodo = 'personalizado' | 'mensual' | 'trimestral' | 'semestral' | 'anual';
+type TipoPeriodo = 'personalizado' | 'anual';
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: 'Informes', href: '/informes' },
@@ -97,7 +94,7 @@ export default function Index({ auth, flash }: InformesProps) {
   
   // Estados del formulario
   const [tipoInforme, setTipoInforme] = useState<TipoInforme>('prestamos-realizados');
-  const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodo>('mensual');
+  const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodo>('anual');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -118,10 +115,10 @@ export default function Index({ auth, flash }: InformesProps) {
       .then(res => res.json())
       .then(data => {
         setRangosFecha(data);
-        // Establecer fechas por defecto (mensual)
-        if (data.mensual) {
-          setFechaInicio(data.mensual.inicio);
-          setFechaFin(data.mensual.fin);
+        // Establecer fechas por defecto (anual)
+        if (data.anual) {
+          setFechaInicio(data.anual.inicio);
+          setFechaFin(data.anual.fin);
         }
       })
       .catch(console.error);
@@ -156,9 +153,6 @@ export default function Index({ auth, flash }: InformesProps) {
   // Función para obtener el nombre del período
   const obtenerNombrePeriodo = (tipo: TipoPeriodo) => {
     const nombres = {
-      mensual: 'Mensual',
-      trimestral: 'Trimestral',
-      semestral: 'Semestral',
       anual: 'Anual',
       personalizado: 'Personalizado'
     };
@@ -402,9 +396,6 @@ export default function Index({ auth, flash }: InformesProps) {
                 <div className="mb-6">
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { key: 'mensual', label: 'Mensual' },
-                      { key: 'trimestral', label: 'Trimestral' },
-                      { key: 'semestral', label: 'Semestral' },
                       { key: 'anual', label: 'Anual' },
                       { key: 'personalizado', label: 'Personalizado' }
                     ].map(({ key, label }) => (
@@ -619,7 +610,7 @@ export default function Index({ auth, flash }: InformesProps) {
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">2</div>
-                  <span>Elija un período predefinido o configure fechas personalizadas</span>
+                  <span>Elija el período anual predefinido o configure fechas personalizadas</span>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">3</div>
@@ -631,7 +622,7 @@ export default function Index({ auth, flash }: InformesProps) {
                 </div>
                 <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
                   <p className="text-xs text-yellow-800 dark:text-yellow-200 font-medium">
-                    💡 <strong>Tip:</strong> Puede editar manualmente las fechas incluso cuando tenga seleccionado un período predefinido. El sistema cambiará automáticamente a "Personalizado" si las fechas no coinciden.
+                    💡 <strong>Tip:</strong> Puede editar manualmente las fechas incluso cuando tenga seleccionado el período anual. El sistema cambiará automáticamente a "Personalizado" si las fechas no coinciden.
                   </p>
                 </div>
               </div>

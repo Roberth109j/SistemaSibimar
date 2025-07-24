@@ -9,8 +9,10 @@ export type FormField = {
   autoComplete?: string;
   disabled?: boolean;
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void; // SOLO agregué HTMLTextAreaElement
   options?: { value: string; label: string }[];
+  rows?: number; // SOLO agregué esta propiedad opcional
+  className?: string; // SOLO agregué esta propiedad opcional
 };
 
 type FormProps = {
@@ -86,7 +88,7 @@ export default function Form({
     }
   };
 
-  const selectedColor = isEditing ? colorMap.amber : colorMap[accentColor];
+  const selectedColor = colorMap[accentColor]; // Siempre usar el color especificado
   const { gradient, focus, ring, bg } = selectedColor;
 
   // Estilos personalizados para el select
@@ -196,6 +198,29 @@ export default function Form({
                     </svg>
                   </div>
                 </div>
+              ) : field.type === 'textarea' ? (
+                // SOLO AGREGUÉ ESTA SECCIÓN PARA TEXTAREA SIN TOCAR NADA MÁS
+                <textarea
+                  id={field.name}
+                  name={field.name}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder={field.placeholder}
+                  required={field.required}
+                  disabled={field.disabled || processing}
+                  rows={field.rows || 3}
+                  className={`block w-full px-4 py-3 rounded-lg border transition-all duration-200
+                    ${errors[field.name]
+                      ? 'border-red-500 dark:border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50 dark:bg-red-900/20'
+                      : `border-gray-300 dark:border-gray-600 ${focus} bg-gray-50 dark:bg-gray-700/80`
+                    } 
+                    shadow-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400
+                    focus:outline-none focus:ring-2 focus:ring-opacity-50 resize-vertical ${field.className || ''}`}
+                  style={{
+                    minHeight: '80px',
+                    maxHeight: '300px'
+                  }}
+                />
               ) : (
                 <input
                   id={field.name}
@@ -224,6 +249,24 @@ export default function Form({
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
                 <p className="text-sm text-red-600 dark:text-red-400">{errors[field.name]}</p>
+              </div>
+            )}
+            {/* SOLO AGREGUÉ ESTE CONTADOR PARA TEXTAREA */}
+            {field.type === 'textarea' && field.value && (
+              <div className={`text-xs text-right mt-1 ${
+                String(field.value).length > 255 
+                  ? 'text-red-600 dark:text-red-400 font-medium' 
+                  : 'text-gray-500 dark:text-gray-400'
+              }`}>
+                {String(field.value).length}/255 caracteres
+                {String(field.value).length > 255 && (
+                  <div className="text-red-600 dark:text-red-400 text-xs mt-1 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    ¡Has excedido el límite! Reduce el texto.
+                  </div>
+                )}
               </div>
             )}
           </div>

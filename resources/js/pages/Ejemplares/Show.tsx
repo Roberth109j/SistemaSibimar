@@ -1,6 +1,6 @@
-import React from 'react';
-import { Head, Link } from '@inertiajs/react';
-import { BookOpen, Edit3, ArrowLeft, Calendar, Package, Tag, MessageSquare, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { BookOpen, Edit3, ArrowLeft, Calendar, Package, Tag, MessageSquare, CheckCircle, AlertCircle, X } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem, EjemplarPageProps, ESTADO } from './types';
 
@@ -28,12 +28,116 @@ const getBreadcrumbs = (libroId: number, libroTitulo: string, ejemplarId: number
   },
 ];
 
+function AlertNotification({
+  type,
+  message,
+  className = '',
+  autoClose = true,
+  duration = 6000,
+}: {
+  type: 'success' | 'error';
+  message: string;
+  className?: string;
+  autoClose?: boolean;
+  duration?: number;
+}) {
+  const [isVisible, setIsVisible] = useState(true);
+  const [animateOut, setAnimateOut] = useState(false);
+
+  useEffect(() => {
+    if (autoClose && message) {
+      const alertDuration = type === 'error' ? 7000 : duration;
+      const timer = setTimeout(() => {
+        setAnimateOut(true);
+        const hideTimer = setTimeout(() => {
+          setIsVisible(false);
+        }, 500);
+        return () => clearTimeout(hideTimer);
+      }, alertDuration);
+      return () => clearTimeout(timer);
+    }
+  }, [autoClose, duration, message, type]);
+
+  if (!isVisible || !message) return null;
+
+  const colors = {
+    success: {
+      light: { bg: 'bg-green-100', border: 'border-green-500', text: 'text-green-800', icon: 'text-green-500' },
+      dark: { bg: 'dark:bg-green-800/40', border: 'dark:border-green-500', text: 'dark:text-green-100', icon: 'dark:text-green-400' }
+    },
+    error: {
+      light: { bg: 'bg-red-100', border: 'border-red-500', text: 'text-red-800', icon: 'text-red-500' },
+      dark: { bg: 'dark:bg-red-800/40', border: 'dark:border-red-500', text: 'dark:text-red-100', icon: 'dark:text-red-400' }
+    }
+  };
+
+  const Icon = type === 'success' ? CheckCircle : AlertCircle;
+
+  return (
+    <div className={`fixed top-6 right-6 z-50 ${animateOut ? 'opacity-0 translate-x-20' : 'opacity-100 translate-x-0'} transition-all duration-500 ease-in-out transform ${className}`}>
+      <div
+        className={`max-w-md rounded-lg shadow-xl border-l-4 
+                    ${colors[type].light.border} ${colors[type].dark.border}
+                    ${colors[type].light.bg} ${colors[type].dark.bg} 
+                    flex items-start p-5 transition-all duration-300 animate-slide-in-right`}
+      >
+        <Icon className={`h-6 w-6 mt-0.5 mr-4 flex-shrink-0 ${colors[type].light.icon} ${colors[type].dark.icon}`} />
+        <div className="flex-grow">
+          <p className={`text-base font-semibold ${colors[type].light.text} ${colors[type].dark.text}`}>
+            {message}
+          </p>
+        </div>
+        <button
+          onClick={() => setAnimateOut(true)}
+          className="ml-4 flex-shrink-0 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Show({ auth, libro, ejemplar, success }: EjemplarPageProps) {
+  const page = usePage();
+
   if (!ejemplar) {
     return <div>Cargando ejemplar...</div>;
   }
 
   const breadcrumbs = getBreadcrumbs(libro.id, libro.titulo, ejemplar.id);
+
+  // Estado para las alertas
+  const [alerts, setAlerts] = useState<{
+    success: string | null;
+    error: string | null;
+    timestamp: number;
+  }>({
+    success: null,
+    error: null,
+    timestamp: 0
+  });
+
+  // Detectar mensajes flash y mostrar notificaciones
+  useEffect(() => {
+    if (success) {
+      setAlerts({
+        success: success,
+        error: null,
+        timestamp: Date.now()
+      });
+    }
+    
+    // También detectar mensajes flash del page props
+    if (page.props.flash) {
+      const flash = page.props.flash as any;
+      setAlerts({
+        success: flash.success || null,
+        error: flash.error || null,
+        timestamp: Date.now()
+      });
+    }
+  }, [success, page.props.flash]);
 
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
@@ -44,6 +148,29 @@ export default function Show({ auth, libro, ejemplar, success }: EjemplarPagePro
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600';
     }
+  };
+
+  // Función para renderizar las alertas
+  const renderAlerts = () => {
+    return (
+      <>
+        {alerts.success && (
+          <AlertNotification
+            key={`success-${alerts.timestamp}`}
+            type="success"
+            message={alerts.success}
+          />
+        )}
+        {alerts.error && (
+          <AlertNotification
+            key={`error-${alerts.timestamp}`}
+            type="error"
+            message={alerts.error}
+            duration={7000}
+          />
+        )}
+      </>
+    );
   };
 
   return (
@@ -63,6 +190,9 @@ export default function Show({ auth, libro, ejemplar, success }: EjemplarPagePro
       <Head title={`Ejemplar #${ejemplar.id} - ${libro.titulo}`} />
 
       <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
+        {/* Renderizar alertas */}
+        {renderAlerts()}
+
         {/* Efectos de fondo decorativos */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 filter blur-3xl dark:bg-blue-600/10"></div>
@@ -71,7 +201,7 @@ export default function Show({ auth, libro, ejemplar, success }: EjemplarPagePro
 
         <div className="max-w-4xl mx-auto relative z-10">
           
-          {/* Mensaje de éxito */}
+          {/* Mensaje de éxito - MANTENER COMO RESPALDO */}
           {success && (
             <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-300 rounded-xl flex items-center space-x-3">
               <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />

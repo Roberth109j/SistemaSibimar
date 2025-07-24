@@ -1,10 +1,67 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Search, CheckCircle, AlertCircle, X, Filter, BookOpen, PlusCircle, Eye, Pencil } from 'lucide-react';
+import { Search, CheckCircle, AlertCircle, X, Filter, BookOpen, PlusCircle, Eye, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
-import { BreadcrumbItem, LibroPageProps} from './types';
 
-// --- Componente AlertNotification Mejorado ---
+// --- Interfaces TypeScript Mejoradas ---
+interface BreadcrumbItem {
+  title: string;
+  href: string;
+}
+
+interface Autor {
+  id: number;
+  nombres: string;
+  apellidos: string;
+}
+
+interface Estanteria {
+  id: number;
+  cod_estante: string;
+}
+
+interface Libro {
+  id: number;
+  isbn: string;
+  titulo: string;
+  sign_top?: string;
+  ejemplares_count: number;
+  autor?: Autor;
+  estanteria?: Estanteria;
+}
+
+interface PaginatedLibros {
+  data: Libro[];
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+  from: number | null;
+  to: number | null;
+}
+
+interface FilterOptions {
+  search?: string;
+  clase?: string;
+  idioma?: string;
+  estanteria?: string;
+}
+
+interface LibroPageProps {
+  auth?: any;
+  libros: PaginatedLibros;
+  clases: string[];
+  idiomas: string[];
+  estanterias: Estanteria[];
+  filters: FilterOptions;
+  flash?: {
+    success?: string;
+    error?: string;
+  };
+  errors?: Record<string, string>;
+}
+
+// --- Componente AlertNotification ---
 interface AlertNotificationProps {
   type: 'success' | 'error';
   message: string;
@@ -19,7 +76,7 @@ function AlertNotification({
   message,
   className = '',
   autoClose = true,
-  duration = 6000, // Aumentado a 6 segundos
+  duration = 6000,
   onClose,
 }: AlertNotificationProps) {
   const [isVisible, setIsVisible] = useState<boolean>(true);
@@ -30,7 +87,6 @@ function AlertNotification({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Función para iniciar el temporizador
   const startTimer = useCallback(() => {
     if (!autoClose || !message) return;
 
@@ -44,7 +100,6 @@ function AlertNotification({
     }, remainingTime);
   }, [autoClose, message, remainingTime, onClose]);
 
-  // Función para pausar el temporizador
   const pauseTimer = useCallback(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -55,7 +110,6 @@ function AlertNotification({
     }
   }, []);
 
-  // Función para reanudar el temporizador
   const resumeTimer = useCallback(() => {
     if (isPaused && remainingTime > 0) {
       setIsPaused(false);
@@ -63,7 +117,6 @@ function AlertNotification({
     }
   }, [isPaused, remainingTime, startTimer]);
 
-  // Función para cerrar manualmente
   const handleClose = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -74,17 +127,14 @@ function AlertNotification({
     }, 300);
   }, [onClose]);
 
-  // Efecto principal - solo se ejecuta una vez cuando cambia el mensaje
   useEffect(() => {
     if (!message) return;
 
-    // Resetear estados
     setIsVisible(true);
     setAnimateOut(false);
     setIsPaused(false);
     setRemainingTime(duration);
 
-    // Iniciar temporizador después de un pequeño delay para evitar re-renders inmediatos
     const initTimer = setTimeout(() => {
       startTimer();
     }, 100);
@@ -94,9 +144,8 @@ function AlertNotification({
       if (timerRef.current) clearTimeout(timerRef.current);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
-  }, [message]); // Solo depende del mensaje, no de otros props
+  }, [message]);
 
-  // Cleanup al desmontar
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -171,50 +220,176 @@ function AlertNotification({
   );
 }
 
-// --- Componente de Paginación ---
-interface PaginationProps {
-  links: Array<{
-    url: string | null;
-    label: string;
-    active: boolean;
-  }>;
+// --- Hook personalizado para manejo de filtros ---
+function useLibroFilters(initialFilters: FilterOptions) {
+  const [searchTerm, setSearchTerm] = useState<string>(initialFilters.search || '');
+  const [selectedFilters, setSelectedFilters] = useState({
+    clase: initialFilters.clase || '',
+    idioma: initialFilters.idioma || '',
+    estanteria: initialFilters.estanteria || ''
+  });
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  const applyFilters = useCallback((currentSearchTerm: string, currentSelectedFilters: typeof selectedFilters) => {
+    const params: Record<string, string> = {};
+    if (currentSearchTerm) params.search = currentSearchTerm;
+    if (currentSelectedFilters.clase) params.clase = currentSelectedFilters.clase;
+    if (currentSelectedFilters.idioma) params.idioma = currentSelectedFilters.idioma;
+    if (currentSelectedFilters.estanteria) params.estanteria = currentSelectedFilters.estanteria;
+
+    router.get('/libros', params, {
+      preserveState: true,
+      preserveScroll: true,
+    });
+  }, []);
+
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value);
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    const timeout = setTimeout(() => {
+      applyFilters(value, selectedFilters);
+    }, 500);
+    setSearchTimeout(timeout);
+  }, [selectedFilters, searchTimeout, applyFilters]);
+
+  const handleFilterChange = useCallback((filterType: string, value: string) => {
+    const newFilters = { ...selectedFilters, [filterType]: value };
+    setSelectedFilters(newFilters);
+    applyFilters(searchTerm, newFilters);
+  }, [searchTerm, selectedFilters, applyFilters]);
+
+  const resetFilters = useCallback(() => {
+    setSearchTerm('');
+    setSelectedFilters({
+      clase: '',
+      idioma: '',
+      estanteria: ''
+    });
+    router.get('/libros', {}, {
+      preserveState: true,
+      preserveScroll: true,
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
+
+  return {
+    searchTerm,
+    selectedFilters,
+    handleSearch,
+    handleFilterChange,
+    resetFilters
+  };
 }
 
-const Pagination: React.FC<PaginationProps> = ({ links }) => {
+// --- Componente de Paginación Mejorado ---
+interface PaginationProps {
+  libros: PaginatedLibros;
+  filters: FilterOptions;
+}
+
+function PaginationComponent({ libros, filters }: PaginationProps) {
+  const handlePageChange = useCallback((page: number) => {
+    router.get('/libros', {
+      ...filters,
+      page: page
+    }, {
+      preserveState: true,
+      preserveScroll: true,
+    });
+  }, [filters]);
+
+  if (libros.last_page <= 1) return null;
+
   return (
-    <nav className="flex justify-center py-2">
-      <div className="flex items-center space-x-0.5">
-        {links.map((link, index) => {
-          // Detectar si es "Previous" o "Next"
-          const isPrev = link.label.includes('Previous') || link.label.includes('&laquo;');
-          const isNext = link.label.includes('Next') || link.label.includes('&raquo;');
-          
-          return (
-            <Link
-              key={index}
-              href={link.url || '#'}
-              className={`
-                inline-flex items-center justify-center min-w-[32px] h-8 px-2.5 text-sm font-medium
-                transition-all duration-200 ease-in-out
-                ${link.active
-                  ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 border border-blue-600 dark:border-blue-500'
-                  : link.url
-                    ? 'bg-gray-50 text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-white border border-gray-200 dark:border-gray-600'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500 border border-gray-200 dark:border-gray-600'
-                }
-                ${index === 0 ? 'rounded-l-md' : ''}
-                ${index === links.length - 1 ? 'rounded-r-md' : ''}
-                ${!link.url ? 'pointer-events-none' : ''}
-                ${isPrev || isNext ? 'px-3' : ''}
-              `}
-              dangerouslySetInnerHTML={{ __html: link.label }}
-            />
-          );
-        })}
+    <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+      <div className="text-sm text-gray-600 dark:text-gray-400">
+        Página {libros.current_page} de {libros.last_page}
       </div>
-    </nav>
+
+      <div className="flex items-center space-x-2">
+        {/* Botón anterior */}
+        <button
+          onClick={() => handlePageChange(libros.current_page - 1)}
+          disabled={libros.current_page <= 1}
+          className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+            libros.current_page > 1
+              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+          }`}
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+
+        {/* Números de página */}
+        {[...Array(libros.last_page)].map((_, index) => {
+          const pageNum = index + 1;
+          const maxVisiblePages = 5;
+          const currentPage = libros.current_page;
+          const halfVisible = Math.floor(maxVisiblePages / 2);
+
+          let showPage = false;
+          if (libros.last_page <= maxVisiblePages) {
+            showPage = true;
+          } else if (
+            pageNum === 1 ||
+            pageNum === libros.last_page ||
+            (pageNum >= currentPage - halfVisible && pageNum <= currentPage + halfVisible)
+          ) {
+            showPage = true;
+          }
+
+          if (showPage) {
+            return (
+              <button
+                key={pageNum}
+                onClick={() => handlePageChange(pageNum)}
+                className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors ${
+                  currentPage === pageNum
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                }`}
+              >
+                {pageNum}
+              </button>
+            );
+          } else if (
+            (pageNum === 2 && currentPage > halfVisible + 1) ||
+            (pageNum === libros.last_page - 1 && currentPage < libros.last_page - halfVisible)
+          ) {
+            return (
+              <span key={pageNum} className="flex items-center justify-center w-10 h-10 text-sm font-medium text-gray-500 dark:text-gray-400">
+                ...
+              </span>
+            );
+          }
+          return null;
+        })}
+
+        {/* Botón siguiente */}
+        <button
+          onClick={() => handlePageChange(libros.current_page + 1)}
+          disabled={libros.current_page >= libros.last_page}
+          className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+            libros.current_page < libros.last_page
+              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+          }`}
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
   );
-};
+}
 
 // --- Componente Index Principal ---
 const Index: React.FC<LibroPageProps> = ({
@@ -227,14 +402,16 @@ const Index: React.FC<LibroPageProps> = ({
   flash,
   errors = {}
 }) => {
-  const page = usePage();
-  const [searchTerm, setSearchTerm] = useState<string>(initialFilters.search || '');
   const [showFilters, setShowFilters] = useState<boolean>(false);
-  const [selectedFilters, setSelectedFilters] = useState({
-    clase: initialFilters.clase || '',
-    idioma: initialFilters.idioma || '',
-    estanteria: initialFilters.estanteria || ''
-  });
+  
+  // Usar hook personalizado para filtros
+  const {
+    searchTerm,
+    selectedFilters,
+    handleSearch,
+    handleFilterChange,
+    resetFilters
+  } = useLibroFilters(initialFilters);
 
   // Estado mejorado para alertas
   const [alerts, setAlerts] = useState<{
@@ -247,15 +424,12 @@ const Index: React.FC<LibroPageProps> = ({
     timestamp: 0
   });
 
-  // Ref para controlar si ya se procesó el flash message
   const flashProcessedRef = useRef<string>('');
 
-  // UseEffect mejorado para manejar flash messages
   useEffect(() => {
     if (flash) {
       const flashKey = `${flash.success || ''}-${flash.error || ''}`;
       
-      // Solo procesar si es un mensaje nuevo
       if (flashKey && flashKey !== flashProcessedRef.current) {
         flashProcessedRef.current = flashKey;
         
@@ -268,7 +442,6 @@ const Index: React.FC<LibroPageProps> = ({
     }
   }, [flash]);
 
-  // Función para cerrar alertas manualmente
   const handleCloseAlert = useCallback((type: 'success' | 'error') => {
     setAlerts(prev => ({
       ...prev,
@@ -276,52 +449,6 @@ const Index: React.FC<LibroPageProps> = ({
     }));
   }, []);
 
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
-
-  const applyFilters = (currentSearchTerm: string, currentSelectedFilters: typeof selectedFilters): void => {
-    const params = new URLSearchParams();
-    if (currentSearchTerm) params.set('search', currentSearchTerm);
-    if (currentSelectedFilters.clase) params.set('clase', currentSelectedFilters.clase);
-    if (currentSelectedFilters.idioma) params.set('idioma', currentSelectedFilters.idioma);
-    if (currentSelectedFilters.estanteria) params.set('estanteria', currentSelectedFilters.estanteria);
-
-    router.get(`/libros?${params.toString()}`, {}, {
-      preserveState: true,
-      preserveScroll: true,
-    });
-  };
-
-  const handleSearch = (value: string): void => {
-    setSearchTerm(value);
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
-    const timeout = setTimeout(() => {
-      applyFilters(value, selectedFilters);
-    }, 500);
-    setSearchTimeout(timeout);
-  };
-
-  const handleFilterChange = (filterType: string, value: string): void => {
-    const newFilters = { ...selectedFilters, [filterType]: value };
-    setSelectedFilters(newFilters);
-    applyFilters(searchTerm, newFilters);
-  };
-
-  const resetFilters = (): void => {
-    setSearchTerm('');
-    setSelectedFilters({
-      clase: '',
-      idioma: '',
-      estanteria: ''
-    });
-    router.get('/libros', {}, {
-      preserveState: true,
-      preserveScroll: true,
-    });
-  };
-
-  // Función mejorada para renderizar alertas
   const renderAlerts = (): React.ReactElement => {
     return (
       <>
@@ -330,7 +457,7 @@ const Index: React.FC<LibroPageProps> = ({
             key={`success-${alerts.timestamp}`}
             type="success"
             message={alerts.success}
-            duration={6000} // 6 segundos
+            duration={6000}
             onClose={() => handleCloseAlert('success')}
           />
         )}
@@ -339,7 +466,7 @@ const Index: React.FC<LibroPageProps> = ({
             key={`error-${alerts.timestamp}`}
             type="error"
             message={alerts.error}
-            duration={8000} // 8 segundos para errores
+            duration={8000}
             onClose={() => handleCloseAlert('error')}
           />
         )}
@@ -447,12 +574,19 @@ const Index: React.FC<LibroPageProps> = ({
                   onChange={(e) => handleFilterChange('estanteria', e.target.value)}
                 >
                   <option value="">Todas las estanterías</option>
-                  {estanterias.map((estanteria: any) => (
+                  {estanterias.map((estanteria: Estanteria) => (
                     <option key={estanteria.id} value={estanteria.id}>{estanteria.cod_estante}</option>
                   ))}
                 </select>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Información de resultados */}
+        {libros.total > 0 && (
+          <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            Mostrando {libros.from || 1} a {libros.to || libros.data.length} de {libros.total} resultados
           </div>
         )}
 
@@ -484,7 +618,7 @@ const Index: React.FC<LibroPageProps> = ({
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
                 {libros.data.length > 0 ? (
-                  libros.data.map((libro: any, index: number) => (
+                  libros.data.map((libro: Libro, index: number) => (
                     <tr key={libro.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <td className="px-3 py-3 whitespace-nowrap text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
                         {(libros.current_page - 1) * libros.per_page + index + 1}
@@ -551,13 +685,10 @@ const Index: React.FC<LibroPageProps> = ({
               </tbody>
             </table>
           </div>
-          {/* Paginación */}
-          {libros.total > libros.per_page && (
-            <div className="bg-gray-50 dark:bg-gray-800">
-              <Pagination links={libros.links} />
-            </div>
-          )}
         </div>
+
+        {/* Paginación usando el componente mejorado */}
+        <PaginationComponent libros={libros} filters={initialFilters} />
       </div>
     </div>
   );

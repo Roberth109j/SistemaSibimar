@@ -69,6 +69,10 @@ class LibroController extends Controller
 
     public function index(Request $request)
     {
+        // Validación de parámetros de paginación (igual que AutorController)
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 10; // Valor fijo de 10 elementos por página
+
         // Query base con relaciones necesarias
         $query = Libro::with(['autor', 'editorial', 'seccion', 'temaDewey', 'estanteria'])
             ->select(['libros.*', 
@@ -99,10 +103,17 @@ class LibroController extends Controller
             $query->where('estanteria_id', $request->estanteria);
         }
 
-        // Paginación optimizada
+        // Paginación optimizada con parámetros explícitos (igual que AutorController)
         $libros = $query->orderBy('id')
-                       ->paginate(10)
+                       ->paginate($perPage, ['*'], 'page', $page)
                        ->withQueryString(); // Mantiene los filtros en la URL
+
+        // Redirigir si la página solicitada no existe pero hay resultados (igual que AutorController)
+        if ($page > $libros->lastPage() && $libros->lastPage() > 0) {
+            return redirect()->route('libros.index', 
+                array_merge($request->query(), ['page' => $libros->lastPage()])
+            );
+        }
 
         // Datos para filtros (solo los necesarios)
         $clases = [
@@ -147,7 +158,17 @@ class LibroController extends Controller
             'estanterias' => $estanterias,
             'secciones' => $secciones,
             'categoriasDewey' => $categoriasDewey,
-            'filters' => $request->only(['search', 'clase', 'idioma', 'estanteria'])
+            'filters' => $request->only(['search', 'clase', 'idioma', 'estanteria']),
+            // Datos de paginación adicionales (igual que AutorController)
+            'pagination' => [
+                'current_page' => $libros->currentPage(),
+                'last_page' => $libros->lastPage(),
+                'per_page' => $libros->perPage(),
+                'total' => $libros->total(),
+                'from' => $libros->firstItem(),
+                'to' => $libros->lastItem(),
+                'has_pages' => $libros->hasPages(),
+            ],
         ]);
     }
 
@@ -325,12 +346,25 @@ class LibroController extends Controller
 
             $libro->save();
 
+            // **NUEVO: Crear ejemplar automáticamente después de crear el libro**
+            $ejemplar = new Ejemplar();
+            $ejemplar->libro_id = $libro->id;
+            $ejemplar->numEjemplar = 1; // Primer ejemplar siempre es número 1
+            $ejemplar->tipo_adquisicion = 'COMPRA'; // Valor por defecto
+            $ejemplar->estado = 'DISPONIBLE'; // Valor por defecto
+            $ejemplar->observaciones = 'Ejemplar creado automáticamente al registrar el libro';
+            $ejemplar->save();
+
             DB::commit();
 
-            Log::info('Libro creado exitosamente:', ['libro_id' => $libro->id, 'titulo' => $libro->titulo]);
+            Log::info('Libro y ejemplar creados exitosamente:', [
+                'libro_id' => $libro->id, 
+                'titulo' => $libro->titulo,
+                'ejemplar_id' => $ejemplar->id
+            ]);
 
             return redirect()->route('libros.index')
-                ->with('success', 'El libro "' . $libro->titulo . '" ha sido registrado correctamente.');
+                ->with('success', 'El libro "' . $libro->titulo . '" ha sido registrado correctamente con su primer ejemplar.');
 
         } catch (\Exception $e) {
             DB::rollBack();
