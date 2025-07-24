@@ -7,7 +7,6 @@ export type Prestamo = {
   estado: 'ACTIVO' | 'DEVUELTO' | 'VENCIDO';
   observaciones?: string;
   ejemplar?: Ejemplar;
-  usuario?: Usuario;
 };
 
 export type Ejemplar = {
@@ -47,11 +46,23 @@ export type Seccion = {
   descripcion?: string;
 };
 
-export type Usuario = {
+// NUEVO: Tipo Lector agregado
+export type Lector = {
   id: number;
   nombre: string;
   codigo: string;
-  email?: string;
+  tipo?: string;
+  estado?: string;
+  grado_id?: number;
+  grado?: {
+    id: number;
+    grado: string;
+    subGrado: string;
+    seccion?: {
+      id: number;
+      nombre: string;
+    };
+  };
 };
 
 export type PrestamoPageProps = {

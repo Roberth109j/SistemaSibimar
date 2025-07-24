@@ -1,10 +1,10 @@
 import { X, CheckCircle, Book, User, Calendar, Clock, FileText, Loader2 } from 'lucide-react';
-import { type Libro, type Ejemplar, type PrestamoForm } from '../types';
+import { type Libro, type Ejemplar, type PrestamoForm, type Lector } from '../types';
 
 interface ResumenPrestamoProps {
   libro: Libro;
   ejemplar: Ejemplar;
-  codigoEstudiante: string;
+  lector: Lector; // Cambiado de codigoEstudiante a lector completo
   formularioPrestamo: PrestamoForm;
   onConfirmar: () => void;
   onCancelar: () => void;
@@ -14,7 +14,7 @@ interface ResumenPrestamoProps {
 export function ResumenPrestamo({
   libro,
   ejemplar,
-  codigoEstudiante,
+  lector, // Ahora recibe el objeto lector completo
   formularioPrestamo,
   onConfirmar,
   onCancelar,
@@ -102,12 +102,20 @@ export function ResumenPrestamo({
               </div>
             </div>
 
-            {/* Estudiante */}
+            {/* Lector - Actualizado para mostrar nombre, código y subgrado */}
             <div className="flex items-start gap-2.5">
               <User className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5" />
               <div className="flex-1">
-                <p className="text-xs text-gray-600 dark:text-gray-300">Código del Estudiante</p>
-                <p className="font-medium text-gray-900 dark:text-white text-sm">{codigoEstudiante}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-300">Lector</p>
+                <p className="font-medium text-gray-900 dark:text-white text-sm">{lector.nombre}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Código: {lector.codigo}
+                  {lector.grado?.subGrado && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
+                      {lector.grado.subGrado}
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
 

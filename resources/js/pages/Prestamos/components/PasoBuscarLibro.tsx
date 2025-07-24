@@ -134,20 +134,6 @@ export function PasoBuscarLibro({ onBuscar, cargando, libroSeleccionado }: PasoB
           </button>
         </form>
 
-        {/* Libro encontrado previamente */}
-        {libroSeleccionado && !cargando && (
-          <div className="mt-5 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
-            <div className="flex items-start gap-2.5">
-              <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-green-900 dark:text-green-300 text-sm">Libro encontrado:</p>
-                <p className="text-green-800 dark:text-green-200 text-xs mt-0.5">{libroSeleccionado.titulo}</p>
-                <p className="text-green-700 dark:text-green-400 text-xs mt-0.5">ISBN: {libroSeleccionado.isbn}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Sugerencias */}
         <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-lg">
           <p className="text-xs text-blue-800 dark:text-blue-300">

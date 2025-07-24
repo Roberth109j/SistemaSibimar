@@ -16,7 +16,7 @@ class LectorController extends Controller
     /**
      * Obtiene un listado de lectores con sus grados, secciones y conteo de préstamos activos
      */
-    public function index(Request $request): Response
+    public function index(Request $request): RedirectResponse|Response
     {
         // Validación de parámetros de paginación
         $page = max(1, (int) $request->input('page', 1));
@@ -29,6 +29,8 @@ class LectorController extends Controller
                 'lectores.*',
                 \DB::raw("(SELECT COUNT(*) FROM prestamos WHERE prestamos.lector_id = lectores.id AND prestamos.estado = 'ACTIVO') as prestamos_count")
             ])
+            //  Primero ordenar por estado (ACTIVO primero, INACTIVO al final)
+            ->orderByRaw("CASE WHEN lectores.estado = 'ACTIVO' THEN 0 ELSE 1 END")
             ->orderBy('grados.grado')
             ->orderBy('grados.subGrado')
             ->orderBy('lectores.nombre');
@@ -38,7 +40,7 @@ class LectorController extends Controller
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('lectores.nombre', 'LIKE', "%{$search}%")
-                  ->orWhere('lectores.codigo', 'LIKE', "%{$search}%");
+                ->orWhere('lectores.codigo', 'LIKE', "%{$search}%");
             });
         }
 
@@ -46,7 +48,7 @@ class LectorController extends Controller
             $query->where('lectores.tipo', $request->tipo);
         }
 
-        // ⭐ LÍNEA CAMBIADA: Filtro por subgrado en lugar de grado_id
+        // Filtro por subgrado en lugar de grado_id
         if ($request->filled('subgrado')) {
             $query->where('grados.subGrado', $request->subgrado);
         }
@@ -83,8 +85,16 @@ class LectorController extends Controller
             Lector::ESTADO_INACTIVO,
         ];
 
+        // Obtener todos los lectores para la asignación masiva
+        $todosLosLectores = Lector::with(['grado'])
+            ->where('tipo', Lector::TIPO_ESTUDIANTE)
+            ->where('estado', Lector::ESTADO_ACTIVO)
+            ->orderBy('nombre')
+            ->get();
+
         return Inertia::render('Lector/Index', [
             'lectores' => $lectores,
+            'todosLosLectores' => $todosLosLectores, // Para el componente de asignación masiva
             'grados' => $grados,
             'tipos' => $tipos,
             'estados' => $estados,
@@ -100,7 +110,7 @@ class LectorController extends Controller
             ],
         ]);
     }
-
+    
     /**
      * Almacena un nuevo lector
      */
@@ -130,6 +140,7 @@ class LectorController extends Controller
         ]);
     }
 
+    // store() con conversión automática a mayúsculas
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -146,6 +157,9 @@ class LectorController extends Controller
                 Lector::ESTADO_INACTIVO,
             ]),
         ]);
+
+        // Convertir automáticamente el nombre a mayúsculas
+        $validated['nombre'] = strtoupper($validated['nombre']);
 
         $lector = Lector::create($validated);
 
@@ -201,6 +215,7 @@ class LectorController extends Controller
         ]);
     }
 
+    // update() con conversión automática a mayúsculas
     public function update(Request $request, Lector $lector): RedirectResponse
     {
         $validated = $request->validate([
@@ -217,6 +232,11 @@ class LectorController extends Controller
                 Lector::ESTADO_INACTIVO,
             ]),
         ]);
+
+        // Convertir automáticamente el nombre a mayúsculas si está presente
+        if (isset($validated['nombre'])) {
+            $validated['nombre'] = strtoupper($validated['nombre']);
+        }
 
         $lector->update($validated);
 
@@ -249,6 +269,7 @@ class LectorController extends Controller
         
         $lector = Lector::where('codigo', $codigo)
             ->where('estado', Lector::ESTADO_ACTIVO)
+             ->with('grado')
             ->first();
         
         \Log::info('Lector encontrado: ' . ($lector ? 'SÍ' : 'NO'));
@@ -279,5 +300,113 @@ class LectorController extends Controller
             ->get();
 
         return response()->json($lectores);
+    }
+
+    /**
+     *Mostrar página de asignación masiva
+     */
+    public function showAsignacionMasiva(): Response
+    {
+        // Obtener todos los lectores estudiantes activos con sus grados
+        $lectores = Lector::with(['grado'])
+            ->where('tipo', Lector::TIPO_ESTUDIANTE)
+            ->where('estado', Lector::ESTADO_ACTIVO)
+            ->orderBy('nombre')
+            ->get();
+
+        // Obtener todos los grados disponibles
+        $grados = Grado::select('id', 'grado', 'subGrado')
+            ->where('estado', 'ACTIVO')
+            ->orderBy('grado')
+            ->orderBy('subGrado')
+            ->get();
+
+        return Inertia::render('Lector/AsignacionMasiva', [
+            'lectores' => $lectores,
+            'grados' => $grados,
+        ]);
+    }
+
+    /**
+     * Cambio masivo de estado de estudiantes
+     */
+    public function cambioEstadoMasivo(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'lector_ids' => 'required|array|min:1',
+            'lector_ids.*' => 'exists:lectores,id',
+            'nuevo_estado' => 'required|in:ACTIVO,INACTIVO'
+        ]);
+
+        try {
+            // Verificar que todos los lectores sean estudiantes
+            $lectores = Lector::whereIn('id', $validated['lector_ids'])
+                ->where('tipo', Lector::TIPO_ESTUDIANTE)
+                ->get();
+
+            if ($lectores->count() !== count($validated['lector_ids'])) {
+                return back()->with('error', 'Algunos de los lectores seleccionados no son estudiantes válidos.');
+            }
+
+            // Realizar la actualización masiva
+            $actualizados = Lector::whereIn('id', $validated['lector_ids'])
+                ->update([
+                    'estado' => $validated['nuevo_estado'],
+                ]);
+
+            $estadoTexto = $validated['nuevo_estado'] === 'ACTIVO' ? 'activo' : 'inactivo';
+            
+            return back()->with('success', "Se cambió exitosamente el estado de {$actualizados} estudiantes a {$estadoTexto}.");
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en cambio masivo de estado:', [
+                'error' => $e->getMessage(),
+                'lector_ids' => $validated['lector_ids'],
+                'nuevo_estado' => $validated['nuevo_estado']
+            ]);
+
+            return back()->with('error', 'Error al procesar el cambio de estado masivo: ' . $e->getMessage());
+        }
+    }
+    
+    public function asignacionMasiva(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'lector_ids' => 'required|array|min:1',
+            'lector_ids.*' => 'exists:lectores,id',
+            'nuevo_grado_id' => 'required|exists:grados,id'
+        ]);
+
+        try {
+            // Verificar que todos los lectores sean estudiantes activos
+            $lectores = Lector::whereIn('id', $validated['lector_ids'])
+                ->where('tipo', Lector::TIPO_ESTUDIANTE)
+                ->where('estado', Lector::ESTADO_ACTIVO)
+                ->get();
+
+            if ($lectores->count() !== count($validated['lector_ids'])) {
+                return back()->with('error', 'Algunos de los lectores seleccionados no son estudiantes activos válidos.');
+            }
+
+            // Obtener información del grado de destino
+            $gradoDestino = Grado::find($validated['nuevo_grado_id']);
+
+            // Realizar la actualización masiva
+            $actualizados = Lector::whereIn('id', $validated['lector_ids'])
+                ->update([
+                    'grado_id' => $validated['nuevo_grado_id'],
+                ]);
+
+            return back()->with('success', "Se asignaron exitosamente {$actualizados} estudiantes al grado {$gradoDestino->grado}° {$gradoDestino->subGrado}.");
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en asignación masiva de grados:', [
+                'error' => $e->getMessage(),
+                'lector_ids' => $validated['lector_ids'],
+                'nuevo_grado_id' => $validated['nuevo_grado_id']
+            ]);
+
+            return back()->with('error', 'Error al procesar la asignación masiva: ' . $e->getMessage());
+        }
     }
 }

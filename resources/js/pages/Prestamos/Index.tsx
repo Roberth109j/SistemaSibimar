@@ -8,7 +8,8 @@ import {
   type Libro, 
   type Ejemplar, 
   type NotificationType, 
-  type PrestamoForm 
+  type PrestamoForm,
+  type Lector 
 } from './types';
 
 // Componentes del wizard
@@ -76,7 +77,8 @@ export default function Index({
     libroInicial && 'id' in libroInicial ? libroInicial : null
   );
   const [ejemplarSeleccionado, setEjemplarSeleccionado] = useState<Ejemplar | null>(null);
-  const [codigoEstudiante, setCodigoEstudiante] = useState<string>('');
+  // CAMBIO: En lugar de codigoEstudiante, usar lectorSeleccionado
+  const [lectorSeleccionado, setLectorSeleccionado] = useState<Lector | null>(null);
   const [ejemplaresDisponibles, setEjemplaresDisponibles] = useState<Ejemplar[]>(
     Array.isArray(ejemplaresIniciales) ? ejemplaresIniciales : []
   );
@@ -188,22 +190,22 @@ export default function Index({
     setPasoActual(3);
   };
 
-  // Escanear código de estudiante
-  const handleEscanearEstudiante = (codigo: string) => {
-    setCodigoEstudiante(codigo);
+  // CAMBIO: Escanear código de estudiante - ahora recibe el objeto lector completo
+  const handleEscanearEstudiante = (lector: Lector) => {
+    setLectorSeleccionado(lector);
     setMostrarResumen(true);
   };
 
-  // Confirmar préstamo
+  // CAMBIO: Confirmar préstamo - actualizado para usar lectorSeleccionado
   const handleConfirmarPrestamo = () => {
-    if (!ejemplarSeleccionado || !codigoEstudiante.trim()) return;
+    if (!ejemplarSeleccionado || !lectorSeleccionado) return;
 
     setCargando(true);
     router.post(
       '/prestamos',
       {
         ejemplar_id: ejemplarSeleccionado.id,
-        codigo_lector: codigoEstudiante,
+        codigo_lector: lectorSeleccionado.codigo, // Usar el código del lector seleccionado
         fecha_prestamo: formularioPrestamo.fecha_prestamo,
         fecha_devolucion: formularioPrestamo.fecha_devolucion,
         estado: formularioPrestamo.estado,
@@ -243,12 +245,12 @@ export default function Index({
     );
   };
 
-  // Reiniciar formulario
+  // CAMBIO: Reiniciar formulario - actualizado para limpiar lectorSeleccionado
   const handleReiniciar = () => {
     setPasoActual(1);
     setLibroSeleccionado(null);
     setEjemplarSeleccionado(null);
-    setCodigoEstudiante('');
+    setLectorSeleccionado(null); // CAMBIO: Limpiar lectorSeleccionado
     setEjemplaresDisponibles([]);
     setMostrarResumen(false);
     setCargando(false);
@@ -267,12 +269,12 @@ export default function Index({
     }
   };
 
-  // Puede avanzar al siguiente paso
+  // CAMBIO: Puede avanzar al siguiente paso - actualizado para verificar lectorSeleccionado
   const puedeAvanzar = (): boolean => {
     switch (pasoActual) {
       case 1: return !!libroSeleccionado;
       case 2: return !!ejemplarSeleccionado;
-      case 3: return !!codigoEstudiante.trim();
+      case 3: return !!lectorSeleccionado; // CAMBIO: Verificar lectorSeleccionado
       default: return false;
     }
   };
@@ -288,7 +290,14 @@ export default function Index({
     >
       <Head title="Nuevo Préstamo" />
 
-      <div className="py-6 px-4 bg-slate-50 dark:bg-black min-h-screen">
+      <div className="py-6 px-20 bg-slate-50 dark:bg-black min-h-screen">
+        {/* Título principal - alineado a la izquierda con gradiente colorido */}
+        <div className="mb-2">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            Préstamo Individual
+          </h1>
+        </div>
+
         {/* Notificación */}
         {notificacion.show && (
           <div className={`fixed top-4 right-4 z-50 flex items-center justify-between min-w-[320px] max-w-md p-4 rounded-lg shadow-xl backdrop-blur-sm transition-all duration-300 ${
@@ -342,7 +351,7 @@ export default function Index({
             pasoActual={pasoActual} 
             libroSeleccionado={!!libroSeleccionado}
             ejemplarSeleccionado={!!ejemplarSeleccionado}
-            estudianteEscaneado={!!codigoEstudiante}
+            estudianteEscaneado={!!lectorSeleccionado} // CAMBIO: Usar lectorSeleccionado
           />
 
           {/* Contenido del paso actual */}
@@ -365,25 +374,26 @@ export default function Index({
               />
             )}
 
+            {/* CAMBIO: Actualizado para pasar la función que recibe un objeto Lector */}
             {pasoActual === 3 && libroSeleccionado && ejemplarSeleccionado && (
               <PasoEscanearEstudiante
                 libro={libroSeleccionado}
                 ejemplar={ejemplarSeleccionado}
                 formularioPrestamo={formularioPrestamo}
                 onActualizarFormulario={setFormularioPrestamo}
-                onEscanear={handleEscanearEstudiante}
+                onEscanear={handleEscanearEstudiante} // Esta función ahora recibe un objeto Lector
                 onVolver={handlePasoAnterior}
                 error={errors.codigo_lector}
               />
             )}
           </div>
 
-          {/* Modal de resumen */}
-          {mostrarResumen && libroSeleccionado && ejemplarSeleccionado && (
+          {/* CAMBIO: Modal de resumen - actualizado para pasar el objeto lector completo */}
+          {mostrarResumen && libroSeleccionado && ejemplarSeleccionado && lectorSeleccionado && (
             <ResumenPrestamo
               libro={libroSeleccionado}
               ejemplar={ejemplarSeleccionado}
-              codigoEstudiante={codigoEstudiante}
+              lector={lectorSeleccionado} // CAMBIO: Pasar el objeto lector completo
               formularioPrestamo={formularioPrestamo}
               onConfirmar={handleConfirmarPrestamo}
               onCancelar={() => setMostrarResumen(false)}

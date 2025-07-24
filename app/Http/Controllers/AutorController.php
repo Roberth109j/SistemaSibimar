@@ -15,16 +15,42 @@ use Illuminate\Database\QueryException;
 class AutorController extends Controller
 {
     /**
-     * Muestra un listado de todos los autores con paginación.
+     * Muestra un listado de todos los autores con paginación, ordenamiento y búsqueda.
      */
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
         // Validación de parámetros de paginación
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 10; // Valor fijo de 10 elementos por página
 
-        // Query base ordenado por ID
-        $query = Autor::query()->orderBy('id');
+        // Parámetros de ordenamiento - SOLO APELLIDOS
+        $sortOrder = $request->get('sort_order', 'asc'); // Orden por defecto: ascendente (A-Z)
+        
+        // Solo permitir ordenamiento ascendente o descendente
+        $allowedSortOrders = ['asc', 'desc'];
+        if (!in_array($sortOrder, $allowedSortOrders)) {
+            $sortOrder = 'asc';
+        }
+
+        // Parámetro de búsqueda
+        $search = $request->get('search', '');
+
+        // Query base con ordenamiento por apellidos
+        $query = Autor::query();
+
+        // Aplicar filtro de búsqueda si existe
+        if (!empty($search)) {
+            $searchTerm = trim($search);
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('nombres', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('apellidos', 'LIKE', "%{$searchTerm}%")
+                  ->orWhereRaw("CONCAT(nombres, ' ', apellidos) LIKE ?", ["%{$searchTerm}%"])
+                  ->orWhereRaw("CONCAT(apellidos, ' ', nombres) LIKE ?", ["%{$searchTerm}%"]);
+            });
+        }
+
+        // Aplicar ordenamiento por apellidos
+        $query->orderBy('apellidos', $sortOrder);
 
         // Paginación
         $autores = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
@@ -36,8 +62,14 @@ class AutorController extends Controller
             );
         }
 
+        // Calcular el número inicial para la numeración secuencial
+        $startNumber = ($autores->currentPage() - 1) * $autores->perPage();
+
         return Inertia::render('Autor/Index', [
             'autores' => $autores,
+            'sort_order' => $sortOrder,
+            'search' => $search,
+            'start_number' => $startNumber,
             'pagination' => [
                 'current_page' => $autores->currentPage(),
                 'last_page' => $autores->lastPage(),
