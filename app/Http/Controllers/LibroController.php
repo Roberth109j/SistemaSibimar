@@ -199,7 +199,6 @@ class LibroController extends Controller
         // Log para debugging
         Log::info('Datos recibidos para crear libro:', $request->all());
 
-        // ⚠️ ESTA LÍNEA ES CRÍTICA - debe estar ANTES de la validación
         if ($request->has('estanteria_id') && $request->estanteria_id === '') {
             $request->merge(['estanteria_id' => null]);
         }

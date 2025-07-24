@@ -16,7 +16,7 @@ class LectorController extends Controller
     /**
      * Obtiene un listado de lectores con sus grados, secciones y conteo de préstamos activos
      */
-    public function index(Request $request): Response
+    public function index(Request $request): RedirectResponse|Response
     {
         // Validación de parámetros de paginación
         $page = max(1, (int) $request->input('page', 1));

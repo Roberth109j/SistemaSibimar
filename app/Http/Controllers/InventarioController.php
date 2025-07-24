@@ -20,7 +20,7 @@ class InventarioController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Inertia\Response
      */
-    public function index(Request $request)
+    public function index(Request $request): RedirectResponse|\Inertia\Response
     {
         // Validación de parámetros de paginación
         $page = max(1, (int) $request->input('page', 1));
