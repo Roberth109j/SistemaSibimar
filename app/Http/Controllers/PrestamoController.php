@@ -201,8 +201,8 @@ class PrestamoController extends Controller
             if ($request->has('search')) {
 
                 $search = $request->input('search');
-                $query->where(function($q) use ($search) {
-                    $q->whereHas('lector', function($q) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('lector', function ($q) use ($search) {
 
                         $q->where('nombre', 'LIKE', "%{$search}%")
                             ->orWhere('codigo', 'LIKE', "%{$search}%");
@@ -245,15 +245,9 @@ class PrestamoController extends Controller
                 ->orderBy('fecha_devolucion', 'asc');
 
             if ($request->filled('search')) {
-              
                 $search = trim($request->search);
                 $query->where(function ($q) use ($search) {
                     $q->whereHas('lector', function ($q) use ($search) {
-
-                $search = trim($request->search);
-                $query->where(function ($q) use ($search) {
-                    $q->whereHas('lector', function ($q) use ($search) {
-
                         $q->where('nombre', 'LIKE', "%{$search}%")
                             ->orWhere('codigo', 'LIKE', "%{$search}%");
                     })

@@ -10,8 +10,6 @@ class Grado extends Model
 {
     use HasFactory;
     // Desactivar timestamps
-    public $timestamps = false;
-
     /**
      * La tabla asociada al modelo.
      */
