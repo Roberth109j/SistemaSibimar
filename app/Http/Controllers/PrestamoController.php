@@ -52,6 +52,7 @@ class PrestamoController extends Controller
 
         $lector = Lector::where('codigo', $codigo)
             ->where('estado', 'ACTIVO')
+            ->with('grado')
             ->first();
 
         if (!$lector) {
@@ -84,15 +85,16 @@ class PrestamoController extends Controller
             return back()->withErrors($validator->errors());
         }
 
-        // Verificar si el ejemplar está disponible
-        $ejemplar = Ejemplar::findOrFail($request->ejemplar_id);
+        //Verificar si el ejemplar está disponible
+        $ejemplar = Ejemplar::findOrFail($request->input('ejemplar_id'));
         if ($ejemplar->estado !== Ejemplar::ESTADO_DISPONIBLE) {
             return back()->with('error', 'El ejemplar no está disponible para préstamo.');
         }
 
         // Obtener el lector por código
-        $lector = Lector::where('codigo', $request->codigo_lector)
+        $lector = Lector::where('codigo', $request->input('codigo_lector'))
             ->where('estado', 'ACTIVO')
+            ->with('grado')
             ->first();
 
         if (!$lector) {
@@ -104,6 +106,7 @@ class PrestamoController extends Controller
             ->where('estado', 'ACTIVO')
             ->count();
 
+        //Usar input() para acceder a la propiedad tipo
         $maxPrestamos = $lector->tipo === 'ESTUDIANTE' ? 2 : 3;
 
         if ($prestamosActivos >= $maxPrestamos) {
@@ -111,15 +114,15 @@ class PrestamoController extends Controller
         }
 
         try {
-            // Crear el préstamo con estado ACTIVO
+            //rear el préstamo con estado ACTIVO usando input()
             $prestamo = Prestamo::create([
                 'ejemplar_id' => $ejemplar->id,
                 'lector_id' => $lector->id,
-                'fecha_prestamo' => $request->fecha_prestamo,
-                'fecha_devolucion' => $request->fecha_devolucion,
+                'fecha_prestamo' => $request->input('fecha_prestamo'),
+                'fecha_devolucion' => $request->input('fecha_devolucion'),
                 'fecha_devuelto' => null,
                 'estado' => 'ACTIVO',
-                'observaciones' => $request->observaciones ?? ''
+                'observaciones' => $request->input('observaciones', '')
             ]);
 
             // Actualizar estado del ejemplar
@@ -196,9 +199,11 @@ class PrestamoController extends Controller
                 ->orderBy('fecha_prestamo', 'desc');
 
             if ($request->has('search')) {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->whereHas('lector', function ($q) use ($search) {
+
+                $search = $request->input('search');
+                $query->where(function($q) use ($search) {
+                    $q->whereHas('lector', function($q) use ($search) {
+
                         $q->where('nombre', 'LIKE', "%{$search}%")
                             ->orWhere('codigo', 'LIKE', "%{$search}%");
                     })
@@ -213,7 +218,7 @@ class PrestamoController extends Controller
 
             if ($request->has('codigo_lector')) {
                 $query->whereHas('lector', function ($q) use ($request) {
-                    $q->where('codigo', $request->codigo_lector);
+                    $q->where('codigo', $request->input('codigo_lector'));
                 });
             }
 
@@ -240,9 +245,15 @@ class PrestamoController extends Controller
                 ->orderBy('fecha_devolucion', 'asc');
 
             if ($request->filled('search')) {
+              
                 $search = trim($request->search);
                 $query->where(function ($q) use ($search) {
                     $q->whereHas('lector', function ($q) use ($search) {
+
+                $search = trim($request->search);
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('lector', function ($q) use ($search) {
+
                         $q->where('nombre', 'LIKE', "%{$search}%")
                             ->orWhere('codigo', 'LIKE', "%{$search}%");
                     })
@@ -256,7 +267,7 @@ class PrestamoController extends Controller
             }
 
             if ($request->filled('dias_vencido')) {
-                $diasMinimos = (int) $request->dias_vencido;
+                $diasMinimos = (int) $request->input('dias_vencido');
                 if ($diasMinimos > 0) {
                     $query->whereRaw('DATEDIFF(CURDATE(), fecha_devolucion) >= ?', [$diasMinimos]);
                 }
@@ -275,8 +286,8 @@ class PrestamoController extends Controller
             return Inertia::render('Prestamos/Vencidos', [
                 'prestamos' => $prestamos,
                 'filters' => [
-                    'search' => $request->search,
-                    'dias_vencido' => $request->dias_vencido,
+                    'search' => $request->input('search'),
+                    'dias_vencido' => $request->input('dias_vencido'),
                 ]
             ]);
         } catch (\Exception $e) {
@@ -310,8 +321,8 @@ class PrestamoController extends Controller
 
             $prestamo->update([
                 'estado' => 'DEVUELTO',
-                'fecha_devuelto' => $request->fecha_devuelto,
-                'observaciones' => $request->observaciones,
+                'fecha_devuelto' => $request->input('fecha_devuelto'),
+                'observaciones' => $request->input('observaciones'),
                 'updated_at' => now(),
             ]);
 

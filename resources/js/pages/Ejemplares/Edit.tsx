@@ -1,6 +1,6 @@
-import React, { FormEvent, useState } from 'react';
-import { Head, useForm, router } from '@inertiajs/react';
-import { BookOpen, Save, ArrowLeft, Trash2, AlertTriangle } from 'lucide-react';
+import React, { FormEvent, useState, useEffect } from 'react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
+import { BookOpen, Save, ArrowLeft, CheckCircle, AlertCircle, X } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem, EjemplarPageProps, TipoAdquisicion, Estado } from './types';
 
@@ -32,8 +32,78 @@ const getBreadcrumbs = (libroId: number, libroTitulo: string, ejemplarId: number
   },
 ];
 
+function AlertNotification({
+  type,
+  message,
+  className = '',
+  autoClose = true,
+  duration = 6000,
+}: {
+  type: 'success' | 'error';
+  message: string;
+  className?: string;
+  autoClose?: boolean;
+  duration?: number;
+}) {
+  const [isVisible, setIsVisible] = useState(true);
+  const [animateOut, setAnimateOut] = useState(false);
+
+  useEffect(() => {
+    if (autoClose && message) {
+      const alertDuration = type === 'error' ? 7000 : duration;
+      const timer = setTimeout(() => {
+        setAnimateOut(true);
+        const hideTimer = setTimeout(() => {
+          setIsVisible(false);
+        }, 500);
+        return () => clearTimeout(hideTimer);
+      }, alertDuration);
+      return () => clearTimeout(timer);
+    }
+  }, [autoClose, duration, message, type]);
+
+  if (!isVisible || !message) return null;
+
+  const colors = {
+    success: {
+      light: { bg: 'bg-green-100', border: 'border-green-500', text: 'text-green-800', icon: 'text-green-500' },
+      dark: { bg: 'dark:bg-green-800/40', border: 'dark:border-green-500', text: 'dark:text-green-100', icon: 'dark:text-green-400' }
+    },
+    error: {
+      light: { bg: 'bg-red-100', border: 'border-red-500', text: 'text-red-800', icon: 'text-red-500' },
+      dark: { bg: 'dark:bg-red-800/40', border: 'dark:border-red-500', text: 'dark:text-red-100', icon: 'dark:text-red-400' }
+    }
+  };
+
+  const Icon = type === 'success' ? CheckCircle : AlertCircle;
+
+  return (
+    <div className={`fixed top-6 right-6 z-50 ${animateOut ? 'opacity-0 translate-x-20' : 'opacity-100 translate-x-0'} transition-all duration-500 ease-in-out transform ${className}`}>
+      <div
+        className={`max-w-md rounded-lg shadow-xl border-l-4 
+                    ${colors[type].light.border} ${colors[type].dark.border}
+                    ${colors[type].light.bg} ${colors[type].dark.bg} 
+                    flex items-start p-5 transition-all duration-300 animate-slide-in-right`}
+      >
+        <Icon className={`h-6 w-6 mt-0.5 mr-4 flex-shrink-0 ${colors[type].light.icon} ${colors[type].dark.icon}`} />
+        <div className="flex-grow">
+          <p className={`text-base font-semibold ${colors[type].light.text} ${colors[type].dark.text}`}>
+            {message}
+          </p>
+        </div>
+        <button
+          onClick={() => setAnimateOut(true)}
+          className="ml-4 flex-shrink-0 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados }: EjemplarPageProps) {
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const page = usePage();
 
   if (!ejemplar) {
     return <div>Cargando ejemplar...</div>;
@@ -41,20 +111,49 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
 
   const breadcrumbs = getBreadcrumbs(libro.id, libro.titulo, ejemplar.id);
 
-  // Formulario con Inertia
+  // Estado para las alertas
+  const [alerts, setAlerts] = useState<{
+    success: string | null;
+    error: string | null;
+    timestamp: number;
+  }>({
+    success: null,
+    error: null,
+    timestamp: 0
+  });
+
+  // Detectar mensajes flash y mostrar notificaciones
+  useEffect(() => {
+    if (page.props.flash) {
+      const flash = page.props.flash as any;
+      setAlerts({
+        success: flash.success || null,
+        error: flash.error || null,
+        timestamp: Date.now()
+      });
+    }
+  }, [page.props.flash]);
+
+  // Formulario con Inertia - removemos numEjemplar porque no es editable
   const form = useForm({
-    numEjemplar: ejemplar.numEjemplar,
     tipo_adquisicion: ejemplar.tipo_adquisicion,
     estado: ejemplar.estado,
     observaciones: ejemplar.observaciones || '',
   });
 
+  const showAlert = (type: 'success' | 'error', message: string) => {
+    setAlerts(prev => ({
+      ...prev,
+      [type]: message,
+      timestamp: Date.now()
+    }));
+  };
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
-    // Validar campos requeridos
+    // Validar campos requeridos (removemos numEjemplar)
     const camposRequeridos = {
-      numEjemplar: 'numEjemplar',
       tipo_adquisicion: 'Tipo de Adquisición',
       estado: 'Estado',
     };
@@ -69,12 +168,6 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
       return;
     }
 
-    // Validar que la numEjemplar sea un número positivo
-    if (form.data.numEjemplar <= 0) {
-      alert('La numEjemplar debe ser un número positivo');
-      return;
-    }
-
     // Mostrar indicador de carga
     const submitButton = document.querySelector('button[type="submit"]');
     if (submitButton) {
@@ -83,15 +176,16 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
     }
 
     form.patch(route('ejemplares.update', [libro.id, ejemplar.id]), {
-      onSuccess: () => {
-        // Redirigir a la vista de detalles
-        router.visit(route('ejemplares.show', [libro.id, ejemplar.id]));
+      onSuccess: (page: any) => {
+        const successMessage = page.props.flash?.success || 'Ejemplar actualizado correctamente';
+        showAlert('success', successMessage);
+        // NO redirigir - quedarse en la página de edición con la notificación
       },
       onError: (errors) => {
         // Mostrar errores específicos del servidor
         const errorMessages = Object.values(errors).join('\n');
         if (errorMessages) {
-          alert('Se encontraron los siguientes errores:\n' + errorMessages);
+          showAlert('error', 'Se encontraron los siguientes errores:\n' + errorMessages);
         }
 
         // Restaurar el botón
@@ -103,27 +197,27 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
     });
   };
 
-  const handleDelete = () => {
-    setShowConfirmDialog(true);
-  };
-
-  const confirmDelete = () => {
-    router.delete(route('ejemplares.destroy', [libro.id, ejemplar.id]), {
-      onSuccess: () => {
-        router.visit(route('ejemplares.index', libro.id));
-      },
-      onError: (errors) => {
-        const errorMessages = Object.values(errors).join('\n');
-        if (errorMessages) {
-          alert('No se pudo eliminar el ejemplar:\n' + errorMessages);
-        }
-        setShowConfirmDialog(false);
-      }
-    });
-  };
-
-  const cancelDelete = () => {
-    setShowConfirmDialog(false);
+  // Función para renderizar las alertas
+  const renderAlerts = () => {
+    return (
+      <>
+        {alerts.success && (
+          <AlertNotification
+            key={`success-${alerts.timestamp}`}
+            type="success"
+            message={alerts.success}
+          />
+        )}
+        {alerts.error && (
+          <AlertNotification
+            key={`error-${alerts.timestamp}`}
+            type="error"
+            message={alerts.error}
+            duration={7000}
+          />
+        )}
+      </>
+    );
   };
 
   return (
@@ -135,14 +229,17 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
             <BookOpen className="w-6 h-6 text-white" />
           </div>
           <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Editar Ejemplar #{ejemplar.id}
+            Editar Ejemplar #{ejemplar.numEjemplar}
           </h2>
         </div>
       )}
     >
-      <Head title={`Editar Ejemplar #${ejemplar.id}`} />
+      <Head title={`Editar Ejemplar #${ejemplar.numEjemplar}`} />
 
       <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
+        {/* Renderizar alertas */}
+        {renderAlerts()}
+
         {/* Efectos de fondo decorativos */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 filter blur-3xl dark:bg-blue-600/10"></div>
@@ -161,7 +258,7 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
                   {libro.titulo}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Editando ejemplar #{ejemplar.id}
+                  Editando ejemplar #{ejemplar.numEjemplar}
                 </p>
               </div>
             </div>
@@ -171,31 +268,32 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="p-6">
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Número de Ejemplar */}
-                  <div className="space-y-2">
-                    <label htmlFor="numEjemplar" className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      Número del Ejemplar <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      id="numEjemplar"
-                      min="1"
-                      value={form.data.numEjemplar}
-                      onChange={e => form.setData('numEjemplar', parseInt(e.target.value))}
-                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
-                      placeholder="Ingrese el número del ejemplar"
-                    />
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Número único del ejemplar
-                    </p>
-                    {form.errors.numEjemplar && (
-                      <p className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 p-2 rounded-md border-l-2 border-red-500">
-                        {form.errors.numEjemplar}
-                      </p>
-                    )}
+                
+                {/* Número de Ejemplar - Solo lectura e informativo */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center justify-center w-10 h-10 bg-blue-100 dark:bg-blue-800/50 rounded-full">
+                        <span className="text-lg font-bold text-blue-600 dark:text-blue-400">#{ejemplar.numEjemplar}</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-300">
+                          Número del Ejemplar
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          Este número se asignó automáticamente y no se puede modificar
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-300">
+                        🔒 No editable
+                      </span>
+                    </div>
                   </div>
+                </div>
 
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Tipo de Adquisición */}
                   <div className="space-y-2">
                     <label htmlFor="tipo_adquisicion" className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -276,24 +374,13 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
 
                 {/* Botones de acción */}
                 <div className="flex justify-between items-center pt-6 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-3">
-                    <a
-                      href={route('ejemplares.index', [libro.id, ejemplar.id])}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 dark:border-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm"
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                      Cancelar
-                    </a>
-                    
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 text-sm font-medium shadow-lg hover:shadow-xl"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Eliminar
-                    </button>
-                  </div>
+                  <a
+                    href={route('ejemplares.index', libro.id)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 dark:border-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Volver a Lista
+                  </a>
                   
                   <button
                     type="submit"
@@ -324,70 +411,13 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
                 </p>
                 <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
                   Los campos marcados con <span className="text-red-500">*</span> son obligatorios. 
-                  El número de ejemplar debe ser único dentro de este libro.
+                  El número de ejemplar #{ejemplar.numEjemplar} se asignó automáticamente y no se puede modificar para mantener la integridad del sistema.
                 </p>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Modal de confirmación - popup con formulario desenfocado atrás */}
-      {showConfirmDialog && (
-        <>
-          {/* Efecto de desenfoque aplicado al contenido de fondo */}
-          <div className="fixed inset-0 z-40">
-            <div className="absolute inset-0 backdrop-blur-md bg-gray-900/20"></div>
-          </div>
-          
-          {/* Modal flotante */}
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-md mx-auto relative border border-gray-200 dark:border-gray-700">
-              {/* Header del modal más sutil */}
-              <div className="flex items-center justify-between p-4 border-b border-red-200 bg-red-50 text-red-800 rounded-t-lg">
-                <div className="flex items-center space-x-2">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
-                  <h3 className="text-lg font-semibold">
-                    Confirmar eliminación
-                  </h3>
-                </div>
-                <button
-                  onClick={cancelDelete}
-                  className="text-red-600 hover:text-red-800 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              {/* Contenido del modal */}
-              <div className="p-6">
-                <p className="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
-                  ¿Está seguro que desea eliminar este ejemplar? Esta acción no se puede deshacer y 
-                  se eliminará permanentemente del sistema.
-                </p>
-                
-                {/* Botones */}
-                <div className="flex justify-end space-x-3">
-                  <button
-                    onClick={cancelDelete}
-                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors text-sm font-medium"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={confirmDelete}
-                    className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-                  >
-                    Eliminar definitivamente
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </AppLayout>
   );
 }

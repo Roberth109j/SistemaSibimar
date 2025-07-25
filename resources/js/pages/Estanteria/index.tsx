@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Search, CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import AppLayout from '../../layouts/app-layout';
 import { type BreadcrumbItem } from './types';
 import CreateEstanteria from './Create';
@@ -56,7 +56,52 @@ const breadcrumbs: BreadcrumbItem[] = [
   { title: 'Estanterías', href: '/estanterias' },
 ];
 
-// Función para truncar texto y agregar puntos suspensivos
+// Componente para descripción expandible
+const ExpandableDescription = ({ text, maxLength = 40 }: { text: string | null; maxLength?: number }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  if (!text) return <span className="text-gray-400 italic">-</span>;
+  
+  if (text.length <= maxLength) {
+    return (
+      <div className="whitespace-pre-wrap break-words leading-relaxed">
+        {text}
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-2">
+      <div className={`whitespace-pre-wrap break-words leading-relaxed transition-all duration-200 ${
+        isExpanded 
+          ? 'max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-100 dark:scrollbar-track-gray-800' 
+          : 'line-clamp-2 overflow-hidden'
+      }`}>
+        {isExpanded ? text : `${text.substring(0, maxLength)}...`}
+      </div>
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 
+                   text-xs font-medium flex items-center gap-1 transition-colors hover:underline"
+        title={isExpanded ? 'Mostrar menos' : 'Mostrar más'}
+      >
+        {isExpanded ? (
+          <>
+            <ChevronUp className="w-3 h-3" />
+            Mostrar menos
+          </>
+        ) : (
+          <>
+            <ChevronDown className="w-3 h-3" />
+            Mostrar más
+          </>
+        )}
+      </button>
+    </div>
+  );
+};
+
+// Función para truncar texto y agregar puntos suspensivos (mantenida para compatibilidad)
 const truncateText = (text: string | null, maxLength: number) => {
   if (!text) return '-';
   if (text.length <= maxLength) return text;
@@ -285,7 +330,7 @@ const Index = ({
               <colgroup>
                 <col className="w-16" />
                 <col className="w-32" />
-                <col className="w-40" />
+                <col className="w-48" /> {/* Incrementé el ancho para la descripción */}
                 <col className="w-28" />
               </colgroup>
               <thead>
@@ -306,10 +351,9 @@ const Index = ({
                           {estanteria.cod_estante}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
-                        <div className="truncate" title={estanteria.descripcion || '-'}>
-                          {truncateText(estanteria.descripcion, 40)}
-                        </div>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm align-top">
+                        {/* Reemplazamos el truncateText con el componente expandible */}
+                        <ExpandableDescription text={estanteria.descripcion} maxLength={50} />
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex justify-center space-x-2">

@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, UserCheck, Calendar, Clock, AlertCircle, Info, BookOpen, Loader2 } from 'lucide-react';
-import { type Libro, type Ejemplar, type PrestamoForm } from '../types';
+import { type Libro, type Ejemplar, type PrestamoForm, type Lector } from '../types';
 
 interface PasoEscanearEstudianteProps {
   libro: Libro;
   ejemplar: Ejemplar;
   formularioPrestamo: PrestamoForm;
   onActualizarFormulario: (form: PrestamoForm) => void;
-  onEscanear: (codigo: string) => void;
+  onEscanear: (lector: Lector) => void; // CAMBIO: Ahora recibe un objeto Lector completo
   onVolver: () => void;
   error?: string;
 }
@@ -43,7 +43,7 @@ export function PasoEscanearEstudiante({
     return /^[A-Za-z0-9]{3,}$/.test(codigo.trim());
   };
 
-  // Función para verificar si el estudiante existe
+  // CAMBIO: Función actualizada para verificar estudiante y obtener información completa
   const verificarEstudiante = (codigo: string) => {
     if (!codigo.trim()) return;
     
@@ -73,9 +73,10 @@ export function PasoEscanearEstudiante({
     .then(data => {
       setVerificandoEstudiante(false);
       
-      // Si llegamos aquí, la respuesta fue exitosa (200)
-      if (data.success === true) {
-        onEscanear(codigo);
+      // CAMBIO: Si la respuesta es exitosa, pasar el objeto lector completo
+      if (data.success === true && data.lector) {
+        // Pasar el objeto lector completo que incluye id, nombre, codigo, etc.
+        onEscanear(data.lector);
       } else {
         setEstudianteError('Error: respuesta del servidor no válida');
       }
@@ -116,7 +117,8 @@ export function PasoEscanearEstudiante({
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleSubmit(e);
+      // NO hacer nada al presionar Enter - completamente deshabilitado
+      return;
     }
   };
 
@@ -179,7 +181,7 @@ export function PasoEscanearEstudiante({
             </div>
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-white">{libro.titulo}</p>
-              <p className="text-xs text-gray-600 dark:text-gray-300">Ejemplar #{ejemplar.numEjemplar} - Código: {ejemplar.codigo}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">Ejemplar #{ejemplar.numEjemplar}</p>
             </div>
           </div>
         </div>
@@ -231,7 +233,7 @@ export function PasoEscanearEstudiante({
                 )}
 
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Ingrese el código del carnet estudiantil
+                  Escanee el código y configure las fechas antes de continuar
                 </p>
               </div>
 
@@ -256,8 +258,8 @@ export function PasoEscanearEstudiante({
               <div className="flex items-start gap-2">
                 <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                 <div className="text-xs text-blue-800 dark:text-blue-300">
-                  <p className="font-medium mb-1">Consejo:</p>
-                  <p>Use el lector de código de barras para mayor rapidez. El código debe corresponder al carnet del estudiante.</p>
+                  <p className="font-medium mb-1">Importante:</p>
+                  <p>Use la pistola para escanear el código. Luego ajuste las fechas y haga clic en "Continuar" para proceder.</p>
                 </div>
               </div>
             </div>

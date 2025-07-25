@@ -32,6 +32,7 @@ import {
     ArrowRightLeft,
     FolderClock,
     ChevronDown,
+    NotebookTabs,
     FileBarChart
 } from 'lucide-react';
 import { useState, useRef, useCallback } from 'react';
@@ -102,7 +103,7 @@ const mainNavItems: NavItem[] = [
     {
         title: 'Inventario',
         href: '/inventario',
-        icon: FileBarChart,
+        icon: NotebookTabs,
     },
 ];
 

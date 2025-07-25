@@ -1,4 +1,3 @@
-// Interfaces del Inventario
 export interface Libro {
   id: number;
   isbn: string;
@@ -36,6 +35,17 @@ export interface PaginatedData<T> {
   total: number;
 }
 
+// Nueva interfaz de paginación unificada
+export interface PaginationInfo {
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+  from: number | null;
+  to: number | null;
+  has_pages: boolean;
+}
+
 export interface InventarioProps {
   auth: any;
   libros: PaginatedData<Libro>;
@@ -52,6 +62,8 @@ export interface InventarioProps {
     error?: string;
   };
   errors?: Record<string, string>;
+  // ✅ AGREGAR ESTA NUEVA PROP
+  pagination?: PaginationInfo;
 }
 
 // Props para componentes

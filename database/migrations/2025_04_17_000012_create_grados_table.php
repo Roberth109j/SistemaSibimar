@@ -13,38 +13,40 @@ return new class extends Migration
     {
         Schema::create('grados', function (Blueprint $table) {
             $table->id();
-
-            // 1. Definimos el enum con todos los grados:
+            
+            // 1. Definimos el enum con todos los grados EN MAYÚSCULAS:
             $table->enum('grado', [
-                'Prescolar',
-                'Primero',
-                'Segundo',
-                'Tercero',
-                'Cuarto',
-                'Quinto',
-                'Sexto',
-                'Séptimo',
-                'Octavo',
-                'Noveno',
-                'Décimo',
-                'Once',
-            ])->comment('Lista completa de grados: primaria y bachillerato');
-
-            // Nombre de subgrado (ej. 'Prejardín', 'Primero 1', etc.)
+                'PREESCOLAR',
+                'PRIMERO',
+                'SEGUNDO',
+                'TERCERO',
+                'CUARTO',
+                'QUINTO',
+                'SEXTO',
+                'SÉPTIMO',
+                'OCTAVO',
+                'NOVENO',
+                'DÉCIMO',
+                'ONCE',
+            ])->comment('Lista completa de grados: primaria y bachillerato en MAYÚSCULAS');
+            
+            // Nombre de subgrado (ej. 'PREJARDIN UNO', 'PRIMERO UNO', etc.)
             $table->string('subGrado')->nullable();
-
+            
             // Relación con secciones (Primaria / Bachillerato)
             $table->foreignId('seccion_id')
                 ->constrained('secciones')
                 ->onDelete('cascade');
-
+            
             $table->enum('estado', ['ACTIVO', 'INACTIVO'])
                 ->default('ACTIVO');
-
+            
             // Índices para optimizar filtros y joins
             $table->index('grado');
             $table->index('estado');
             $table->index('subGrado');
+            
+            $table->timestamps();
         });
     }
 

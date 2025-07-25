@@ -232,8 +232,9 @@ export default function Edit({ auth, lector, grados, flash }: EditLectorProps) {
                         id="nombre"
                         value={data.nombre}
                         onChange={(e) => setData('nombre', e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500"
-                        placeholder="Ingrese el nombre completo del lector"
+                        className="block w-full pl-10 pr-3 py-2 rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white text-sm transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500 uppercase"
+                        placeholder="INGRESE EL NOMBRE COMPLETO DEL LECTOR"
+                        style={{ textTransform: 'uppercase' }}
                       />
                     </div>,
                     "col-span-1 md:col-span-1 xl:col-span-2"

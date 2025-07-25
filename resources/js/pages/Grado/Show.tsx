@@ -5,17 +5,16 @@ import { Grado } from './types';
 
 type ShowModalProps = {
   grado: Grado;
+  tableNumber: number; // Agregar el número de la tabla
 };
 
-export default function ShowGrado({ grado }: ShowModalProps) {
+export default function ShowGrado({ grado, tableNumber }: ShowModalProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const secciones = [
-    { id: 1, nombre: 'Primaria' },
-    { id: 2, nombre: 'Bachillerato' }
-  ];
-
-  const seccionNombre = secciones.find(s => s.id === Number(grado.seccion_id))?.nombre || 'Desconocida';
+  // Función para obtener el nombre de la sección desde la relación
+  const getSeccionNombre = () => {
+    return grado.seccion?.nombre || 'Sin sección';
+  };
 
   const content = (
     <div className="space-y-6">
@@ -23,13 +22,13 @@ export default function ShowGrado({ grado }: ShowModalProps) {
         <div className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 px-6 py-5">
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center justify-center h-14 w-14 rounded-full bg-blue-500 dark:bg-blue-600 text-white shadow-lg">
-              <span className="text-xl font-bold">{grado.id}</span>
+              <span className="text-xl font-bold">{tableNumber}</span>
             </div>
             <div className="ml-5">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 {grado.grado} {grado.subGrado ? `- ${grado.subGrado}` : ''}
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">ID: {grado.id}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Detalles del grado</p>
             </div>
           </div>
         </div>
@@ -56,7 +55,13 @@ export default function ShowGrado({ grado }: ShowModalProps) {
                 Estado
               </dt>
               <dd className="mt-2 text-base text-gray-900 dark:text-white font-medium">
-                {grado.estado}
+                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                  grado.estado === 'ACTIVO' 
+                    ? 'bg-green-100 text-green-800 dark:bg-green-800/40 dark:text-green-100' 
+                    : 'bg-red-100 text-red-800 dark:bg-red-800/40 dark:text-red-100'
+                }`}>
+                  {grado.estado}
+                </span>
               </dd>
             </div>
             <div className="sm:col-span-1">
@@ -64,7 +69,7 @@ export default function ShowGrado({ grado }: ShowModalProps) {
                 Sección
               </dt>
               <dd className="mt-2 text-base text-gray-900 dark:text-white font-medium">
-                {seccionNombre}
+                {getSeccionNombre()}
               </dd>
             </div>
           </dl>
@@ -98,7 +103,7 @@ export default function ShowGrado({ grado }: ShowModalProps) {
       <Modal
         open={isOpen}
         onClose={() => setIsOpen(false)}
-        title="Detalles del Grado"
+        title={`Detalles del Grado N° ${tableNumber}`}
         footer={modalFooter}
       >
         {content}

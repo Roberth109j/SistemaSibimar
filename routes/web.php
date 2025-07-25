@@ -86,16 +86,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('grados/{grado}', [GradoController::class, 'update']);
     Route::delete('grados/{grado}', [GradoController::class, 'destroy'])->name('grados.destroy');
 
-    // Rutas para LectorController     
+
     Route::get('lectores', [LectorController::class, 'index'])->name('lectores.index');
     Route::get('lectores/create', [LectorController::class, 'create'])->name('lectores.create');
     Route::get('/lectores/buscar', [LectorController::class, 'buscarPorCodigo'])->name('lectores.buscar');
+    Route::get('/lectores/asignacion-masiva', [LectorController::class, 'showAsignacionMasiva'])
+        ->name('lectores.asignacion-masiva');
+    Route::post('/lectores/asignacion-masiva', [LectorController::class, 'asignacionMasiva'])
+        ->name('lectores.asignacion-masiva.store');
+
     Route::post('lectores', [LectorController::class, 'store'])->name('lectores.store');
     Route::get('lectores/{lector}', [LectorController::class, 'show'])->name('lectores.show');
     Route::get('lectores/{lector}/edit', [LectorController::class, 'edit'])->name('lectores.edit');
     Route::put('lectores/{lector}', [LectorController::class, 'update'])->name('lectores.update');
     Route::patch('lectores/{lector}', [LectorController::class, 'update']);
     Route::delete('lectores/{lector}', [LectorController::class, 'destroy'])->name('lectores.destroy');
+
+    Route::post('/lectores/cambio-estado-masivo', [LectorController::class, 'cambioEstadoMasivo'])
+        ->name('lectores.cambio-estado-masivo');
 
     // Rutas para PrestamoController
     Route::get('prestamos', [PrestamoController::class, 'index'])->name('prestamos.index');

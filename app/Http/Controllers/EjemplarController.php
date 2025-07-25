@@ -8,8 +8,10 @@ use App\Models\Libro;
 use App\Models\Ejemplar;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 
 class EjemplarController extends Controller
 {
@@ -19,15 +21,30 @@ class EjemplarController extends Controller
      * @param  int  $libroId
      * @return \Inertia\Response
      */
-    public function index(int $libroId)
+    public function index(int $libroId, Request $request)
     {
         // Cargar el libro con la relación del autor
         $libro = Libro::with('autor')->findOrFail($libroId);
-        $ejemplares = Ejemplar::where('libro_id', $libroId)->get();
+        
+        // Query base para ejemplares
+        $query = Ejemplar::where('libro_id', $libroId);
+        
+        // Aplicar filtro de búsqueda por número de ejemplar si existe
+        if ($request->filled('search')) {
+            $searchNumber = $request->search;
+            // Validar que sea un número
+            if (is_numeric($searchNumber)) {
+                $query->where('numEjemplar', $searchNumber);
+            }
+        }
+        
+        // Obtener ejemplares ordenados por número
+        $ejemplares = $query->orderBy('numEjemplar')->get();
         
         return Inertia::render('Ejemplares/Index', [
             'libro' => $libro,
             'ejemplares' => $ejemplares,
+            'search' => $request->search, // Pasar el término de búsqueda al frontend
         ]);
     }
 
@@ -42,10 +59,18 @@ class EjemplarController extends Controller
         // Cargar el libro con la relación del autor
         $libro = Libro::with('autor')->findOrFail($libroId);
         
+        // Obtener el siguiente número de ejemplar disponible
+        $ultimoEjemplar = Ejemplar::where('libro_id', $libroId)
+            ->orderBy('numEjemplar', 'desc')
+            ->first();
+        
+        $siguienteNumero = $ultimoEjemplar ? $ultimoEjemplar->numEjemplar + 1 : 1;
+        
         return Inertia::render('Ejemplares/Create', [
             'libro' => $libro,
             'tiposAdquisicion' => Ejemplar::tiposAdquisicion(),
             'estados' => Ejemplar::estados(),
+            'siguienteNumero' => $siguienteNumero,
         ]);
     }
     
@@ -62,9 +87,15 @@ class EjemplarController extends Controller
         // Aseguramos que el libro existe
         $libro = Libro::findOrFail($libroId);
         
-        // Validación con las reglas actualizadas
+        // **NUEVO: Calcular automáticamente el siguiente número de ejemplar**
+        $ultimoEjemplar = Ejemplar::where('libro_id', $libroId)
+            ->orderBy('numEjemplar', 'desc')
+            ->first();
+        
+        $siguienteNumero = $ultimoEjemplar ? $ultimoEjemplar->numEjemplar + 1 : 1;
+        
+        // Validación con campo cantidad agregado
         $validatedData = $request->validate([
-            'numEjemplar' => 'required|integer|min:1',
             'tipo_adquisicion' => [
                 'required',
                 Rule::in(Ejemplar::tiposAdquisicion()),
@@ -73,21 +104,68 @@ class EjemplarController extends Controller
                 'required',
                 Rule::in(Ejemplar::estados()),
             ],
-            'observaciones' => 'nullable|string|max:255',
+            'observaciones' => 'nullable|string|max:500',
+            'cantidad' => 'required|integer|min:1|max:50', // **NUEVO CAMPO**
+        ], [
+            // Mensajes personalizados de error
+            'tipo_adquisicion.required' => 'El tipo de adquisición es obligatorio.',
+            'tipo_adquisicion.in' => 'El tipo de adquisición seleccionado no es válido.',
+            'estado.required' => 'El estado es obligatorio.',
+            'estado.in' => 'El estado seleccionado no es válido.',
+            'observaciones.max' => 'Las observaciones no pueden exceder 500 caracteres.',
+            'cantidad.required' => 'La cantidad es obligatoria.',
+            'cantidad.integer' => 'La cantidad debe ser un número entero.',
+            'cantidad.min' => 'Debe crear al menos 1 ejemplar.',
+            'cantidad.max' => 'No se pueden crear más de 50 ejemplares a la vez.',
         ]);
         
-        // Crear el ejemplar con los datos validados
-        Ejemplar::create([
-            'libro_id' => $libroId,
-            'numEjemplar' => $validatedData['numEjemplar'],
-            'tipo_adquisicion' => $validatedData['tipo_adquisicion'],
-            'estado' => $validatedData['estado'],
-            'observaciones' => $validatedData['observaciones'] ?? null,
-        ]);
-        
-        // Redireccionar usando Redirect facade para mayor compatibilidad
-        return Redirect::route('ejemplares.index', $libroId)
-            ->with('success', 'Ejemplar registrado correctamente');
+        try {
+            $cantidad = $validatedData['cantidad'];
+            $ejemplaresCreados = [];
+            
+            // **NUEVO: Crear múltiples ejemplares en una transacción**
+            DB::beginTransaction();
+            
+            for ($i = 0; $i < $cantidad; $i++) {
+                $ejemplar = Ejemplar::create([
+                    'libro_id' => $libroId,
+                    'numEjemplar' => $siguienteNumero + $i, // **NÚMEROS CONSECUTIVOS**
+                    'tipo_adquisicion' => $validatedData['tipo_adquisicion'],
+                    'estado' => $validatedData['estado'],
+                    'observaciones' => $validatedData['observaciones'] ?? null,
+                ]);
+                
+                $ejemplaresCreados[] = $ejemplar;
+            }
+            
+            DB::commit();
+
+            Log::info('Ejemplares creados exitosamente en lote:', [
+                'cantidad' => $cantidad,
+                'libro_id' => $libroId,
+                'numeros_creados' => array_map(fn($e) => $e->numEjemplar, $ejemplaresCreados)
+            ]);
+            
+            // Mensaje de éxito personalizado según cantidad
+            $mensaje = $cantidad === 1 
+                ? "Ejemplar #{$ejemplaresCreados[0]->numEjemplar} registrado correctamente"
+                : "Se crearon {$cantidad} ejemplares correctamente (#{$siguienteNumero} al #" . ($siguienteNumero + $cantidad - 1) . ")";
+            
+            return Redirect::route('ejemplares.index', $libroId)
+                ->with('success', $mensaje);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al crear ejemplares:', [
+                'error' => $e->getMessage(),
+                'libro_id' => $libroId,
+                'request_data' => $request->all()
+            ]);
+            
+            return Redirect::back()
+                ->withInput()
+                ->with('error', 'Error al crear los ejemplares: ' . $e->getMessage());
+        }
     }
     
     /**
@@ -99,7 +177,7 @@ class EjemplarController extends Controller
      */
     public function show(int $libroId, int $ejemplarId)
     {
-        // AQUÍ ESTÁ EL CAMBIO PRINCIPAL - Cargar el libro con la relación del autor
+        // Cargar el libro con la relación del autor
         $libro = Libro::with('autor')->findOrFail($libroId);
         $ejemplar = Ejemplar::where('libro_id', $libroId)
             ->where('id', $ejemplarId)
@@ -151,9 +229,8 @@ class EjemplarController extends Controller
             ->where('id', $ejemplarId)
             ->firstOrFail();
         
-        // Validación con las reglas actualizadas
+        // Validación simplificada - removemos numEjemplar porque no se puede editar
         $validatedData = $request->validate([
-            'numEjemplar' => 'required|integer|min:1',
             'tipo_adquisicion' => [
                 'required',
                 Rule::in(Ejemplar::tiposAdquisicion()),
@@ -162,42 +239,45 @@ class EjemplarController extends Controller
                 'required',
                 Rule::in(Ejemplar::estados()),
             ],
-            'observaciones' => 'nullable|string|max:255',
+            'observaciones' => 'nullable|string|max:500',
+        ], [
+            // Mensajes personalizados de error
+            'tipo_adquisicion.required' => 'El tipo de adquisición es obligatorio.',
+            'tipo_adquisicion.in' => 'El tipo de adquisición seleccionado no es válido.',
+            'estado.required' => 'El estado es obligatorio.',
+            'estado.in' => 'El estado seleccionado no es válido.',
+            'observaciones.max' => 'Las observaciones no pueden exceder 500 caracteres.',
         ]);
         
-        // Actualizar el ejemplar con los datos validados
-        $ejemplar->update([
-            'numEjemplar' => $validatedData['numEjemplar'],
-            'tipo_adquisicion' => $validatedData['tipo_adquisicion'],
-            'estado' => $validatedData['estado'],
-            'observaciones' => $validatedData['observaciones'] ?? null,
-        ]);
-        
-        // Redireccionar
-        return Redirect::route('ejemplares.show', [$libroId, $ejemplarId])
-            ->with('success', 'Ejemplar actualizado correctamente');
-    }
-    
-    /**
-     * Elimina un ejemplar específico de la base de datos.
-     *
-     * @param  int  $libroId
-     * @param  int  $ejemplarId
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function destroy(int $libroId, int $ejemplarId): RedirectResponse
-    {
-        // Aseguramos que el libro y el ejemplar existen
-        $libro = Libro::findOrFail($libroId);
-        $ejemplar = Ejemplar::where('libro_id', $libroId)
-            ->where('id', $ejemplarId)
-            ->firstOrFail();
-        
-        // Eliminar el ejemplar
-        $ejemplar->delete();
-        
-        // Redireccionar
-        return Redirect::route('ejemplares.index', $libroId)
-            ->with('success', 'Ejemplar eliminado correctamente');
+        try {
+            // Actualizar el ejemplar sin tocar numEjemplar
+            $ejemplar->update([
+                'tipo_adquisicion' => $validatedData['tipo_adquisicion'],
+                'estado' => $validatedData['estado'],
+                'observaciones' => $validatedData['observaciones'] ?? null,
+            ]);
+
+            Log::info('Ejemplar actualizado exitosamente:', [
+                'ejemplar_id' => $ejemplar->id,
+                'libro_id' => $libroId,
+                'numEjemplar' => $ejemplar->numEjemplar
+            ]);
+            
+            // Redireccionar
+            return Redirect::route('ejemplares.show', [$libroId, $ejemplarId])
+                ->with('success', 'Ejemplar #' . $ejemplar->numEjemplar . ' actualizado correctamente');
+
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar ejemplar:', [
+                'error' => $e->getMessage(),
+                'ejemplar_id' => $ejemplarId,
+                'libro_id' => $libroId,
+                'request_data' => $request->all()
+            ]);
+            
+            return Redirect::back()
+                ->withInput()
+                ->with('error', 'Error al actualizar el ejemplar: ' . $e->getMessage());
+        }
     }
 }

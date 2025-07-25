@@ -36,12 +36,33 @@ export default function ShowEstanteria({ estanteria }: ShowModalProps) {
                 {estanteria.cod_estante}
               </dd>
             </div>
-            <div className="sm:col-span-1">
+            <div className="sm:col-span-2"> {/* Cambiado a col-span-2 para dar más espacio */}
               <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
                 Descripción
               </dt>
-              <dd className="text-base text-gray-900 dark:text-white font-medium">
-                {estanteria.descripcion || '-'}
+              <dd className="text-base text-gray-900 dark:text-white">
+                {estanteria.descripcion ? (
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                    <div 
+                      className="whitespace-pre-wrap break-words leading-relaxed max-h-24 overflow-y-auto 
+                                 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 
+                                 scrollbar-track-gray-100 dark:scrollbar-track-gray-800"
+                      style={{
+                        wordBreak: 'break-word',
+                        overflowWrap: 'break-word'
+                      }}
+                    >
+                      {estanteria.descripcion}
+                    </div>
+                    {estanteria.descripcion.length > 200 && (
+                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-600 pt-2">
+                        <span className="font-medium">Longitud:</span> {estanteria.descripcion.length} caracteres
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-gray-400 italic">Sin descripción</span>
+                )}
               </dd>
             </div>
             {(estanteria.created_at || estanteria.updated_at) && (

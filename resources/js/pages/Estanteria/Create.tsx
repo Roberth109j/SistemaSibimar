@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import Modal from '@/components/Modal';
-import Form from '@/components/Form';
+import Form from '@/components/Form'; // Usamos el Form original ya modificado
 
 type CreateModalProps = {
   onSuccess: (message: string) => void;
@@ -18,7 +18,7 @@ export default function CreateEstanteria({ onSuccess, onError, errors = {} }: Cr
     descripcion: ''
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['cod_estante', 'descripcion'];
     if (validFields.includes(name as keyof typeof data)) {
@@ -29,29 +29,17 @@ export default function CreateEstanteria({ onSuccess, onError, errors = {} }: Cr
     }
   };
 
-  const estanteriaFields = [
-    {
-      name: 'cod_estante',
-      label: 'Código de estante',
-      type: 'text',
-      placeholder: 'Ingrese el código de estante',
-      required: true,
-      value: data.cod_estante,
-      onChange: handleChange
-    },
-    {
-      name: 'descripcion',
-      label: 'Descripción',
-      type: 'text',
-      placeholder: 'Ingrese la descripción (opcional)',
-      required: false,
-      value: data.descripcion,
-      onChange: handleChange
-    }
-  ];
-
   const handleSubmit = () => {
     clearErrors();
+    
+    // Validación de límite de caracteres
+    const descripcionLength = data.descripcion ? String(data.descripcion).length : 0;
+    if (descripcionLength > 255) {
+      setError('descripcion', 'La descripción no puede exceder los 255 caracteres.');
+      onError('La descripción excede el límite de 255 caracteres. Por favor, reduce el texto.');
+      return;
+    }
+    
     console.log('Submitting form with data:', data);
     post('/estanterias', {
       preserveScroll: true,
@@ -81,6 +69,41 @@ export default function CreateEstanteria({ onSuccess, onError, errors = {} }: Cr
     });
   };
 
+  // Función para manejar el evento de tecla
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey && !processing) {
+      e.preventDefault();
+      // Verificar si no excede el límite antes de enviar
+      const descripcionLength = data.descripcion ? String(data.descripcion).length : 0;
+      if (descripcionLength <= 255) {
+        handleSubmit();
+      }
+    }
+  };
+
+  const estanteriaFields = [
+    {
+      name: 'cod_estante',
+      label: 'Código de estante',
+      type: 'text',
+      placeholder: 'Ingrese el código de estante',
+      required: true,
+      value: data.cod_estante,
+      onChange: handleChange
+    },
+    {
+      name: 'descripcion',
+      label: 'Descripción',
+      type: 'textarea', // Ahora como textarea
+      placeholder: 'Ingrese la descripción (opcional)',
+      required: false,
+      value: data.descripcion,
+      onChange: handleChange,
+      rows: 4,
+      className: 'resize-y min-h-[100px] max-h-[300px]'
+    }
+  ];
+
   const modalFooter = (
     <>
       <button
@@ -97,11 +120,14 @@ export default function CreateEstanteria({ onSuccess, onError, errors = {} }: Cr
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={processing}
-        className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
-          bg-blue-500 hover:bg-blue-600 text-white
+        disabled={processing || (data.descripcion ? String(data.descripcion).length > 255 : false)}
+        className={`px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm text-white
           focus:outline-none focus:ring-2 focus:ring-blue-500
-          disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+          transition-all duration-200 ${
+            processing || (data.descripcion ? String(data.descripcion).length > 255 : false)
+              ? 'bg-gray-400 cursor-not-allowed opacity-50' 
+              : 'bg-blue-500 hover:bg-blue-600'
+          }`}
       >
         {processing ? 'Guardando...' : 'Guardar'}
       </button>
@@ -126,21 +152,23 @@ export default function CreateEstanteria({ onSuccess, onError, errors = {} }: Cr
         description="Complete los campos para continuar"
         footer={modalFooter}
       >
-        <Form
-          initialData={data}
-          fields={estanteriaFields}
-          errors={formErrors}
-          submitUrl="/estanterias"
-          method="post"
-          onCancel={() => setIsOpen(false)}
-          onSuccess={handleSubmit}
-          submitButtonText="Guardar"
-          isEditing={false}
-          accentColor="blue"
-          showButtons={false}
-          id="create-estanteria-form"
-          processing={processing}
-        />
+        <div onKeyDown={handleKeyPress}>
+          <Form
+            initialData={data}
+            fields={estanteriaFields}
+            errors={formErrors}
+            submitUrl="/estanterias"
+            method="post"
+            onCancel={() => setIsOpen(false)}
+            onSuccess={handleSubmit}
+            submitButtonText="Guardar"
+            isEditing={false}
+            accentColor="blue"
+            showButtons={false}
+            id="create-estanteria-form"
+            processing={processing}
+          />
+        </div>
       </Modal>
     </>
   );

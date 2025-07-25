@@ -15,36 +15,52 @@ use Illuminate\Database\QueryException;
 class EditorialController extends Controller
 {
     /**
-     * Obtiene un listado de editoriales con paginación y filtros
+     * Obtiene un listado de editoriales con paginación, ordenamiento y búsqueda
      */
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
         // Validación de parámetros de paginación
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 10; // Valor fijo de 10 elementos por página
 
-        // Query base ordenado por ID
-        $query = Editorial::query()->orderBy('id');
+        // Parámetros de ordenamiento - SOLO NOMBRE
+        $sortOrder = $request->get('sort_order', 'asc'); // Orden por defecto: ascendente (A-Z)
+        
+        // Solo permitir ordenamiento ascendente o descendente
+        $allowedSortOrders = ['asc', 'desc'];
+        if (!in_array($sortOrder, $allowedSortOrders)) {
+            $sortOrder = 'asc';
+        }
 
-        // Aplicar filtros
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('nombre', 'LIKE', "%{$search}%")
-                  ->orWhere('ciudad', 'LIKE', "%{$search}%")
-                  ->orWhere('pais', 'LIKE', "%{$search}%");
+        // Parámetro de búsqueda
+        $search = $request->get('search', '');
+
+        // Query base con ordenamiento por nombre
+        $query = Editorial::query();
+
+        // Aplicar filtro de búsqueda si existe
+        if (!empty($search)) {
+            $searchTerm = trim($search);
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('nombre', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('ciudad', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('pais', 'LIKE', "%{$searchTerm}%");
             });
         }
 
+        // Aplicar filtros adicionales
         if ($request->filled('ciudad')) {
-            $query->where('ciudad', $request->ciudad);
+            $query->where('ciudad', $request->input('ciudad'));
         }
 
         if ($request->filled('pais')) {
-            $query->where('pais', $request->pais);
+            $query->where('pais', $request->input('pais'));
         }
 
-        // Paginación mejorada
+        // Aplicar ordenamiento por nombre
+        $query->orderBy('nombre', $sortOrder);
+
+        // Paginación
         $editoriales = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
 
         // Redirigir si la página solicitada no existe pero hay resultados
@@ -54,9 +70,32 @@ class EditorialController extends Controller
             );
         }
 
+        // Calcular el número inicial para la numeración secuencial
+        $startNumber = ($editoriales->currentPage() - 1) * $editoriales->perPage();
+
+        // Obtener todas las ciudades y países únicos para los filtros (sin aplicar filtros)
+        $allCiudades = Editorial::whereNotNull('ciudad')
+                               ->where('ciudad', '!=', '')
+                               ->distinct()
+                               ->pluck('ciudad')
+                               ->sort()
+                               ->values();
+
+        $allPaises = Editorial::whereNotNull('pais')
+                             ->where('pais', '!=', '')
+                             ->distinct()
+                             ->pluck('pais')
+                             ->sort()
+                             ->values();
+
         return Inertia::render('Editorial/Index', [
             'editoriales' => $editoriales,
-            'filters' => array_filter($request->only(['search', 'ciudad', 'pais'])),
+            'sort_order' => $sortOrder,
+            'search' => $search,
+            'start_number' => $startNumber,
+            'filters' => array_filter($request->only(['ciudad', 'pais'])),
+            'all_ciudades' => $allCiudades,
+            'all_paises' => $allPaises,
             'pagination' => [
                 'current_page' => $editoriales->currentPage(),
                 'last_page' => $editoriales->lastPage(),

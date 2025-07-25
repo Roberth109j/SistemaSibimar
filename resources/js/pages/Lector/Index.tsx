@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Search, CheckCircle, AlertCircle, X, Plus, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, CheckCircle, AlertCircle, X, Plus, Filter, ChevronLeft, ChevronRight, Users } from 'lucide-react';
 import AppLayout from '../../layouts/app-layout';
 import { type BreadcrumbItem, type Lector, type Grado } from './types';
 import ShowLector from './Show';
@@ -26,6 +26,7 @@ type IndexProps = {
     user: any;
   };
   lectores: PaginatedLectors | { data: Lector[]; total?: number };
+  todosLosLectores?: Lector[];
   flash?: FlashMessage;
   errors?: Record<string, string>;
   filters?: {
@@ -35,7 +36,6 @@ type IndexProps = {
     estado?: string;
   };
   grados?: Grado[];
-  // Nuevos props del backend mejorado
   perPageOptions?: number[];
   currentPerPage?: number;
   pagination?: {
@@ -125,6 +125,7 @@ function AlertNotification({
 const Index = ({ 
   auth, 
   lectores, 
+  todosLosLectores = [],
   flash, 
   errors = {}, 
   filters: initialFilters = {}, 
@@ -281,6 +282,17 @@ const Index = ({
               <Filter className="w-5 h-5" />
               <span>Filtros</span>
             </button>
+
+            {/*BOTÓN DE ASIGNACIÓN MASIVA QUE REDIRIGE A LA PÁGINA DEDICADA */}
+            <Link
+              href={route('lectores.asignacion-masiva')}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white 
+                        px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg
+                        transform hover:-translate-y-0.5"
+            >
+              <Users className="w-5 h-5" />
+              <span>Edicion Masiva</span>
+            </Link>
 
             <Link
               href={route('lectores.create')}

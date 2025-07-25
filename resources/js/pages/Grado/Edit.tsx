@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useForm } from '@inertiajs/react';
+import { useForm, router } from '@inertiajs/react';
 import { Pencil } from 'lucide-react';
 import Modal from '@/components/Modal';
 import Form from '@/components/Form';
@@ -25,9 +25,10 @@ type FieldConfig = {
 
 export default function EditGrado({ grado, onSuccess, onError, errors = {} }: EditModalProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Use the proper GradoFormData type and correctly access subGrado with capital G
-  const { data, setData, put, processing, reset, errors: formErrors, setError, clearErrors } = useForm<GradoFormData>({
+  const { data, setData, errors: formErrors, setError, clearErrors } = useForm<GradoFormData>({
     grado: grado.grado,
     subGrado: grado.subGrado || '', // Correct capitalization of subGrado
     estado: grado.estado,
@@ -67,6 +68,21 @@ export default function EditGrado({ grado, onSuccess, onError, errors = {} }: Ed
     }
   };
 
+  // ✅ NUEVA FUNCIÓN: Obtener filtros actuales de la URL
+  const getCurrentFilters = () => {
+    const currentUrl = new URL(window.location.href);
+    const filters = {
+      search: currentUrl.searchParams.get('search') || '',
+      grado_filter: currentUrl.searchParams.get('grado_filter') || '',
+      estado: currentUrl.searchParams.get('estado') || '',
+      seccion_filter: currentUrl.searchParams.get('seccion_filter') || '',
+      sort_order: currentUrl.searchParams.get('sort_order') || 'asc',
+      page: currentUrl.searchParams.get('page') || '1'
+    };
+    console.log('Current filters extracted:', filters);
+    return filters;
+  };
+
   const gradoFields: FieldConfig[] = [
     {
       name: 'grado',
@@ -78,18 +94,18 @@ export default function EditGrado({ grado, onSuccess, onError, errors = {} }: Ed
       onChange: handleChange,
       options: [
         { value: '', label: 'Seleccione un grado' },
-        { value: 'Prescolar', label: 'Prescolar' },
-        { value: 'Primero', label: 'Primero' },
-        { value: 'Segundo', label: 'Segundo' },
-        { value: 'Tercero', label: 'Tercero' },
-        { value: 'Cuarto', label: 'Cuarto' },
-        { value: 'Quinto', label: 'Quinto' },
-        { value: 'Sexto', label: 'Sexto' },
-        { value: 'Séptimo', label: 'Séptimo' },
-        { value: 'Octavo', label: 'Octavo' },
-        { value: 'Noveno', label: 'Noveno' },
-        { value: 'Décimo', label: 'Décimo' },
-        { value: 'Once', label: 'Once' },
+        { value: 'PREESCOLAR', label: 'PREESCOLAR' },
+        { value: 'PRIMERO', label: 'PRIMERO' },
+        { value: 'SEGUNDO', label: 'SEGUNDO' },
+        { value: 'TERCERO', label: 'TERCERO' },
+        { value: 'CUARTO', label: 'CUARTO' },
+        { value: 'QUINTO', label: 'QUINTO' },
+        { value: 'SEXTO', label: 'SEXTO' },
+        { value: 'SÉPTIMO', label: 'SÉPTIMO' },
+        { value: 'OCTAVO', label: 'OCTAVO' },
+        { value: 'NOVENO', label: 'NOVENO' },
+        { value: 'DÉCIMO', label: 'DÉCIMO' },
+        { value: 'ONCE', label: 'ONCE' },
       ],
     },
     {
@@ -132,16 +148,38 @@ export default function EditGrado({ grado, onSuccess, onError, errors = {} }: Ed
 
   const handleSubmit = () => {
     clearErrors();
+    setIsSubmitting(true);
     console.log('Submitting form with data:', data);
-    put(`/grados/${grado.id}`, {
+    
+    // ✅ OBTENER FILTROS ACTUALES Y ENVIARLOS CON EL FORMULARIO
+    const currentFilters = getCurrentFilters();
+    
+    // ✅ CREAR OBJETO COMPLETO CON DATOS Y FILTROS
+    const completeFormData = {
+      grado: data.grado,
+      subGrado: data.subGrado,
+      estado: data.estado,
+      seccion_id: data.seccion_id,
+      current_filters: currentFilters
+    };
+    
+    console.log('Sending complete data:', completeFormData);
+    
+    // ✅ USAR ROUTER.PUT DIRECTAMENTE PARA MAYOR CONTROL
+    router.put(`/grados/${grado.id}`, completeFormData, {
       preserveScroll: true,
+      preserveState: false,
+      onStart: () => {
+        setIsSubmitting(true);
+        console.log('Request started');
+      },
       onSuccess: (page: any) => {
         console.log('Success response:', page);
         const successMessage = page.props.flash?.success || 'Grado actualizado exitosamente';
         onSuccess(successMessage);
         clearErrors();
         setIsOpen(false);
-        // ✅ NO hacer reset() aquí para mantener los datos actualizados
+        setIsSubmitting(false);
       },
       onError: (errors: Record<string, string>) => {
         console.log('Error response:', errors);
@@ -154,9 +192,11 @@ export default function EditGrado({ grado, onSuccess, onError, errors = {} }: Ed
           const errorMessage = errors.error || 'Ha ocurrido un error al actualizar el grado';
           onError(errorMessage);
         }
+        setIsSubmitting(false);
       },
       onFinish: () => {
         console.log('Request finished');
+        setIsSubmitting(false);
       },
     });
   };
@@ -177,13 +217,13 @@ export default function EditGrado({ grado, onSuccess, onError, errors = {} }: Ed
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={processing}
+        disabled={isSubmitting}
         className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
           bg-blue-500 hover:bg-blue-600 text-white
           focus:outline-none focus:ring-2 focus:ring-blue-500
           disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
       >
-        {processing ? 'Actualizando...' : 'Actualizar'}
+        {isSubmitting ? 'Actualizando...' : 'Actualizar'}
       </button>
     </>
   );
@@ -216,7 +256,7 @@ export default function EditGrado({ grado, onSuccess, onError, errors = {} }: Ed
           accentColor="blue"
           showButtons={false}
           id="edit-grado-form"
-          processing={processing}
+          processing={isSubmitting}
         />
       </Modal>
     </>

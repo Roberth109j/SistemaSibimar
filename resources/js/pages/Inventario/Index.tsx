@@ -100,8 +100,10 @@ const Index: React.FC<InventarioProps> = ({
   estados = {},
   filters: filtrosIniciales = {},
   flash,
-  errors = {}
+  errors = {},
+  pagination // ← Agregar esta prop
 }) => {
+  console.log('Index props:', { libros, pagination, filters: filtrosIniciales }); // Debug
   // Estados del componente
   const [terminoBusqueda, setTerminoBusqueda] = useState(filtrosIniciales.search || '');
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -300,8 +302,11 @@ const Index: React.FC<InventarioProps> = ({
             exportandoExcel={exportandoExcel}
           />
 
-          {/* Tabla de libros */}
-          <TablaInventario libros={libros} />
+          {/* Tabla de libros con paginación unificada */}
+          <TablaInventario 
+            libros={libros} 
+            pagination={pagination} // ← Pasar la información de paginación
+          />
         </div>
       </div>
     </AppLayout>
