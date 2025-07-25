@@ -55,12 +55,12 @@ class DashboardController extends Controller
             'total_ejemplares' => Ejemplar::count(),
         ];
 
-        // Obtener datos para el gráfico de préstamos por mes
+        // Obtener datos para el gráfico de préstamos por mes (CORREGIDO PARA MYSQL)
         $prestamosPorMes = Prestamo::select(
-                DB::raw('cast(strftime("%m", fecha_prestamo) as integer) as mes'),
-                DB::raw('COUNT(*) as total')
-            )
-            ->whereRaw('strftime("%Y", fecha_prestamo) = ?', [date('Y')])
+            DB::raw('MONTH(fecha_prestamo) as mes'),
+            DB::raw('COUNT(*) as total')
+        )
+            ->whereRaw('YEAR(fecha_prestamo) = ?', [date('Y')])
             ->groupBy('mes')
             ->orderBy('mes')
             ->get()
@@ -85,7 +85,7 @@ class DashboardController extends Controller
 
         // Calcular tasa de devolución a tiempo
         $totalDevueltos = $estadisticasDevolucion['devueltos_tiempo'] + $estadisticasDevolucion['devueltos_tarde'];
-        $tasaDevolucionTiempo = $totalDevueltos > 0 
+        $tasaDevolucionTiempo = $totalDevueltos > 0
             ? round(($estadisticasDevolucion['devueltos_tiempo'] / $totalDevueltos) * 100, 2)
             : 0;
 
