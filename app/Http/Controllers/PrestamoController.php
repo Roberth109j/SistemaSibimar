@@ -147,25 +147,39 @@ class PrestamoController extends Controller
     }
 
     /**
-     * Marcar un préstamo como devuelto
+     * Marcar un préstamo como devuelto (para préstamos activos)
      */
-    public function devolver(Prestamo $prestamo)
+    public function devolver(Request $request, Prestamo $prestamo)
     {
+        // Validar los datos recibidos
+        $request->validate([
+            'fecha_devuelto' => 'required|date',
+            'observaciones' => 'nullable|string|max:500',
+        ]);
+
         if ($prestamo->estado === 'DEVUELTO') {
             return back()->with('error', 'Este préstamo ya ha sido devuelto.');
         }
 
+        // Verificar que el préstamo esté activo (no vencido)
+        if ($prestamo->estado === 'VENCIDO') {
+            return back()->with('error', 'Este préstamo está vencido. Use la función de devolución de préstamos vencidos.');
+        }
+
         try {
+            // Actualizar el préstamo con los datos recibidos
             $prestamo->update([
                 'estado' => 'DEVUELTO',
-                'fecha_devuelto' => Carbon::now()
+                'fecha_devuelto' => $request->fecha_devuelto,
+                'observaciones' => $request->observaciones ?? $prestamo->observaciones,
+                'updated_at' => now(),
             ]);
 
             // Actualizar estado del ejemplar
             $prestamo->ejemplar->update(['estado' => Ejemplar::ESTADO_DISPONIBLE]);
 
-            return redirect()->route('prestamos.index')
-                ->with('success', 'Préstamo marcado como devuelto exitosamente.');
+            return redirect()->route('prestamos.listado')
+                ->with('success', 'Préstamo devuelto exitosamente.');
         } catch (\Exception $e) {
             return back()->with('error', 'Error al procesar la devolución: ' . $e->getMessage());
         }
@@ -185,18 +199,20 @@ class PrestamoController extends Controller
                 ->orderBy('fecha_prestamo', 'desc');
 
             if ($request->has('search')) {
+
                 $search = $request->input('search');
                 $query->where(function($q) use ($search) {
                     $q->whereHas('lector', function($q) use ($search) {
+
                         $q->where('nombre', 'LIKE', "%{$search}%")
                             ->orWhere('codigo', 'LIKE', "%{$search}%");
                     })
-                    ->orWhereHas('ejemplar', function($q) use ($search) {
-                        $q->where('codigo', 'LIKE', "%{$search}%")
-                            ->orWhereHas('libro', function($q) use ($search) {
-                                $q->where('titulo', 'LIKE', "%{$search}%");
-                            });
-                    });
+                        ->orWhereHas('ejemplar', function ($q) use ($search) {
+                            $q->where('codigo', 'LIKE', "%{$search}%")
+                                ->orWhereHas('libro', function ($q) use ($search) {
+                                    $q->where('titulo', 'LIKE', "%{$search}%");
+                                });
+                        });
                 });
             }
 
@@ -223,44 +239,50 @@ class PrestamoController extends Controller
     {
         try {
             $this->actualizarPrestamosVencidos();
-    
+
             $query = Prestamo::with(['ejemplar.libro', 'lector'])
                 ->where('estado', 'VENCIDO')
                 ->orderBy('fecha_devolucion', 'asc');
-    
+
             if ($request->filled('search')) {
-                $search = trim($request->input('search'));
-                $query->where(function($q) use ($search) {
-                    $q->whereHas('lector', function($q) use ($search) {
+              
+                $search = trim($request->search);
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('lector', function ($q) use ($search) {
+
+                $search = trim($request->search);
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('lector', function ($q) use ($search) {
+
                         $q->where('nombre', 'LIKE', "%{$search}%")
                             ->orWhere('codigo', 'LIKE', "%{$search}%");
                     })
-                    ->orWhereHas('ejemplar', function($q) use ($search) {
-                        $q->where('codigo', 'LIKE', "%{$search}%")
-                            ->orWhereHas('libro', function($q) use ($search) {
-                                $q->where('titulo', 'LIKE', "%{$search}%");
-                            });
-                    });
+                        ->orWhereHas('ejemplar', function ($q) use ($search) {
+                            $q->where('codigo', 'LIKE', "%{$search}%")
+                                ->orWhereHas('libro', function ($q) use ($search) {
+                                    $q->where('titulo', 'LIKE', "%{$search}%");
+                                });
+                        });
                 });
             }
-    
+
             if ($request->filled('dias_vencido')) {
                 $diasMinimos = (int) $request->input('dias_vencido');
                 if ($diasMinimos > 0) {
                     $query->whereRaw('DATEDIFF(CURDATE(), fecha_devolucion) >= ?', [$diasMinimos]);
                 }
             }
-    
+
             $prestamos = $query->paginate(10)->withQueryString();
-    
+
             $prestamos->getCollection()->transform(function ($prestamo) {
                 $fechaDevolucion = Carbon::parse($prestamo->fecha_devolucion)->startOfDay();
                 $fechaActual = Carbon::now()->startOfDay();
                 $diasRetraso = $fechaActual->diffInDays($fechaDevolucion);
-                $prestamo->dias_retraso = max(0, $diasRetraso); 
+                $prestamo->dias_retraso = max(0, $diasRetraso);
                 return $prestamo;
             });
-    
+
             return Inertia::render('Prestamos/Vencidos', [
                 'prestamos' => $prestamos,
                 'filters' => [
@@ -273,11 +295,11 @@ class PrestamoController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-    
+
             return back()->with('error', 'Error al cargar la lista de préstamos vencidos: ' . $e->getMessage());
         }
     }
-    
+
 
     /**
      * Procesar devolución de préstamo vencido

@@ -86,7 +86,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('grados/{grado}', [GradoController::class, 'update']);
     Route::delete('grados/{grado}', [GradoController::class, 'destroy'])->name('grados.destroy');
 
-    //Rutas para lectores
+
     Route::get('lectores', [LectorController::class, 'index'])->name('lectores.index');
     Route::get('lectores/create', [LectorController::class, 'create'])->name('lectores.create');
     Route::get('/lectores/buscar', [LectorController::class, 'buscarPorCodigo'])->name('lectores.buscar');
@@ -94,15 +94,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('lectores.asignacion-masiva');
     Route::post('/lectores/asignacion-masiva', [LectorController::class, 'asignacionMasiva'])
         ->name('lectores.asignacion-masiva.store');
+
     Route::post('lectores', [LectorController::class, 'store'])->name('lectores.store');
     Route::get('lectores/{lector}', [LectorController::class, 'show'])->name('lectores.show');
     Route::get('lectores/{lector}/edit', [LectorController::class, 'edit'])->name('lectores.edit');
     Route::put('lectores/{lector}', [LectorController::class, 'update'])->name('lectores.update');
     Route::patch('lectores/{lector}', [LectorController::class, 'update']);
     Route::delete('lectores/{lector}', [LectorController::class, 'destroy'])->name('lectores.destroy');
+
     Route::post('/lectores/cambio-estado-masivo', [LectorController::class, 'cambioEstadoMasivo'])
         ->name('lectores.cambio-estado-masivo');
-        
+
     // Rutas para PrestamoController
     Route::get('prestamos', [PrestamoController::class, 'index'])->name('prestamos.index');
     Route::get('prestamos/create', [PrestamoController::class, 'create'])->name('prestamos.create');
@@ -111,41 +113,42 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('reportes/historial-prestamos', [ReporteController::class, 'historialPrestamos'])->name('reportes.historial-prestamos');
     Route::get('prestamos/listado', [PrestamoController::class, 'listado'])->name('prestamos.listado');
     Route::get('prestamos/devoluciones', [PrestamoController::class, 'listado'])->name('prestamos.devoluciones');
-    
+
     // Ruta principal para préstamos vencidos con paginación
     Route::get('prestamos/vencidos', [PrestamoController::class, 'vencidos'])->name('prestamos.vencidos');
-    
+
     Route::post('prestamos', [PrestamoController::class, 'store'])->name('prestamos.store');
     Route::get('prestamos/{prestamo}', [PrestamoController::class, 'show'])->name('prestamos.show');
     Route::get('prestamos/{prestamo}/edit', [PrestamoController::class, 'edit'])->name('prestamos.edit');
     Route::put('prestamos/{prestamo}', [PrestamoController::class, 'update'])->name('prestamos.update');
-    Route::post('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolverVencido'])->name('prestamos.devolver');
+
+    Route::post('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolver'])->name('prestamos.devolver');
+    Route::post('prestamos/{prestamo}/devolver-vencido', [PrestamoController::class, 'devolverVencido'])->name('prestamos.devolver-vencido');
+
     Route::delete('prestamos/{prestamo}', [PrestamoController::class, 'destroy'])->name('prestamos.destroy');
-    
+
 
     Route::prefix('informes')->group(function () {
         Route::get('/', [InformeController::class, 'index'])->name('informes.index');
         Route::get('/rangos-fecha', [InformeController::class, 'getRangosFecha']);
-        Route::get('/prestamos-realizados', function() {
+        Route::get('/prestamos-realizados', function () {
             return redirect()->route('informes.index');
         })->name('informes.prestamos-realizados');
-        Route::get('/libros-no-devueltos', function() {
+        Route::get('/libros-no-devueltos', function () {
             return redirect()->route('informes.index');
         })->name('informes.libros-no-devueltos');
         Route::post('/prestamos-realizados', [InformeController::class, 'prestamosRealizados']);
         Route::post('/libros-no-devueltos', [InformeController::class, 'librosNoDevueltos']);
         Route::get('/descargar-prestamos', [InformeController::class, 'descargarPDFPrestamos'])
-               ->name('informes.descargar-prestamos');
+            ->name('informes.descargar-prestamos');
         Route::get('/descargar-no-devueltos', [InformeController::class, 'descargarPDFNoDevueltos'])
-               ->name('informes.descargar-no-devueltos');
+            ->name('informes.descargar-no-devueltos');
     });
 
     // Rutas para InventarioController
     Route::get('inventario', [InventarioController::class, 'index'])->name('inventario.index');
     Route::get('/inventario/exportar', [InventarioController::class, 'exportarExcel'])
-    ->name('inventario.exportar');
-
-
+        ->name('inventario.exportar');
 });
 
 require __DIR__ . '/settings.php';
