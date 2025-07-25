@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Libro;
 use App\Models\Lector;
 use App\Models\Prestamo;
+use App\Models\Ejemplar;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -25,10 +26,24 @@ class DashboardController extends Controller
         // Obtener los 5 lectores más frecuentes
         $lectoresFrecuentes = Lector::select('lectores.*', DB::raw('COUNT(prestamos.id) as total_prestamos'))
             ->join('prestamos', 'lectores.id', '=', 'prestamos.lector_id')
-            ->groupBy('lectores.id')
+            ->join('grados', 'lectores.grado_id', '=', 'grados.id', 'left')
+            ->with('grado')
+            ->groupBy('lectores.id', 'grados.grado', 'grados.subGrado')
             ->orderBy('total_prestamos', 'desc')
             ->limit(5)
-            ->get();
+            ->get()
+            ->map(function ($lector) {
+                return [
+                    'id' => $lector->id,
+                    'nombre' => $lector->nombre,
+                    'total_prestamos' => $lector->total_prestamos,
+                    'tipo' => $lector->tipo,
+                    'grado' => $lector->grado ? [
+                        'grado' => $lector->grado->grado,
+                        'subGrado' => $lector->grado->subGrado
+                    ] : null
+                ];
+            });
 
         // Obtener estadísticas generales
         $estadisticasGenerales = [
@@ -37,11 +52,15 @@ class DashboardController extends Controller
             'prestamos_vencidos' => Prestamo::where('estado', Prestamo::ESTADO_VENCIDO)->count(),
             'total_libros' => Libro::count(),
             'total_lectores' => Lector::count(),
+            'total_ejemplares' => Ejemplar::count(),
         ];
 
         // Obtener datos para el gráfico de préstamos por mes
-        $prestamosPorMes = Prestamo::select(DB::raw('MONTH(fecha_prestamo) as mes'), DB::raw('COUNT(*) as total'))
-            ->whereYear('fecha_prestamo', date('Y'))
+        $prestamosPorMes = Prestamo::select(
+                DB::raw('cast(strftime("%m", fecha_prestamo) as integer) as mes'),
+                DB::raw('COUNT(*) as total')
+            )
+            ->whereRaw('strftime("%Y", fecha_prestamo) = ?', [date('Y')])
             ->groupBy('mes')
             ->orderBy('mes')
             ->get()

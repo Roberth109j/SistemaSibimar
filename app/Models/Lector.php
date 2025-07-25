@@ -41,7 +41,7 @@ class Lector extends Model
     // Relación con Prestamos
     public function prestamos(): HasMany
     {
-        return $this->hasMany(Prestamo::class, 'usuario_id');
+        return $this->hasMany(Prestamo::class, 'lector_id');
     }
 
     // Métodos de utilidad

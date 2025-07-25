@@ -22,7 +22,7 @@ class Autor extends Model
     // Relación con libros: un autor puede tener muchos libros
     public function libros(): HasMany
     {
-        return $this->hasMany(Libro::class);
+        return $this->hasMany(Libro::class, 'autor_id');
     }
 
     // Método para obtener el nombre completo del autor
