@@ -27,16 +27,21 @@ interface Prestamo {
     numEjemplar?: number;
     libro: {
       titulo: string;
+      isbn?: string;
     };
   };
   lector: {
     id: number;
     nombre: string;
     codigo: string;
+    grado?: {
+      nombre: string;
+    };
   };
   fecha_prestamo: string;
   fecha_devolucion: string;
   estado: string;
+  dias_retraso?: number;
 }
 
 interface PaginationLinks {
@@ -59,6 +64,12 @@ interface Props {
   filters?: {
     search?: string;
     dias_vencido?: string;
+  };
+  search_stats?: {
+    total_found: number;
+    has_filters: boolean;
+    search_term: string;
+    dias_filter: string;
   };
 }
 
@@ -131,7 +142,7 @@ function AlertNotification({
   );
 }
 
-export default function Vencidos({ prestamos, filters }: Props) {
+export default function Vencidos({ prestamos, filters, search_stats }: Props) {
   const { props: pageProps } = usePage();
   const currentFilters = (pageProps.filters as Props['filters']) || {};
 
@@ -139,8 +150,6 @@ export default function Vencidos({ prestamos, filters }: Props) {
   const [showFilters, setShowFilters] = useState(false);
   const [diasVencido, setDiasVencido] = useState(currentFilters.dias_vencido || '');
   const [isSearching, setIsSearching] = useState(false);
-  const [filteredPrestamos, setFilteredPrestamos] = useState(prestamos.data);
-
 
   const [modalAbierto, setModalAbierto] = useState(false);
   const [prestamoSeleccionado, setPrestamoSeleccionado] = useState<number | null>(null);
@@ -157,47 +166,110 @@ export default function Vencidos({ prestamos, filters }: Props) {
     timestamp: 0
   });
 
-  // Función para realizar búsqueda local
+  // Función para búsqueda global con debounce
+  const debouncedGlobalSearch = useCallback(
+    debounce((searchValue: string) => {
+      setIsSearching(true);
 
-  const handleSearch = useCallback((value: string) => {
+      const searchParams = {
+        search: searchValue.trim() || undefined,
+        dias_vencido: diasVencido || undefined,
+        page: undefined
+      };
+
+      router.get('/prestamos/vencidos', searchParams, {
+        preserveState: true,
+        preserveScroll: false,
+        replace: false,
+        onSuccess: (page) => {
+          const responseFilters = (page.props.filters as Props['filters']);
+          const responseStats = (page.props.search_stats as Props['search_stats']);
+          const responsePrestamos = (page.props.prestamos as Props['prestamos']);
+
+          if (responseFilters?.search !== searchValue.trim()) {
+            console.warn('El servidor no devolvió el término de búsqueda esperado:', {
+              expected: searchValue.trim(),
+              received: responseFilters?.search
+            });
+          }
+
+          setIsSearching(false);
+        },
+        onError: (errors) => {
+          console.error("Error en búsqueda global:", errors);
+          setIsSearching(false);
+          setAlerts({
+            success: null,
+            error: 'Error al realizar la búsqueda global. Por favor, intente de nuevo.',
+            timestamp: Date.now()
+          });
+        }
+      });
+    }, 600),
+    [diasVencido]
+  );
+
+  // Función para manejar cambios en el input de búsqueda
+  const handleGlobalSearch = useCallback((value: string) => {
     setSearchTerm(value);
-    setIsSearching(true);
 
-    const searchValue = value.toLowerCase().trim();
-    const filtered = prestamos.data.filter(prestamo => {
-      // Validar que el préstamo y sus propiedades existan
-      if (!prestamo) return false;
+    // Si el valor está vacío, limpiar búsqueda inmediatamente
+    if (!value.trim()) {
+      setIsSearching(true);
+      router.get('/prestamos/vencidos', {
+        dias_vencido: diasVencido || undefined
+      }, {
+        preserveState: true,
+        preserveScroll: false,
+        replace: false,
+        onSuccess: () => {
+          setIsSearching(false);
+        },
+        onError: () => {
+          setIsSearching(false);
+          setAlerts({
+            success: null,
+            error: 'Error al limpiar la búsqueda. Por favor, intente de nuevo.',
+            timestamp: Date.now()
+          });
+        }
+      });
+    } else {
+      debouncedGlobalSearch(value);
+    }
+  }, [diasVencido, debouncedGlobalSearch]);
 
-      // Validar lector
-      const lectorNombre = prestamo.lector?.nombre?.toLowerCase() || '';
-      const lectorCodigo = prestamo.lector?.codigo?.toLowerCase() || '';
-
-      // Validar libro
-      const libroTitulo = prestamo.ejemplar?.libro?.titulo?.toLowerCase() || '';
-
-      // Validar ejemplar
-      const ejemplarCodigo = prestamo.ejemplar?.codigo?.toLowerCase() || '';
-
-      return lectorNombre.includes(searchValue) ||
-        lectorCodigo.includes(searchValue) ||
-        libroTitulo.includes(searchValue) ||
-        ejemplarCodigo.includes(searchValue);
-    });
-
-    setFilteredPrestamos(filtered);
-    setIsSearching(false);
-  }, [prestamos.data]);
-
-
-
-  // Sincronizar con filtros del servidor cuando cambien
+  // Inicialización
   useEffect(() => {
+    setSearchTerm(currentFilters.search || '');
+    setDiasVencido(currentFilters.dias_vencido || '');
+  }, []);
+
+  // Sincronización con el servidor
+  useEffect(() => {
+    if (!isSearching) {
+      const serverSearch = filters?.search || '';
+      const currentSearch = searchTerm || '';
+
+      if (serverSearch !== currentSearch) {
+        if (serverSearch === '' && currentSearch !== '') {
+          // El servidor devolvió búsqueda vacía, pero tenemos término local
+          // No actualizar para evitar pérdida de datos
+        } else {
+          setSearchTerm(serverSearch);
+        }
+      }
+    }
+
     setDiasVencido(filters?.dias_vencido || '');
-    setFilteredPrestamos(prestamos.data);
-    // ✅ No sincronizar searchTerm con el servidor
-  }, [filters, prestamos.data]);
+  }, [filters, isSearching]);
 
-
+  // Limpiar debounce al desmontar
+  useEffect(() => {
+    return () => {
+      debouncedGlobalSearch.cancel();
+    };
+  }, [debouncedGlobalSearch]);
 
   const handleDevolucion = (prestamoId: number) => {
     setPrestamoSeleccionado(prestamoId);
@@ -209,17 +281,16 @@ export default function Vencidos({ prestamos, filters }: Props) {
   const confirmarDevolucion = () => {
     if (!prestamoSeleccionado || !fechaDevuelto) return;
 
-    // Preparar los parámetros actuales de filtros
     const currentParams = {
-      dias_vencido: diasVencido,
+      search: searchTerm.trim() || undefined,
+      dias_vencido: diasVencido || undefined,
       page: prestamos.current_page
     };
 
-    // Usar la ruta correcta para devolución de préstamos vencidos
-    router.post(`/prestamos/${prestamoSeleccionado}/devolver`, {
+    router.post(`/prestamos/${prestamoSeleccionado}/devolver-vencido`, {
       fecha_devuelto: fechaDevuelto,
       observaciones: observaciones,
-      ...currentParams // Enviar los filtros actuales para preservarlos
+      ...currentParams
     }, {
       onSuccess: () => {
         setModalAbierto(false);
@@ -253,11 +324,16 @@ export default function Vencidos({ prestamos, filters }: Props) {
     setIsSearching(true);
     router.get(
       '/prestamos/vencidos',
-      { dias_vencido: dias }, // ✅ Solo enviar filtro de días
+      {
+        search: searchTerm.trim() || undefined,
+        dias_vencido: dias || undefined
+      },
       {
         preserveState: true,
-        preserveScroll: true,
-        onSuccess: () => setIsSearching(false),
+        preserveScroll: false,
+        onSuccess: () => {
+          setIsSearching(false);
+        },
         onError: () => {
           setIsSearching(false);
           setAlerts({
@@ -271,15 +347,17 @@ export default function Vencidos({ prestamos, filters }: Props) {
   };
 
   const clearFilters = () => {
-    setSearchTerm(''); // ✅ Limpiar búsqueda local
+    setSearchTerm('');
     setDiasVencido('');
-    setFilteredPrestamos(prestamos.data); // ✅ Restaurar datos originales
     setIsSearching(true);
+
+    debouncedGlobalSearch.cancel();
+
     router.visit('/prestamos/vencidos', {
       method: 'get',
       data: {},
       preserveState: false,
-      preserveScroll: true,
+      preserveScroll: false,
       replace: true,
       onSuccess: () => {
         setIsSearching(false);
@@ -294,30 +372,6 @@ export default function Vencidos({ prestamos, filters }: Props) {
         });
       }
     });
-  };
-
-  const applyFilters = () => {
-    setIsSearching(true);
-    router.get(
-      '/prestamos/vencidos',
-      { dias_vencido: diasVencido }, // ✅ Solo filtro de días
-      {
-        preserveState: true,
-        preserveScroll: true,
-        onSuccess: () => {
-          setIsSearching(false);
-          setShowFilters(false);
-        },
-        onError: () => {
-          setIsSearching(false);
-          setAlerts({
-            success: null,
-            error: 'Error al aplicar los filtros. Por favor, intente de nuevo.',
-            timestamp: Date.now()
-          });
-        }
-      }
-    );
   };
 
   const calcularDiasVencido = (fechaDevolucion: string) => {
@@ -350,13 +404,18 @@ export default function Vencidos({ prestamos, filters }: Props) {
     const page = urlObj.searchParams.get('page');
 
     setIsSearching(true);
-    setSearchTerm(''); // ✅ Limpiar búsqueda al cambiar página
     router.get('/prestamos/vencidos',
-      { dias_vencido: diasVencido, page: page || '1' }, // ✅ Solo filtro de días y página
+      {
+        search: searchTerm.trim() || undefined,
+        dias_vencido: diasVencido || undefined,
+        page: page || '1'
+      },
       {
         preserveState: true,
         preserveScroll: true,
-        onSuccess: () => setIsSearching(false),
+        onSuccess: () => {
+          setIsSearching(false);
+        },
         onError: () => {
           setIsSearching(false);
           setAlerts({
@@ -404,31 +463,52 @@ export default function Vencidos({ prestamos, filters }: Props) {
         </div>
 
         <div className="max-w-full mx-auto relative z-10 px-2 sm:px-4 lg:px-6">
-          {/* Header */}
+          {/* Header mejorado */}
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-8">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 Préstamos Vencidos
               </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Gestión de préstamos con fechas de devolución vencidas
-              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Gestión de préstamos con fechas de devolución vencidas
+                </p>
+                {search_stats?.has_filters && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+                      🔍 Búsqueda activa
+                    </span>
+                    {search_stats.search_term && (
+                      <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full">
+                        "{search_stats.search_term}"
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Buscar por nombre del lector, código o título del libro..."
-                  className="w-full sm:w-80 pl-10 py-2.5 pr-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 
+                  placeholder="🔍 Buscar GLOBALMENTE: nombre del lector, código o título del libro..."
+                  className="w-full sm:w-96 pl-10 py-2.5 pr-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 
                             text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                             shadow-sm transition-all duration-200"
                   value={searchTerm}
-                  onChange={(e) => handleSearch(e.target.value)}
+                  onChange={(e) => {
+                    handleGlobalSearch(e.target.value);
+                  }}
                   disabled={isSearching}
                 />
                 <Search className={`w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 ${isSearching ? 'text-blue-500 animate-spin' : 'text-gray-400'
                   }`} />
+                {isSearching && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
               </div>
 
               <button
@@ -442,13 +522,18 @@ export default function Vencidos({ prestamos, filters }: Props) {
               <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg">
                 <AlertTriangle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 <span className="text-blue-700 dark:text-blue-300 font-medium">
-                  {prestamos.total} vencidos
+                  {search_stats?.has_filters ? search_stats.total_found : prestamos.total} vencidos
+                  {search_stats?.has_filters && search_stats.total_found !== prestamos.total && (
+                    <span className="text-xs ml-1 opacity-75">
+                      (de {prestamos.total} total)
+                    </span>
+                  )}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Panel de filtros */}
+          {/* Panel de filtros mejorado */}
           {showFilters && (
             <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-md border border-gray-100 dark:border-gray-700 mb-6">
               <div className="flex justify-between items-center mb-4">
@@ -456,6 +541,7 @@ export default function Vencidos({ prestamos, filters }: Props) {
                 <button
                   onClick={clearFilters}
                   className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                  disabled={isSearching}
                 >
                   Restablecer filtros
                 </button>
@@ -476,6 +562,23 @@ export default function Vencidos({ prestamos, filters }: Props) {
                     <option value="30">30 días o más</option>
                   </select>
                 </div>
+
+                {/* Información de búsqueda activa */}
+                {search_stats?.has_filters && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Estado de búsqueda</label>
+                    <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700">
+                      <div className="text-sm text-blue-800 dark:text-blue-200">
+                        ✅ Búsqueda activa: {search_stats.total_found} resultados encontrados
+                        {search_stats.search_term && (
+                          <div className="text-xs mt-1 opacity-75">
+                            Término: "{search_stats.search_term}"
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 mt-4">
@@ -486,29 +589,66 @@ export default function Vencidos({ prestamos, filters }: Props) {
                 >
                   Limpiar
                 </button>
-                <button
-                  onClick={applyFilters}
-                  className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
-                  disabled={isSearching}
-                >
-                  Aplicar
-                </button>
               </div>
             </div>
           )}
 
-          {/* Información de resultados */}
+          {/* Información de resultados mejorada */}
           {prestamos.total > 0 && (
-            <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-              {searchTerm ?
-                `Mostrando ${filteredPrestamos.length} resultados de ${prestamos.data.length} préstamos en esta página` :
-                `Mostrando ${prestamos.data.length} de ${prestamos.total} préstamos vencidos`
-              }
+            <div className="mb-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <span className="font-medium">
+                    Mostrando {prestamos.from || 0} a {prestamos.to || 0} de {prestamos.total} préstamos vencidos
+                  </span>
+                  {search_stats?.has_filters && (
+                    <span className="block sm:inline sm:ml-1 text-blue-600 dark:text-blue-400">
+                      🔍 Búsqueda global activa
+                    </span>
+                  )}
+                </div>
+
+                {(searchTerm?.trim() || diasVencido) && (
+                  <div className="flex flex-wrap gap-2">
+                    {searchTerm?.trim() && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs">
+                        <Search className="w-3 h-3" />
+                        "{searchTerm}"
+                      </span>
+                    )}
+                    {diasVencido && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-xs">
+                        <Calendar className="w-3 h-3" />
+                        {diasVencido}+ días
+                      </span>
+                    )}
+                    <button
+                      onClick={clearFilters}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full text-xs transition-colors"
+                      disabled={isSearching}
+                    >
+                      <X className="w-3 h-3" />
+                      Limpiar
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Tabla de préstamos vencidos */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
+          {/* Tabla de préstamos vencidos mejorada */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 relative">
+            {isSearching && (
+              <div className="absolute inset-0 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl flex items-center justify-center z-10">
+                <div className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Buscando en toda la base de datos...
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div className="overflow-hidden">
               <table className="w-full table-fixed">
                 <thead>
@@ -537,9 +677,9 @@ export default function Vencidos({ prestamos, filters }: Props) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {(searchTerm ? filteredPrestamos : prestamos.data).length > 0 ? (
-                    (searchTerm ? filteredPrestamos : prestamos.data).filter(prestamo => prestamo != null).map((prestamo) => {
-                      const diasVencidos = calcularDiasVencido(prestamo?.fecha_devolucion || '');
+                  {prestamos.data.length > 0 ? (
+                    prestamos.data.filter(prestamo => prestamo != null).map((prestamo) => {
+                      const diasVencidos = prestamo.dias_retraso || calcularDiasVencido(prestamo?.fecha_devolucion || '');
                       return (
                         <tr key={prestamo?.id || Math.random()} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                           <td className="px-6 py-3">
@@ -554,6 +694,11 @@ export default function Vencidos({ prestamos, filters }: Props) {
                                 <div className="text-xs text-gray-500 dark:text-gray-400 break-words">
                                   Código: {prestamo?.lector?.codigo || 'Sin código'}
                                 </div>
+                                {prestamo?.lector?.grado?.nombre && (
+                                  <div className="text-xs text-blue-600 dark:text-blue-400 break-words">
+                                    {prestamo.lector.grado.nombre}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -566,12 +711,17 @@ export default function Vencidos({ prestamos, filters }: Props) {
                                 <div className="text-sm font-medium text-gray-900 dark:text-gray-100 break-words">
                                   {prestamo?.ejemplar?.libro?.titulo || 'Sin título'}
                                 </div>
+                                {prestamo?.ejemplar?.libro?.isbn && (
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 break-words">
+                                    ISBN: {prestamo.ejemplar.libro.isbn}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-3 whitespace-nowrap">
                             <span className="text-sm font-mono text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                              #{prestamo?.ejemplar?.numEjemplar || prestamo?.ejemplar?.id || 'Sin ID'}
+                              #{prestamo?.ejemplar?.numEjemplar || 'Sin ejemplar'}
                             </span>
                           </td>
                           <td className="px-6 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">
@@ -582,14 +732,15 @@ export default function Vencidos({ prestamos, filters }: Props) {
                           </td>
                           <td className="px-6 py-3 whitespace-nowrap">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(diasVencidos)}`}>
+                              <Clock className="w-3 h-3 mr-1" />
                               {diasVencidos} días
                             </span>
                           </td>
                           <td className="px-6 py-3 whitespace-nowrap">
                             <button
                               onClick={() => handleDevolucion(prestamo?.id || 0)}
-                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-medium transition-colors duration-200 flex items-center gap-1"
-                              disabled={!prestamo?.id}
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-medium transition-colors duration-200 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={!prestamo?.id || isSearching}
                             >
                               <CheckCircle className="w-3 h-3" />
                               Devolver
@@ -604,22 +755,23 @@ export default function Vencidos({ prestamos, filters }: Props) {
                         <div className="flex flex-col items-center">
                           <BookX className="w-12 h-12 text-gray-400 mb-4" />
                           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                            No hay préstamos vencidos
+                            {search_stats?.has_filters ? 'No se encontraron resultados' : 'No hay préstamos vencidos'}
                           </h3>
-                          <p className="text-gray-500 dark:text-gray-400">
+                          <p className="text-gray-500 dark:text-gray-400 text-center max-w-md">
                             {searchTerm?.trim()
-                              ? `No se encontraron préstamos que coincidan con "${searchTerm}".`
+                              ? `No se encontraron préstamos vencidos que coincidan con "${searchTerm}" en toda la base de datos.`
                               : diasVencido
-                                ? 'No se encontraron préstamos vencidos con los filtros actuales.'
-                                : 'No se encontraron préstamos vencidos.'
+                                ? 'No se encontraron préstamos vencidos con los filtros de días especificados.'
+                                : 'No se encontraron préstamos vencidos en el sistema.'
                             }
                           </p>
                           {(searchTerm?.trim() || diasVencido) && (
                             <button
                               onClick={clearFilters}
                               className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200"
+                              disabled={isSearching}
                             >
-                              Limpiar filtros
+                              Mostrar todos los préstamos vencidos
                             </button>
                           )}
                         </div>
@@ -631,18 +783,22 @@ export default function Vencidos({ prestamos, filters }: Props) {
             </div>
           </div>
 
-          {/* Paginación */}
+          {/* Paginación mejorada */}
           {prestamos.links && prestamos.links.length > 3 && (
             <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-              {/* Información de paginación */}
+              {/* Información de paginación mejorada */}
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                {prestamos.total > 0 && `Mostrando ${prestamos.from || 0} a ${prestamos.to || 0} de ${prestamos.total} préstamos vencidos`}
-                {(searchTerm?.trim() || diasVencido) && (
-                  <span className="ml-1">
-                    {searchTerm?.trim() && `(filtrado por "${searchTerm}")`}
-                    {searchTerm?.trim() && diasVencido && ' y '}
-                    {diasVencido && `(${diasVencido}+ días)`}
-                  </span>
+                {prestamos.total > 0 && (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <span>
+                      Mostrando {prestamos.from || 0} a {prestamos.to || 0} de {prestamos.total} préstamos vencidos
+                    </span>
+                    {search_stats?.has_filters && (
+                      <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+                        🔍 Resultados de búsqueda global
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -656,7 +812,7 @@ export default function Vencidos({ prestamos, filters }: Props) {
                         key={index}
                         onClick={() => goToPage(link.url)}
                         disabled={!link.url || isSearching}
-                        className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${link.url
+                        className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${link.url && !isSearching
                           ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
                           }`}
@@ -666,7 +822,6 @@ export default function Vencidos({ prestamos, filters }: Props) {
                     );
                   }
 
-
                   // Botón siguiente
                   if (link.label.includes('Next') || link.label.includes('Siguiente') || link.label === '&raquo;') {
                     return (
@@ -674,7 +829,7 @@ export default function Vencidos({ prestamos, filters }: Props) {
                         key={index}
                         onClick={() => goToPage(link.url)}
                         disabled={!link.url || isSearching}
-                        className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${link.url
+                        className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${link.url && !isSearching
                           ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
                           }`}
@@ -706,7 +861,9 @@ export default function Vencidos({ prestamos, filters }: Props) {
                         disabled={isSearching}
                         className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors ${link.active
                           ? 'bg-blue-600 text-white shadow-md'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                          : isSearching
+                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                           }`}
                       >
                         {link.label}

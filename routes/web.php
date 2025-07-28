@@ -52,6 +52,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('estanterias/{estanteria}', [EstanteriaController::class, 'update']);
     Route::delete('estanterias/{estanteria}', [EstanteriaController::class, 'destroy'])->name('estanterias.destroy');
 
+    // Rutas para LibroController
     Route::get('libros', [LibroController::class, 'index'])->name('libros.index');
     Route::get('libros/search', [LibroController::class, 'search'])->name('libros.search');
     Route::get('libros/create', [LibroController::class, 'create'])->name('libros.create');
@@ -76,7 +77,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('api/categorias/{categoriaId}/subcategorias', [LibroController::class, 'getSubcategorias']);
     Route::get('api/subcategorias/{subcategoriaId}/temas', [LibroController::class, 'getTemas']);
 
-    //Rutas para grados
+    // Rutas para grados
     Route::get('grados', [GradoController::class, 'index'])->name('grados.index');
     Route::get('grados/create', [GradoController::class, 'create'])->name('grados.create');
     Route::post('grados', [GradoController::class, 'store'])->name('grados.store');
@@ -86,7 +87,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('grados/{grado}', [GradoController::class, 'update']);
     Route::delete('grados/{grado}', [GradoController::class, 'destroy'])->name('grados.destroy');
 
-
+    // Rutas para LectorController
     Route::get('lectores', [LectorController::class, 'index'])->name('lectores.index');
     Route::get('lectores/create', [LectorController::class, 'create'])->name('lectores.create');
     Route::get('/lectores/buscar', [LectorController::class, 'buscarPorCodigo'])->name('lectores.buscar');
@@ -105,29 +106,38 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/lectores/cambio-estado-masivo', [LectorController::class, 'cambioEstadoMasivo'])
         ->name('lectores.cambio-estado-masivo');
 
-    // Rutas para PrestamoController
+    // ===== 🔍 RUTAS PARA PRÉSTAMOS CON BÚSQUEDA GLOBAL MEJORADA =====
     Route::get('prestamos', [PrestamoController::class, 'index'])->name('prestamos.index');
     Route::get('prestamos/create', [PrestamoController::class, 'create'])->name('prestamos.create');
+
+    // Ruta para buscar lector por código (AJAX)
+    Route::get('/prestamos/buscar-lector', [PrestamoController::class, 'buscarLector'])->name('prestamos.buscar-lector');
 
     // Rutas para Reportes
     Route::get('reportes/historial-prestamos', [ReporteController::class, 'historialPrestamos'])->name('reportes.historial-prestamos');
     Route::get('prestamos/listado', [PrestamoController::class, 'listado'])->name('prestamos.listado');
     Route::get('prestamos/devoluciones', [PrestamoController::class, 'listado'])->name('prestamos.devoluciones');
 
-    // Ruta principal para préstamos vencidos con paginación
+    // ✅ RUTA PRINCIPAL PARA PRÉSTAMOS VENCIDOS CON BÚSQUEDA GLOBAL
     Route::get('prestamos/vencidos', [PrestamoController::class, 'vencidos'])->name('prestamos.vencidos');
 
+    // Rutas CRUD básicas de préstamos
     Route::post('prestamos', [PrestamoController::class, 'store'])->name('prestamos.store');
     Route::get('prestamos/{prestamo}', [PrestamoController::class, 'show'])->name('prestamos.show');
     Route::get('prestamos/{prestamo}/edit', [PrestamoController::class, 'edit'])->name('prestamos.edit');
     Route::put('prestamos/{prestamo}', [PrestamoController::class, 'update'])->name('prestamos.update');
 
+    // ===== 📤 RUTAS DE DEVOLUCIÓN OPTIMIZADAS =====
+    // Devolución de préstamos activos
     Route::post('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolver'])->name('prestamos.devolver');
-    Route::post('prestamos/{prestamo}/devolver-vencido', [PrestamoController::class, 'devolverVencido'])->name('prestamos.devolver-vencido');
+
+    // ✅ Devolución de préstamos vencidos con preservación de filtros de búsqueda
+    Route::post('prestamos/{prestamo}/devolver-vencido', [PrestamoController::class, 'devolverVencido'])
+        ->name('prestamos.devolver-vencido');
 
     Route::delete('prestamos/{prestamo}', [PrestamoController::class, 'destroy'])->name('prestamos.destroy');
 
-
+    // Rutas para InformeController
     Route::prefix('informes')->group(function () {
         Route::get('/', [InformeController::class, 'index'])->name('informes.index');
         Route::get('/rangos-fecha', [InformeController::class, 'getRangosFecha']);
@@ -144,6 +154,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/descargar-no-devueltos', [InformeController::class, 'descargarPDFNoDevueltos'])
             ->name('informes.descargar-no-devueltos');
     });
+
+    Route::get('prestamos/debug-vencidos', [PrestamoController::class, 'debugVencidos'])
+     ->name('prestamos.debug-vencidos');
+
+    // ✅ También añadir esta ruta temporal para debugging:
+    Route::get('debug/search-params', function (Illuminate\Http\Request $request) {
+        \Illuminate\Support\Facades\Log::info('🐛 DEBUG Route - Parámetros recibidos:', [
+            'all' => $request->all(),
+            'search' => $request->get('search'),
+            'query_string' => $request->getQueryString(),
+            'url' => $request->fullUrl()
+        ]);
+
+        return response()->json([
+            'message' => 'Debug route working',
+            'received_params' => $request->all(),
+            'search_param' => $request->get('search'),
+            'query_string' => $request->getQueryString()
+        ]);
+    })->middleware(['auth', 'verified']);
 
     // Rutas para InventarioController
     Route::get('inventario', [InventarioController::class, 'index'])->name('inventario.index');
