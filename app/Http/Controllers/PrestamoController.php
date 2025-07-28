@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PrestamoController extends Controller
 {
@@ -21,7 +22,6 @@ class PrestamoController extends Controller
     {
         $fechaActual = Carbon::now();
 
-        // Buscar préstamos activos que han pasado su fecha de devolución
         $prestamosVencidos = Prestamo::where('estado', Prestamo::ESTADO_ACTIVO)
             ->where('fecha_devolucion', '<', $fechaActual)
             ->get();
@@ -30,7 +30,6 @@ class PrestamoController extends Controller
             $prestamo->marcarComoVencido();
         }
     }
-
     /**
      * Mostrar la vista de gestión de préstamos
      */
@@ -45,27 +44,67 @@ class PrestamoController extends Controller
 
     /**
      * Buscar lector por código para el préstamo
+     * MEJORADO: Con logs detallados para debugging
      */
     public function buscarLector(Request $request)
     {
         $codigo = $request->input('codigo');
 
-        $lector = Lector::where('codigo', $codigo)
-            ->where('estado', 'ACTIVO')
-            ->with('grado')
-            ->first();
+        Log::info('🔍 Búsqueda de lector iniciada:', [
+            'codigo_solicitado' => $codigo,
+            'request_data' => $request->all()
+        ]);
 
-        if (!$lector) {
+        if (empty($codigo)) {
+            Log::warning('⚠️ Búsqueda de lector sin código');
             return response()->json([
                 'success' => false,
-                'message' => 'Lector no encontrado o inactivo'
-            ], 404);
+                'message' => 'Código de lector requerido'
+            ], 400);
         }
 
-        return response()->json([
-            'success' => true,
-            'lector' => $lector
-        ]);
+        try {
+            $lector = Lector::where('codigo', $codigo)
+                ->where('estado', 'ACTIVO')
+                ->with(['grado'])
+                ->first();
+
+            if (!$lector) {
+                Log::info('❌ Lector no encontrado:', [
+                    'codigo_buscado' => $codigo
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lector no encontrado o inactivo'
+                ], 404);
+            }
+
+            Log::info('✅ Lector encontrado exitosamente:', [
+                'lector_id' => $lector->id,
+                'lector_nombre' => $lector->nombre,
+                'lector_codigo' => $lector->codigo,
+                'lector_estado' => $lector->estado,
+                'grado' => $lector->grado ? $lector->grado->nombre : 'Sin grado'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'lector' => $lector
+            ]);
+        } catch (\Exception $e) {
+            Log::error('❌ Error en búsqueda de lector:', [
+                'codigo' => $codigo,
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor al buscar lector'
+            ], 500);
+        }
     }
 
     /**
@@ -85,7 +124,7 @@ class PrestamoController extends Controller
             return back()->withErrors($validator->errors());
         }
 
-        //Verificar si el ejemplar está disponible
+        // Verificar si el ejemplar está disponible
         $ejemplar = Ejemplar::findOrFail($request->input('ejemplar_id'));
         if ($ejemplar->estado !== Ejemplar::ESTADO_DISPONIBLE) {
             return back()->with('error', 'El ejemplar no está disponible para préstamo.');
@@ -106,7 +145,7 @@ class PrestamoController extends Controller
             ->where('estado', 'ACTIVO')
             ->count();
 
-        //Usar input() para acceder a la propiedad tipo
+        // Usar input() para acceder a la propiedad tipo
         $maxPrestamos = $lector->tipo === 'ESTUDIANTE' ? 2 : 3;
 
         if ($prestamosActivos >= $maxPrestamos) {
@@ -114,7 +153,7 @@ class PrestamoController extends Controller
         }
 
         try {
-            //rear el préstamo con estado ACTIVO usando input()
+            // Crear el préstamo con estado ACTIVO usando input()
             $prestamo = Prestamo::create([
                 'ejemplar_id' => $ejemplar->id,
                 'lector_id' => $lector->id,
@@ -167,12 +206,11 @@ class PrestamoController extends Controller
         }
 
         try {
-            // Actualizar el préstamo con los datos recibidos
+            // Actualizar el préstamo (compatible con timestamps = false)
             $prestamo->update([
                 'estado' => 'DEVUELTO',
                 'fecha_devuelto' => $request->fecha_devuelto,
                 'observaciones' => $request->observaciones ?? $prestamo->observaciones,
-                'updated_at' => now(),
             ]);
 
             // Actualizar estado del ejemplar
@@ -199,11 +237,9 @@ class PrestamoController extends Controller
                 ->orderBy('fecha_prestamo', 'desc');
 
             if ($request->has('search')) {
-
                 $search = $request->input('search');
                 $query->where(function ($q) use ($search) {
                     $q->whereHas('lector', function ($q) use ($search) {
-
                         $q->where('nombre', 'LIKE', "%{$search}%")
                             ->orWhere('codigo', 'LIKE', "%{$search}%");
                     })
@@ -233,73 +269,168 @@ class PrestamoController extends Controller
     }
 
     /**
-     * Lista de préstamos vencidos con paginación y filtros del servidor
+     * 🔍 Lista de préstamos vencidos con BÚSQUEDA GLOBAL COMPLETA Y OPTIMIZADA
+     * ✅ VERSIÓN FINAL: Compatible con tu modelo Prestamo personalizado
+     */
+    /**
+     * 🔍 Lista de préstamos vencidos con BÚSQUEDA GLOBAL SEGURA
+     * ✅ VERSIÓN SEGURA: Sin asumir estructura de columnas
      */
     public function vencidos(Request $request)
     {
         try {
+            // 📝 LOG: Debug detallado de la petición
+            Log::info('🔍 PETICIÓN COMPLETA - Préstamos Vencidos (Versión Segura):', [
+                'all_request' => $request->all(),
+                'search_methods' => [
+                    'input' => $request->input('search'),
+                    'get' => $request->get('search'),
+                    'query' => $request->query('search'),
+                ],
+                'method' => $request->method(),
+                'url' => $request->fullUrl()
+            ]);
+
+            // Actualizar estado de préstamos vencidos
             $this->actualizarPrestamosVencidos();
 
-            $query = Prestamo::with(['ejemplar.libro', 'lector'])
-                ->where('estado', 'VENCIDO')
+            // ===== 🔍 EXTRACCIÓN SEGURA DE PARÁMETROS =====
+            $searchTerm = $request->input('search') ?? $request->get('search') ?? $request->query('search') ?? '';
+            $diasVencido = $request->input('dias_vencido') ?? $request->get('dias_vencido') ?? $request->query('dias_vencido') ?? '';
+
+            // Limpiar y validar parámetros
+            $searchTerm = is_string($searchTerm) ? trim($searchTerm) : '';
+            $diasVencido = is_string($diasVencido) ? trim($diasVencido) : '';
+
+            Log::info('🎯 PARÁMETROS PROCESADOS:', [
+                'searchTerm_final' => $searchTerm,
+                'diasVencido_final' => $diasVencido,
+                'will_apply_search' => !empty($searchTerm)
+            ]);
+
+            // ===== 🔍 CONSTRUIR CONSULTA BASE SEGURA =====
+            $query = Prestamo::query()
+                ->with(['ejemplar.libro', 'lector.grado']) // Carga simple sin especificar columnas
+                ->where('estado', Prestamo::ESTADO_VENCIDO)
                 ->orderBy('fecha_devolucion', 'asc');
 
-            if ($request->filled('search')) {
-                $search = trim($request->search);
-                $query->where(function ($q) use ($search) {
-                    $q->whereHas('lector', function ($q) use ($search) {
-                        $q->where('nombre', 'LIKE', "%{$search}%")
-                            ->orWhere('codigo', 'LIKE', "%{$search}%");
+            // ===== 🔍 APLICAR BÚSQUEDA SEGURA =====
+            if (!empty($searchTerm)) {
+                Log::info('🚀 APLICANDO BÚSQUEDA SEGURA:', [
+                    'search_term' => $searchTerm,
+                    'search_strategy' => 'safe_search_without_column_assumptions'
+                ]);
+
+                $query->where(function ($mainQuery) use ($searchTerm) {
+                    // 👤 BÚSQUEDA EN LECTOR (solo campos que sabemos que existen)
+                    $mainQuery->whereHas('lector', function ($lectorQuery) use ($searchTerm) {
+                        $lectorQuery->where('nombre', 'LIKE', "%{$searchTerm}%")
+                            ->orWhere('codigo', 'LIKE', "%{$searchTerm}%");
                     })
-                        ->orWhereHas('ejemplar', function ($q) use ($search) {
-                            $q->where('codigo', 'LIKE', "%{$search}%")
-                                ->orWhereHas('libro', function ($q) use ($search) {
-                                    $q->where('titulo', 'LIKE', "%{$search}%");
-                                });
+                        // 📚 BÚSQUEDA EN LIBRO (solo título, que seguramente existe)
+                        ->orWhereHas('ejemplar.libro', function ($libroQuery) use ($searchTerm) {
+                            $libroQuery->where('titulo', 'LIKE', "%{$searchTerm}%");
                         });
                 });
+
+                // Log de la query SQL generada
+                try {
+                    $sql = $query->toSql();
+                    Log::info('📊 SQL QUERY SEGURO GENERADO:', [
+                        'sql' => $sql,
+                        'search_fields' => ['lector.nombre', 'lector.codigo', 'libro.titulo']
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('⚠️ No se pudo generar SQL de debug:', ['error' => $e->getMessage()]);
+                }
             }
 
-            if ($request->filled('dias_vencido')) {
-                $diasMinimos = (int) $request->input('dias_vencido');
+            // ===== 📅 APLICAR FILTRO POR DÍAS VENCIDOS =====
+            if (!empty($diasVencido) && is_numeric($diasVencido)) {
+                $diasMinimos = (int) $diasVencido;
                 if ($diasMinimos > 0) {
+                    Log::info('📅 APLICANDO FILTRO DE DÍAS:', ['dias_minimos' => $diasMinimos]);
                     $query->whereRaw('DATEDIFF(CURDATE(), fecha_devolucion) >= ?', [$diasMinimos]);
                 }
             }
 
+            // ===== 📊 CONTEO TOTAL =====
+            $totalResults = $query->count();
+            Log::info('📊 RESULTADOS ENCONTRADOS:', [
+                'total_results' => $totalResults,
+                'search_applied' => !empty($searchTerm)
+            ]);
+
+            // ===== 📄 PAGINACIÓN =====
             $prestamos = $query->paginate(10)->withQueryString();
 
+            // ===== 📊 CALCULAR DÍAS DE RETRASO =====
             $prestamos->getCollection()->transform(function ($prestamo) {
-                $fechaDevolucion = Carbon::parse($prestamo->fecha_devolucion)->startOfDay();
-                $fechaActual = Carbon::now()->startOfDay();
-                $diasRetraso = $fechaActual->diffInDays($fechaDevolucion);
-                $prestamo->dias_retraso = max(0, $diasRetraso);
+                if ($prestamo && $prestamo->fecha_devolucion) {
+                    try {
+                        $fechaDevolucion = Carbon::parse($prestamo->fecha_devolucion)->startOfDay();
+                        $fechaActual = Carbon::now()->startOfDay();
+                        $diasRetraso = $fechaActual->diffInDays($fechaDevolucion);
+                        $prestamo->dias_retraso = max(0, $diasRetraso);
+                    } catch (\Exception $e) {
+                        Log::warning('⚠️ Error calculando días de retraso:', [
+                            'prestamo_id' => $prestamo->id,
+                            'error' => $e->getMessage()
+                        ]);
+                        $prestamo->dias_retraso = 0;
+                    }
+                } else {
+                    $prestamo->dias_retraso = 0;
+                }
                 return $prestamo;
             });
 
+            // ===== 📤 PREPARAR RESPUESTA =====
+            $filtersToSend = [
+                'search' => $searchTerm,
+                'dias_vencido' => $diasVencido,
+            ];
+
+            $searchStatsToSend = [
+                'total_found' => $totalResults,
+                'has_filters' => !empty($searchTerm) || !empty($diasVencido),
+                'search_term' => $searchTerm,
+                'dias_filter' => $diasVencido,
+            ];
+
+            Log::info('📤 ENVIANDO RESPUESTA SEGURA:', [
+                'filters_sent' => $filtersToSend,
+                'search_stats_sent' => $searchStatsToSend,
+                'prestamos_count' => $prestamos->count()
+            ]);
+
             return Inertia::render('Prestamos/Vencidos', [
                 'prestamos' => $prestamos,
-                'filters' => [
-                    'search' => $request->input('search'),
-                    'dias_vencido' => $request->input('dias_vencido'),
-                ]
+                'filters' => $filtersToSend,
+                'search_stats' => $searchStatsToSend
             ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error en búsqueda de préstamos vencidos:', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+            Log::error('❌ ERROR EN BÚSQUEDA SEGURA:', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'request_data' => $request->all()
             ]);
 
             return back()->with('error', 'Error al cargar la lista de préstamos vencidos: ' . $e->getMessage());
         }
     }
 
-
     /**
-     * Procesar devolución de préstamo vencido
+     * Procesar devolución de préstamo vencido - VERSIÓN SEGURA
      */
     public function devolverVencido(Request $request, $id)
     {
+        Log::info('📤 DEVOLUCIÓN SEGURA INICIADA:', [
+            'prestamo_id' => $id,
+            'request_data' => $request->all()
+        ]);
+
         $request->validate([
             'fecha_devuelto' => 'required|date',
             'observaciones' => 'nullable|string|max:500',
@@ -308,41 +439,71 @@ class PrestamoController extends Controller
         try {
             $prestamo = Prestamo::findOrFail($id);
 
-            // Verificar que el préstamo esté vencido
             if ($prestamo->estado !== Prestamo::ESTADO_VENCIDO) {
                 return back()->with('error', 'Este préstamo no está en estado vencido.');
             }
 
+            // Actualizar préstamo
             $prestamo->update([
-                'estado' => 'DEVUELTO',
+                'estado' => Prestamo::ESTADO_DEVUELTO,
                 'fecha_devuelto' => $request->input('fecha_devuelto'),
                 'observaciones' => $request->input('observaciones'),
-                'updated_at' => now(),
             ]);
 
-            // Actualizar estado del ejemplar
+            // Actualizar ejemplar
             $prestamo->ejemplar->update([
                 'estado' => Ejemplar::ESTADO_DISPONIBLE
             ]);
 
-            // Preparar parámetros para redirigir con filtros preservados
+            // Preservar filtros
             $redirectParams = [];
-            // Aquí se toman los parámetros directamente del Request,
-            // ya que el frontend los envía en el 'data' del POST.
-            if ($request->input('search')) {
-                $redirectParams['search'] = $request->input('search');
+            if ($request->filled('search')) {
+                $redirectParams['search'] = trim($request->input('search'));
             }
-            if ($request->input('dias_vencido')) {
-                $redirectParams['dias_vencido'] = $request->input('dias_vencido');
+            if ($request->filled('dias_vencido')) {
+                $redirectParams['dias_vencido'] = trim($request->input('dias_vencido'));
             }
-            if ($request->input('page')) {
-                $redirectParams['page'] = $request->input('page');
+            if ($request->filled('page')) {
+                $redirectParams['page'] = (int) $request->input('page');
             }
 
             return redirect()->route('prestamos.vencidos', $redirectParams)
                 ->with('success', 'Préstamo devuelto exitosamente');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error al procesar la devolución: ' . $e->getMessage());
+            Log::error('❌ ERROR EN DEVOLUCIÓN SEGURA:', [
+                'prestamo_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return back()->with('error', 'Error al procesar la devolución: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Método temporal para debugging - Puedes eliminar en producción
+     */
+    public function debugVencidos(Request $request)
+    {
+        Log::info('🔧 DEBUG SIMPLE - Datos recibidos en vencidos:', [
+            'request_all' => $request->all(),
+            'search_methods' => [
+                'input' => $request->input('search'),
+                'get' => $request->get('search'),
+                'query' => $request->query('search'),
+            ],
+            'query_string' => $request->getQueryString(),
+            'url' => $request->fullUrl()
+        ]);
+
+        return response()->json([
+            'status' => 'debug_success',
+            'message' => 'Debug de parámetros completado',
+            'received' => [
+                'all' => $request->all(),
+                'search_input' => $request->input('search'),
+                'search_get' => $request->get('search'),
+                'query_string' => $request->getQueryString()
+            ]
+        ]);
     }
 }
