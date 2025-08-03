@@ -50,9 +50,9 @@ export function ResumenPrestamo({
 
   return (
     <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-2xl shadow-2xl transform transition-all">
+      <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-2xl max-h-[90vh] shadow-2xl transform transition-all overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+        <div className="border-b border-gray-200 dark:border-gray-700 p-4 flex-shrink-0">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center">
@@ -72,19 +72,19 @@ export function ResumenPrestamo({
           </div>
         </div>
 
-        {/* Contenido */}
-        <div className="p-4 space-y-5">
+        {/* Contenido con scroll */}
+        <div className="p-4 space-y-5 overflow-y-auto flex-1">
           {/* Resumen del préstamo */}
           <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-4 space-y-3.5">
             <h4 className="font-medium text-gray-900 dark:text-white text-sm mb-3">Resumen del Préstamo</h4>
             
             {/* Libro */}
             <div className="flex items-start gap-2.5">
-              <Book className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5" />
-              <div className="flex-1">
+              <Book className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
                 <p className="text-xs text-gray-600 dark:text-gray-300">Libro</p>
-                <p className="font-medium text-gray-900 dark:text-white text-sm">{libro.titulo}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="font-medium text-gray-900 dark:text-white text-sm break-words">{libro.titulo}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 break-words">
                   ISBN: {libro.isbn}
                   {libro.autor && ` • Autor: ${libro.autor.nombres} ${libro.autor.apellidos}`}
                 </p>
@@ -93,8 +93,8 @@ export function ResumenPrestamo({
 
             {/* Ejemplar */}
             <div className="flex items-start gap-2.5">
-              <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5" />
-              <div className="flex-1">
+              <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
                 <p className="text-xs text-gray-600 dark:text-gray-300">Ejemplar</p>
                 <p className="font-medium text-gray-900 dark:text-white text-sm">
                   Ejemplar #{ejemplar.numEjemplar}
@@ -104,38 +104,40 @@ export function ResumenPrestamo({
 
             {/* Lector - Actualizado para mostrar nombre, código y subgrado */}
             <div className="flex items-start gap-2.5">
-              <User className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5" />
-              <div className="flex-1">
+              <User className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
                 <p className="text-xs text-gray-600 dark:text-gray-300">Lector</p>
-                <p className="font-medium text-gray-900 dark:text-white text-sm">{lector.nombre}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Código: {lector.codigo}
+                <p className="font-medium text-gray-900 dark:text-white text-sm break-words">{lector.nombre}</p>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Código: {lector.codigo}
+                  </p>
                   {lector.grado?.subGrado && (
-                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
                       {lector.grado.subGrado}
                     </span>
                   )}
-                </p>
+                </div>
               </div>
             </div>
 
             {/* Fechas */}
             <div className="grid md:grid-cols-2 gap-3">
               <div className="flex items-start gap-2.5">
-                <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5" />
-                <div className="flex-1">
+                <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-600 dark:text-gray-300">Fecha de Préstamo</p>
-                  <p className="font-medium text-gray-900 dark:text-white text-sm">
+                  <p className="font-medium text-gray-900 dark:text-white text-sm break-words">
                     {formatearFecha(formularioPrestamo.fecha_prestamo)}
                   </p>
                 </div>
               </div>
               
               <div className="flex items-start gap-2.5">
-                <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5" />
-                <div className="flex-1">
+                <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-600 dark:text-gray-300">Fecha de Devolución</p>
-                  <p className="font-medium text-gray-900 dark:text-white text-sm">
+                  <p className="font-medium text-gray-900 dark:text-white text-sm break-words">
                     {formatearFecha(formularioPrestamo.fecha_devolucion)}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -145,18 +147,22 @@ export function ResumenPrestamo({
               </div>
             </div>
 
-            {/* Observaciones */}
+            {/* Observaciones - Mejorado para evitar desbordamiento */}
             {formularioPrestamo.observaciones && (
               <div className="pt-2 border-t border-gray-200 dark:border-gray-600 mt-2">
                 <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">Observaciones</p>
-                <p className="text-gray-900 dark:text-white text-sm">{formularioPrestamo.observaciones}</p>
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md p-3 max-h-24 overflow-y-auto">
+                  <p className="text-gray-900 dark:text-white text-sm whitespace-pre-wrap break-words leading-relaxed">
+                    {formularioPrestamo.observaciones}
+                  </p>
+                </div>
               </div>
             )}
           </div>
 
           {/* Mensaje informativo */}
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-lg p-3">
-            <p className="text-xs text-blue-800 dark:text-blue-300">
+            <p className="text-xs text-blue-800 dark:text-blue-300 break-words">
               <strong>Importante:</strong> El estudiante debe devolver el libro en la fecha indicada. 
               Se aplicarán sanciones por retrasos en la devolución.
             </p>
@@ -164,7 +170,7 @@ export function ResumenPrestamo({
         </div>
 
         {/* Footer con acciones */}
-        <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+        <div className="border-t border-gray-200 dark:border-gray-700 p-4 flex-shrink-0">
           <div className="flex justify-end gap-3">
             <button
               onClick={onCancelar}

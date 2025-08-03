@@ -1,7 +1,10 @@
+
+
 export type Estanteria = {
   id: number;
   cod_estante: string;
   descripcion: string | null;
+  position: number;
   created_at?: string;
   updated_at?: string;
 };

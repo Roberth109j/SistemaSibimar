@@ -11,6 +11,7 @@ use App\Http\Controllers\EjemplarController;
 use App\Http\Controllers\GradoController;
 use App\Http\Controllers\LectorController;
 use App\Http\Controllers\PrestamoController;
+use App\Http\Controllers\DevolucionController; // ← NUEVO CONTROLLER
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InformeController;
@@ -106,36 +107,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/lectores/cambio-estado-masivo', [LectorController::class, 'cambioEstadoMasivo'])
         ->name('lectores.cambio-estado-masivo');
 
-    // ===== 🔍 RUTAS PARA PRÉSTAMOS CON BÚSQUEDA GLOBAL MEJORADA =====
+    // ===== 🔍 RUTAS PARA PRÉSTAMOS (SOLO CREACIÓN Y GESTIÓN) =====
     Route::get('prestamos', [PrestamoController::class, 'index'])->name('prestamos.index');
     Route::get('prestamos/create', [PrestamoController::class, 'create'])->name('prestamos.create');
-
-    // Ruta para buscar lector por código (AJAX)
+    Route::post('prestamos', [PrestamoController::class, 'store'])->name('prestamos.store');
+    Route::get('prestamos/{prestamo}', [PrestamoController::class, 'show'])->name('prestamos.show');
+    
+    // Ruta para buscar lector por código (AJAX) - Para PRÉSTAMOS
     Route::get('/prestamos/buscar-lector', [PrestamoController::class, 'buscarLector'])->name('prestamos.buscar-lector');
+
+    // ===== 📤 RUTAS PARA DEVOLUCIONES (NUEVO CONTROLLER) =====
+    Route::prefix('devoluciones')->name('devoluciones.')->group(function () {
+        Route::get('/', [DevolucionController::class, 'index'])->name('devoluciones.index');
+        Route::post('/buscar-prestamos', [DevolucionController::class, 'buscarPrestamos'])->name('buscar-prestamos');
+        Route::patch('/{id}/devolver', [DevolucionController::class, 'devolver'])->name('devolver');
+    });
 
     // Rutas para Reportes
     Route::get('reportes/historial-prestamos', [ReporteController::class, 'historialPrestamos'])->name('reportes.historial-prestamos');
-    Route::get('prestamos/listado', [PrestamoController::class, 'listado'])->name('prestamos.listado');
-    Route::get('prestamos/devoluciones', [PrestamoController::class, 'listado'])->name('prestamos.devoluciones');
-
-    // ✅ RUTA PRINCIPAL PARA PRÉSTAMOS VENCIDOS CON BÚSQUEDA GLOBAL
-    Route::get('prestamos/vencidos', [PrestamoController::class, 'vencidos'])->name('prestamos.vencidos');
-
-    // Rutas CRUD básicas de préstamos
-    Route::post('prestamos', [PrestamoController::class, 'store'])->name('prestamos.store');
-    Route::get('prestamos/{prestamo}', [PrestamoController::class, 'show'])->name('prestamos.show');
-    Route::get('prestamos/{prestamo}/edit', [PrestamoController::class, 'edit'])->name('prestamos.edit');
-    Route::put('prestamos/{prestamo}', [PrestamoController::class, 'update'])->name('prestamos.update');
-
-    // ===== 📤 RUTAS DE DEVOLUCIÓN OPTIMIZADAS =====
-    // Devolución de préstamos activos
-    Route::post('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolver'])->name('prestamos.devolver');
-
-    // ✅ Devolución de préstamos vencidos con preservación de filtros de búsqueda
-    Route::post('prestamos/{prestamo}/devolver-vencido', [PrestamoController::class, 'devolverVencido'])
-        ->name('prestamos.devolver-vencido');
-
-    Route::delete('prestamos/{prestamo}', [PrestamoController::class, 'destroy'])->name('prestamos.destroy');
 
     // Rutas para InformeController
     Route::prefix('informes')->group(function () {
@@ -154,26 +143,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/descargar-no-devueltos', [InformeController::class, 'descargarPDFNoDevueltos'])
             ->name('informes.descargar-no-devueltos');
     });
-
-    Route::get('prestamos/debug-vencidos', [PrestamoController::class, 'debugVencidos'])
-     ->name('prestamos.debug-vencidos');
-
-    // ✅ También añadir esta ruta temporal para debugging:
-    Route::get('debug/search-params', function (Illuminate\Http\Request $request) {
-        \Illuminate\Support\Facades\Log::info('🐛 DEBUG Route - Parámetros recibidos:', [
-            'all' => $request->all(),
-            'search' => $request->get('search'),
-            'query_string' => $request->getQueryString(),
-            'url' => $request->fullUrl()
-        ]);
-
-        return response()->json([
-            'message' => 'Debug route working',
-            'received_params' => $request->all(),
-            'search_param' => $request->get('search'),
-            'query_string' => $request->getQueryString()
-        ]);
-    })->middleware(['auth', 'verified']);
 
     // Rutas para InventarioController
     Route::get('inventario', [InventarioController::class, 'index'])->name('inventario.index');

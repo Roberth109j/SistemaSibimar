@@ -17,7 +17,60 @@ const breadcrumbs: BreadcrumbItem[] = [
   },
 ];
 
-import { type Prestamo, type HistorialPrestamosProps } from './types';
+// Definir tipos localmente si no existen
+interface Prestamo {
+  id: number;
+  ejemplar: {
+    id: number;
+    codigo?: string;
+    numEjemplar: number;
+    libro: {
+      titulo: string;
+      isbn: string;
+    };
+  };
+  lector: {
+    id: number;
+    nombre: string;
+    codigo: string;
+    subgrado?: string;
+  };
+  fecha_prestamo: string;
+  fecha_devolucion: string;
+  fecha_devuelto?: string;
+  estado: string;
+  observaciones?: string;
+}
+
+interface HistorialPrestamosProps {
+  auth: any;
+  prestamos: {
+    data: Prestamo[];
+    links: any[];
+    total: number;
+    current_page?: number;
+    last_page?: number;
+    per_page?: number;
+    from?: number;
+    to?: number;
+    has_pages?: boolean;
+  };
+  subgrados: string[];
+  anosDisponibles: number[];
+  anoActual: number;
+  flash?: {
+    success?: string;
+    error?: string;
+  };
+  filters?: {
+    search?: string;
+    estado?: string;
+    subgrado?: string;
+    fechaInicio?: string;
+    fechaFin?: string;
+    ano?: string;
+  };
+}
 
 type FlashMessage = {
   success?: string;
@@ -93,7 +146,14 @@ function AlertNotification({
   );
 }
 
-export default function HistorialPrestamos({ auth, prestamos = { data: [], links: [], total: 0 }, subgrados = [], flash = {} }: HistorialPrestamosProps) {
+export default function HistorialPrestamos({ 
+  auth, 
+  prestamos = { data: [], links: [], total: 0 }, 
+  subgrados = [], 
+  anosDisponibles = [], 
+  anoActual = new Date().getFullYear(), 
+  flash = {} 
+}: HistorialPrestamosProps) {
   const page = usePage();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -103,6 +163,7 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
     subgrado: '',
     fechaInicio: '',
     fechaFin: '',
+    ano: anoActual.toString(),
   });
 
   const [alerts, setAlerts] = useState<{
@@ -116,6 +177,14 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
   });
 
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Actualizar filtros cuando cambia el año actual desde el backend
+  useEffect(() => {
+    setSelectedFilters(prev => ({
+      ...prev,
+      ano: anoActual.toString()
+    }));
+  }, [anoActual]);
 
   useEffect(() => {
     if (flash) {
@@ -138,7 +207,7 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
         { search: value, ...selectedFilters },
         { preserveState: true, preserveScroll: true }
       );
-    }, 300); // ✅ REDUCIDO de 500ms a 300ms para mayor velocidad
+    }, 300);
     setSearchTimeout(timeout);
   };
 
@@ -146,6 +215,15 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
     const { name, value } = e.target;
     const newFilters = { ...selectedFilters, [name]: value };
     setSelectedFilters(newFilters);
+
+    // Si cambia el año, aplicar filtro inmediatamente
+    if (name === 'ano') {
+      router.get(
+        '/reportes/historial-prestamos',
+        { search: searchTerm, ...newFilters },
+        { preserveState: true, preserveScroll: true }
+      );
+    }
   };
 
   const applyFilters = () => {
@@ -158,14 +236,16 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
   };
 
   const clearFilters = () => {
+    const currentYear = new Date().getFullYear().toString();
     setSelectedFilters({
       estado: '',
       subgrado: '',
       fechaInicio: '',
       fechaFin: '',
+      ano: currentYear,
     });
     setSearchTerm('');
-    router.get('/reportes/historial-prestamos', {}, { preserveState: true, preserveScroll: true });
+    router.get('/reportes/historial-prestamos', { ano: currentYear }, { preserveState: true, preserveScroll: true });
     setShowFilters(false);
   };
 
@@ -224,11 +304,30 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
                 Historial de Préstamos
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Registro histórico de todos los préstamos realizados
+                Registro histórico de préstamos - Año {anoActual}
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
+              {/* Selector de año prominente en el header */}
+              <div className="flex items-center gap-3">
+                <Calendar className="w-5 h-5 text-gray-400" />
+                <select
+                  name="ano"
+                  value={selectedFilters.ano}
+                  onChange={handleFilterChange}
+                  className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 
+                            text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                            shadow-sm transition-all duration-200 rounded-lg font-medium"
+                >
+                  {anosDisponibles.map((ano) => (
+                    <option key={ano} value={ano}>
+                      {ano}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="relative">
                 <input
                   type="text"
@@ -265,7 +364,25 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Grid de 5 columnas para incluir el año */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                {/* Año también en filtros avanzados */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Año</label>
+                  <select
+                    name="ano"
+                    value={selectedFilters.ano}
+                    onChange={handleFilterChange}
+                    className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {anosDisponibles.map((ano) => (
+                      <option key={ano} value={ano}>
+                        {ano}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Estado</label>
                   <select
@@ -437,7 +554,7 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
                   ) : (
                     <tr>
                       <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                        No hay préstamos disponibles
+                        No hay préstamos registrados para el año {anoActual}
                       </td>
                     </tr>
                   )}
@@ -446,7 +563,7 @@ export default function HistorialPrestamos({ auth, prestamos = { data: [], links
             </div>
           </div>
 
-          {/* PAGINACIÓN IGUAL A LECTORES usando los links de Laravel */}
+          {/* PAGINACIÓN usando los links de Laravel */}
           {prestamos.links && prestamos.links.length > 3 && (
             <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
               {/* Información de paginación */}

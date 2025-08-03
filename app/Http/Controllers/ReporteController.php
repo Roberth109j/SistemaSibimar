@@ -14,7 +14,7 @@ class ReporteController extends Controller
     {
         // Validación de parámetros de paginación
         $page = max(1, (int) $request->input('page', 1));
-        $perPage = 10; // Valor fijo de 10 elementos por página
+        $perPage = 15; // Valor fijo de 15 elementos por página
 
         // ✅ OBTENER TODOS LOS SUBGRADOS ÚNICOS PARA EL FILTRO CON ORDEN NATURAL
         $subgradosCollection = Grado::whereNotNull('subGrado')
@@ -74,8 +74,29 @@ class ReporteController extends Controller
         
         $subgrados = $subgradosCollection->toArray();
 
+        // ✅ OBTENER SOLO LOS 4 AÑOS MÁS RECIENTES PARA EL FILTRO
+        $fechaLimite = Carbon::now()->subYears(4)->startOfYear();
+        $anosDisponibles = Prestamo::selectRaw('YEAR(fecha_prestamo) as ano')
+            ->where('fecha_prestamo', '>=', $fechaLimite)
+            ->distinct()
+            ->orderBy('ano', 'desc')
+            ->pluck('ano')
+            ->toArray();
+
+        // ✅ DETERMINAR EL AÑO A FILTRAR
+        $anoActual = Carbon::now()->year;
+        $anoFiltro = $request->input('ano', $anoActual); // Por defecto año actual
+        
+        // Validar que el año solicitado exista en los datos disponibles (últimos 4 años)
+        if (!in_array($anoFiltro, $anosDisponibles) && !empty($anosDisponibles)) {
+            $anoFiltro = $anoActual;
+        }
+
         // ✅ CARGAR LA RELACIÓN CON GRADO para obtener el subGrado
         $query = Prestamo::with(['ejemplar.libro', 'lector.grado'])
+            // ✅ FILTRAR POR AÑO (POR DEFECTO AÑO ACTUAL) Y LIMITAR A LOS ÚLTIMOS 4 AÑOS
+            ->whereYear('fecha_prestamo', $anoFiltro)
+            ->where('fecha_prestamo', '>=', $fechaLimite)
             // MODIFICACIÓN: Ordenar primero por estado (ACTIVO primero) y luego por fecha
             ->orderByRaw("CASE 
                 WHEN estado = 'ACTIVO' THEN 1 
@@ -116,12 +137,27 @@ class ReporteController extends Controller
             });
         }
 
+        // ✅ MODIFICAR FILTROS DE FECHA PARA QUE RESPETEN EL AÑO SELECCIONADO Y EL LÍMITE DE 4 AÑOS
         if ($request->has('fechaInicio') && $request->fechaInicio) {
-            $query->where('fecha_prestamo', '>=', $request->fechaInicio);
+            $fechaInicio = Carbon::parse($request->fechaInicio);
+            // Si la fecha de inicio no pertenece al año filtrado, ajustarla
+            if ($fechaInicio->year != $anoFiltro) {
+                $fechaInicio = Carbon::create($anoFiltro, 1, 1); // Enero 1 del año filtrado
+            }
+            // Asegurar que no sea anterior al límite de 4 años
+            if ($fechaInicio->lt($fechaLimite)) {
+                $fechaInicio = $fechaLimite;
+            }
+            $query->where('fecha_prestamo', '>=', $fechaInicio->format('Y-m-d'));
         }
 
         if ($request->has('fechaFin') && $request->fechaFin) {
-            $query->where('fecha_prestamo', '<=', $request->fechaFin);
+            $fechaFin = Carbon::parse($request->fechaFin);
+            // Si la fecha de fin no pertenece al año filtrado, ajustarla
+            if ($fechaFin->year != $anoFiltro) {
+                $fechaFin = Carbon::create($anoFiltro, 12, 31); // Diciembre 31 del año filtrado
+            }
+            $query->where('fecha_prestamo', '<=', $fechaFin->format('Y-m-d'));
         }
 
         // Paginación mejorada
@@ -168,7 +204,9 @@ class ReporteController extends Controller
         return Inertia::render('Reportes/HistorialPrestamos', [
             'prestamos' => $prestamos,
             'subgrados' => $subgrados, // ✅ ENVIAR LOS SUBGRADOS AL FRONTEND
-            'filters' => array_filter($request->only(['search', 'estado', 'subgrado', 'fechaInicio', 'fechaFin'])), // ✅ INCLUIR SUBGRADO EN FILTROS
+            'anosDisponibles' => $anosDisponibles, // ✅ ENVIAR SOLO LOS 4 AÑOS MÁS RECIENTES AL FRONTEND
+            'anoActual' => $anoFiltro, // ✅ ENVIAR EL AÑO ACTUAL FILTRADO
+            'filters' => array_filter($request->only(['search', 'estado', 'subgrado', 'fechaInicio', 'fechaFin', 'ano'])), // ✅ INCLUIR AÑO EN FILTROS
             'pagination' => [
                 'current_page' => $prestamos->currentPage(),
                 'last_page' => $prestamos->lastPage(),

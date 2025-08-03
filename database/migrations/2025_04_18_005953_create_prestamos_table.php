@@ -32,8 +32,6 @@ return new class extends Migration
             // Estado del préstamo
             $table->enum('estado', ['ACTIVO', 'DEVUELTO', 'VENCIDO'])->default('ACTIVO');
 
-            // Observaciones adicionales
-            $table->text('observaciones')->nullable();
         });
     }
 

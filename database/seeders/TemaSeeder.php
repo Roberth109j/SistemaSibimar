@@ -20,9 +20,6 @@ class TemaSeeder extends Seeder
             ['codigo' => '004', 'nombre' => 'Procesamiento de datos', 'subcategoria_id' => 1],
             ['codigo' => '005', 'nombre' => 'Programacion de computadores', 'subcategoria_id' => 1],
             ['codigo' => '006', 'nombre' => 'Metodos especiales de computacion', 'subcategoria_id' => 1],
-            ['codigo' => '007', 'nombre' => '', 'subcategoria_id' => 1],
-            ['codigo' => '008', 'nombre' => '', 'subcategoria_id' => 1],
-            ['codigo' => '009', 'nombre' => '', 'subcategoria_id' => 1],
 
             // Temas de la subcategoría '010' (Bibliografía)
             ['codigo' => '010', 'nombre' => 'Bibliografía', 'subcategoria_id' => 2],
@@ -41,12 +38,10 @@ class TemaSeeder extends Seeder
             ['codigo' => '021', 'nombre' => 'Relaciones de bibliotecas', 'subcategoria_id' => 3],
             ['codigo' => '022', 'nombre' => 'Administración de la planta física', 'subcategoria_id' => 3],
             ['codigo' => '023', 'nombre' => 'Administración de personal', 'subcategoria_id' => 3],
-            ['codigo' => '024', 'nombre' => '', 'subcategoria_id' => 3],
             ['codigo' => '025', 'nombre' => 'Operaciones bibliotecarias', 'subcategoria_id' => 3],
             ['codigo' => '026', 'nombre' => 'Bibliotecas para temas específicos', 'subcategoria_id' => 3],
             ['codigo' => '027', 'nombre' => 'Bibliotecas generales', 'subcategoria_id' => 3],
             ['codigo' => '028', 'nombre' => 'Lectura, uso de otros medios de información', 'subcategoria_id' => 3],
-            ['codigo' => '029', 'nombre' => '', 'subcategoria_id' => 3],
 
             // Temas de la subcategoría '030' (Enciclopedias generales)
             ['codigo' => '030', 'nombre' => 'Enciclopedias generales', 'subcategoria_id' => 4],
@@ -127,7 +122,6 @@ class TemaSeeder extends Seeder
             ['codigo' => '101', 'nombre' => 'Teoría de la filosofía', 'subcategoria_id' => 11],
             ['codigo' => '102', 'nombre' => 'Miscelánea de filosofía', 'subcategoria_id' => 11],
             ['codigo' => '103', 'nombre' => 'Diccionarios de filosofía', 'subcategoria_id' => 11],
-            ['codigo' => '104', 'nombre' => '', 'subcategoria_id' => 11],
             ['codigo' => '105', 'nombre' => 'Publicaciones en serie de filosofía', 'subcategoria_id' => 11],
             ['codigo' => '106', 'nombre' => 'Organizaciones en filosofía', 'subcategoria_id' => 11],
             ['codigo' => '107', 'nombre' => 'Educación, investigación en filosofía', 'subcategoria_id' => 11],
@@ -137,7 +131,6 @@ class TemaSeeder extends Seeder
             // Temas de la subcategoría '110' (Metafisica)
             ['codigo' => '110', 'nombre' => 'Metafísica', 'subcategoria_id' => 12],
             ['codigo' => '111', 'nombre' => 'Ontología', 'subcategoria_id' => 12],
-            ['codigo' => '112', 'nombre' => '', 'subcategoria_id' => 12],
             ['codigo' => '113', 'nombre' => 'Cosmología', 'subcategoria_id' => 12],
             ['codigo' => '114', 'nombre' => 'Espacio', 'subcategoria_id' => 12],
             ['codigo' => '115', 'nombre' => 'Tiempo', 'subcategoria_id' => 12],
@@ -152,7 +145,6 @@ class TemaSeeder extends Seeder
             ['codigo' => '122', 'nombre' => 'Causalidad', 'subcategoria_id' => 13],
             ['codigo' => '123', 'nombre' => 'Determinismo e indeterminismo', 'subcategoria_id' => 13],
             ['codigo' => '124', 'nombre' => 'Teleología', 'subcategoria_id' => 13],
-            ['codigo' => '125', 'nombre' => '', 'subcategoria_id' => 13],
             ['codigo' => '126', 'nombre' => 'El yo', 'subcategoria_id' => 13],
             ['codigo' => '127', 'nombre' => 'El inconsciente y el subconsciente', 'subcategoria_id' => 13],
             ['codigo' => '128', 'nombre' => 'Género humano', 'subcategoria_id' => 13],
@@ -161,11 +153,8 @@ class TemaSeeder extends Seeder
             // Temas de la subcategoría '130' (Fenómenos paranormales)
             ['codigo' => '130', 'nombre' => 'Fenómenos paranormales', 'subcategoria_id' => 14],
             ['codigo' => '131', 'nombre' => 'Métodos ocultos para lograr bienestar', 'subcategoria_id' => 14],
-            ['codigo' => '132', 'nombre' => '', 'subcategoria_id' => 14],
             ['codigo' => '133', 'nombre' => 'Parapsicología y ocultismo', 'subcategoria_id' => 14],
-            ['codigo' => '134', 'nombre' => '', 'subcategoria_id' => 14],
             ['codigo' => '135', 'nombre' => 'Sueños y misterios', 'subcategoria_id' => 14],
-            ['codigo' => '136', 'nombre' => '', 'subcategoria_id' => 14],
             ['codigo' => '137', 'nombre' => 'Grafología adivinatoria', 'subcategoria_id' => 14],
             ['codigo' => '138', 'nombre' => 'Fisionomía', 'subcategoria_id' => 14],
             ['codigo' => '139', 'nombre' => 'Frenología', 'subcategoria_id' => 14],
@@ -184,22 +173,17 @@ class TemaSeeder extends Seeder
 
             // Temas de la subcategoría '150' (Psicología)
             ['codigo' => '150', 'nombre' => 'Psicología', 'subcategoria_id' => 16],
-            ['codigo' => '151', 'nombre' => '', 'subcategoria_id' => 16],
             ['codigo' => '152', 'nombre' => 'Percepción, movimiento, emociones, impulsos.', 'subcategoria_id' => 16],
             ['codigo' => '153', 'nombre' => 'Procesos mentales e inteligencia', 'subcategoria_id' => 16],
             ['codigo' => '154', 'nombre' => 'Subconsciente y estados alterados', 'subcategoria_id' => 16],
             ['codigo' => '155', 'nombre' => 'Psicología diferencial', 'subcategoria_id' => 16],
             ['codigo' => '156', 'nombre' => 'Psicología comparada', 'subcategoria_id' => 16],
-            ['codigo' => '157', 'nombre' => '', 'subcategoria_id' => 16],
             ['codigo' => '158', 'nombre' => 'Psicología aplicada', 'subcategoria_id' => 16],
-            ['codigo' => '159', 'nombre' => '', 'subcategoria_id' => 16],
 
             // Temas de la subcategoría '160' (Lógica) 
             ['codigo' => '160', 'nombre' => 'Lógica', 'subcategoria_id' => 17],
             ['codigo' => '161', 'nombre' => 'Inducción', 'subcategoria_id' => 17],
             ['codigo' => '162', 'nombre' => 'Deducción', 'subcategoria_id' => 17],
-            ['codigo' => '163', 'nombre' => '', 'subcategoria_id' => 17],
-            ['codigo' => '164', 'nombre' => '', 'subcategoria_id' => 17],
             ['codigo' => '165', 'nombre' => 'Falacias y fuentes de error', 'subcategoria_id' => 17],
             ['codigo' => '166', 'nombre' => 'Silogismos', 'subcategoria_id' => 17],
             ['codigo' => '167', 'nombre' => 'Hipótesis', 'subcategoria_id' => 17],
@@ -264,9 +248,7 @@ class TemaSeeder extends Seeder
             ['codigo' => '214', 'nombre' => 'Teodicea', 'subcategoria_id' => 22],
             ['codigo' => '215', 'nombre' => 'Ciencia y Religión', 'subcategoria_id' => 22],
             ['codigo' => '216', 'nombre' => 'El bien y el mal', 'subcategoria_id' => 22],
-            ['codigo' => '217', 'nombre' => '', 'subcategoria_id' => 22],
             ['codigo' => '218', 'nombre' => 'El Hombre', 'subcategoria_id' => 22],
-            ['codigo' => '219', 'nombre' => '', 'subcategoria_id' => 22],
 
             // Temas de la subcategoría '220' (la biblia)
             ['codigo' => '220', 'nombre' => 'La Biblia', 'subcategoria_id' => 23],
@@ -288,16 +270,13 @@ class TemaSeeder extends Seeder
             ['codigo' => '234', 'nombre' => 'Salvación (Soteriología) y gracia', 'subcategoria_id' => 24],
             ['codigo' => '235', 'nombre' => 'Seres espirituales', 'subcategoria_id' => 24],
             ['codigo' => '236', 'nombre' => 'Escatología', 'subcategoria_id' => 24],
-            ['codigo' => '237', 'nombre' => '', 'subcategoria_id' => 24],
             ['codigo' => '238', 'nombre' => 'Credos y catecismos', 'subcategoria_id' => 24],
-            ['codigo' => '239', 'nombre' => 'Apologética y polémica', 'subcategoria_id' => 24],
 
             // Temas de la subcategoría '240' (Moral cristiana)
             ['codigo' => '240', 'nombre' => 'Moral cristiana y teología piadosa', 'subcategoria_id' => 25],
             ['codigo' => '241', 'nombre' => 'Teología moral', 'subcategoria_id' => 25],
             ['codigo' => '242', 'nombre' => 'Literatura piadosa', 'subcategoria_id' => 25],
             ['codigo' => '243', 'nombre' => 'Escritos evangelizadores para individuos', 'subcategoria_id' => 25],
-            ['codigo' => '244', 'nombre' => '', 'subcategoria_id' => 25],
             ['codigo' => '245', 'nombre' => 'Textos de himnos', 'subcategoria_id' => 25],
             ['codigo' => '246', 'nombre' => 'Uso del arte en el cristianismo', 'subcategoria_id' => 25],
             ['codigo' => '247', 'nombre' => 'Mobiliario y artículos eclesiásticos', 'subcategoria_id' => 25],
@@ -311,9 +290,6 @@ class TemaSeeder extends Seeder
             ['codigo' => '253', 'nombre' => 'Oficio pastoral (Teología pastoral)', 'subcategoria_id' => 26],
             ['codigo' => '254', 'nombre' => 'Gobierno y administración de la parroquia', 'subcategoria_id' => 26],
             ['codigo' => '255', 'nombre' => 'Congregaciones y órdenes religiosas', 'subcategoria_id' => 26],
-            ['codigo' => '256', 'nombre' => '', 'subcategoria_id' => 26],
-            ['codigo' => '257', 'nombre' => '', 'subcategoria_id' => 26],
-            ['codigo' => '258', 'nombre' => '', 'subcategoria_id' => 26],
             ['codigo' => '259', 'nombre' => 'Actividades de la iglesia local', 'subcategoria_id' => 26],
 
             // Temas de la subcategoría '260' Teología social cristiana
@@ -349,7 +325,6 @@ class TemaSeeder extends Seeder
              ['codigo' => '285', 'nombre' => 'Iglesias Presbiterianas, reformadas,', 'subcategoria_id' => 29],
              ['codigo' => '286', 'nombre' => 'Iglesias bautistas, de los discípulos de Cristo,', 'subcategoria_id' => 29],
              ['codigo' => '287', 'nombre' => 'Iglesias metodistas y relacionadas', 'subcategoria_id' => 29],
-             ['codigo' => '288', 'nombre' => '', 'subcategoria_id' => 29],
              ['codigo' => '289', 'nombre' => 'Otras denominaciones y sectas', 'subcategoria_id' => 29],
 
             // Temas de la subcategoría '290' Otras y religión comparada
@@ -361,7 +336,6 @@ class TemaSeeder extends Seeder
             ['codigo' => '295', 'nombre' => 'Zoroastrismo (Mazdeísmo, Parsismo)', 'subcategoria_id' => 30],
             ['codigo' => '296', 'nombre' => 'Judaísmo', 'subcategoria_id' => 30],
             ['codigo' => '297', 'nombre' => 'Islamismo y religiones originadas en él', 'subcategoria_id' => 30],
-            ['codigo' => '298', 'nombre' => '', 'subcategoria_id' => 30],
             ['codigo' => '299', 'nombre' => 'Otras religiones', 'subcategoria_id' => 30],
 
             // ...........................................................................................................
@@ -376,14 +350,9 @@ class TemaSeeder extends Seeder
             ['codigo' => '305', 'nombre' => 'Grupos sociales', 'subcategoria_id' => 31],
             ['codigo' => '306', 'nombre' => 'Cultura e instituciones', 'subcategoria_id' => 31],
             ['codigo' => '307', 'nombre' => 'Comunidades', 'subcategoria_id' => 31],
-            ['codigo' => '308', 'nombre' => '', 'subcategoria_id' => 31],
-            ['codigo' => '309', 'nombre' => '', 'subcategoria_id' => 31],
 
             //Temas de la subcategoría '310' Estadística general
             ['codigo' => '310', 'nombre' => 'Estadística general', 'subcategoria_id' => 32],
-            ['codigo' => '311', 'nombre' => '', 'subcategoria_id' => 32],
-            ['codigo' => '312', 'nombre' => '', 'subcategoria_id' => 32],
-            ['codigo' => '313', 'nombre' => '', 'subcategoria_id' => 32],
             ['codigo' => '314', 'nombre' => 'De Europa', 'subcategoria_id' => 32],
             ['codigo' => '315', 'nombre' => 'De Asia', 'subcategoria_id' => 32],
             ['codigo' => '316', 'nombre' => 'De Africa', 'subcategoria_id' => 32],
@@ -401,7 +370,6 @@ class TemaSeeder extends Seeder
             ['codigo' => '326', 'nombre' => 'Esclavitud y emancipación', 'subcategoria_id' => 33],
             ['codigo' => '327', 'nombre' => 'Relaciones internacionales', 'subcategoria_id' => 33],
             ['codigo' => '328', 'nombre' => 'El proceso legislativo', 'subcategoria_id' => 33],
-            ['codigo' => '329', 'nombre' => '', 'subcategoria_id' => 33],
 
             // Temas de la subcategoría '330' Economía
             ['codigo' => '330', 'nombre' => 'Economía', 'subcategoria_id' => 34],
@@ -482,8 +450,6 @@ class TemaSeeder extends Seeder
             ['codigo' => '393', 'nombre' => 'Costumbres mortuorias.', 'subcategoria_id' => 40],
             ['codigo' => '394', 'nombre' => 'Costumbres generales.', 'subcategoria_id' => 40],
             ['codigo' => '395', 'nombre' => 'Etiqueta (Modales).', 'subcategoria_id' => 40],
-            ['codigo' => '396', 'nombre' => '', 'subcategoria_id' => 40],
-            ['codigo' => '397', 'nombre' => '', 'subcategoria_id' => 40],
             ['codigo' => '398', 'nombre' => 'Folclor.', 'subcategoria_id' => 40],
             ['codigo' => '399', 'nombre' => 'Costumbres de guerra y diplomacia.', 'subcategoria_id' => 40],
 
@@ -509,7 +475,6 @@ class TemaSeeder extends Seeder
            ['codigo' => '413', 'nombre' => 'Diccionarios', 'subcategoria_id' => 42],
            ['codigo' => '414', 'nombre' => 'Fonología', 'subcategoria_id' => 42],
            ['codigo' => '415', 'nombre' => 'Sistemas estructurales (Gramática)', 'subcategoria_id' => 42],
-           ['codigo' => '416', 'nombre' => '', 'subcategoria_id' => 42],
            ['codigo' => '417', 'nombre' => 'Dialectología y lingüística histórica', 'subcategoria_id' => 42],
            ['codigo' => '418', 'nombre' => 'Uso estándar. Lingüística aplicada', 'subcategoria_id' => 42],
            ['codigo' => '419', 'nombre' => 'Lenguajes verbales no hablados ni escritos', 'subcategoria_id' => 42],
@@ -519,9 +484,7 @@ class TemaSeeder extends Seeder
            ['codigo' => '421', 'nombre' => 'Sistema de escritura y fonología inglesas', 'subcategoria_id' => 43],
            ['codigo' => '422', 'nombre' => 'Etimología inglesa', 'subcategoria_id' => 43],
            ['codigo' => '423', 'nombre' => 'Diccionarios de inglés', 'subcategoria_id' => 43],
-           ['codigo' => '424', 'nombre' => '', 'subcategoria_id' => 43],
            ['codigo' => '425', 'nombre' => 'Gramática inglesa', 'subcategoria_id' => 43],
-           ['codigo' => '426', 'nombre' => '', 'subcategoria_id' => 43],
            ['codigo' => '427', 'nombre' => 'Variaciones de la lengua inglesa', 'subcategoria_id' => 43],
            ['codigo' => '428', 'nombre' => 'Uso del inglés estándar', 'subcategoria_id' => 43],
            ['codigo' => '429', 'nombre' => 'Inglés antiguo (Anglosajón)', 'subcategoria_id' => 43],
@@ -531,9 +494,7 @@ class TemaSeeder extends Seeder
            ['codigo' => '431', 'nombre' => 'Sistemas de escritura y fonología alemanas', 'subcategoria_id' => 44],
            ['codigo' => '432', 'nombre' => 'Etimología alemana', 'subcategoria_id' => 44],
            ['codigo' => '433', 'nombre' => 'Diccionarios de alemán', 'subcategoria_id' => 44],
-           ['codigo' => '434', 'nombre' => '', 'subcategoria_id' => 44],
            ['codigo' => '435', 'nombre' => 'Gramática alemana', 'subcategoria_id' => 44],
-           ['codigo' => '436', 'nombre' => '', 'subcategoria_id' => 44],
            ['codigo' => '437', 'nombre' => 'Variaciones de la lengua alemana', 'subcategoria_id' => 44],
            ['codigo' => '438', 'nombre' => 'Uso del alemán estándar.', 'subcategoria_id' => 44],
            ['codigo' => '439', 'nombre' => 'Otras lenguas germánicas', 'subcategoria_id' => 44],                   
@@ -543,9 +504,7 @@ class TemaSeeder extends Seeder
            ['codigo' => '441', 'nombre' => 'Sistema de escritura y fonología franceses', 'subcategoria_id' => 45],
            ['codigo' => '442', 'nombre' => 'Etimología francesa', 'subcategoria_id' => 45],
            ['codigo' => '443', 'nombre' => 'Diccionarios de francés', 'subcategoria_id' => 45],
-           ['codigo' => '444', 'nombre' => '', 'subcategoria_id' => 45],
            ['codigo' => '445', 'nombre' => 'Gramática francesa', 'subcategoria_id' => 45],
-           ['codigo' => '446', 'nombre' => '', 'subcategoria_id' => 45],
            ['codigo' => '447', 'nombre' => 'Variaciones del francés', 'subcategoria_id' => 45],
            ['codigo' => '448', 'nombre' => 'Uso del francés estándar.', 'subcategoria_id' => 45],
            ['codigo' => '449', 'nombre' => 'Provenzal y catalán.', 'subcategoria_id' => 45],
@@ -555,9 +514,7 @@ class TemaSeeder extends Seeder
            ['codigo' => '451', 'nombre' => 'Sistema de escritura y fonología italianos', 'subcategoria_id' => 46],
            ['codigo' => '452', 'nombre' => 'Etimología italiana', 'subcategoria_id' => 46],
            ['codigo' => '453', 'nombre' => 'Diccionarios de italiano', 'subcategoria_id' => 46],
-           ['codigo' => '454', 'nombre' => '', 'subcategoria_id' => 46],
            ['codigo' => '455', 'nombre' => 'Gramática italiana', 'subcategoria_id' => 46],
-           ['codigo' => '456', 'nombre' => '', 'subcategoria_id' => 46],
            ['codigo' => '457', 'nombre' => 'Variaciones del italiano', 'subcategoria_id' => 46],
            ['codigo' => '458', 'nombre' => 'Uso del italiano estándar', 'subcategoria_id' => 46],
            ['codigo' => '459', 'nombre' => 'Rumano y retorromano', 'subcategoria_id' => 46], 
@@ -567,9 +524,7 @@ class TemaSeeder extends Seeder
             ['codigo' => '461', 'nombre' => 'Sistema de escritura y fonología españoles', 'subcategoria_id' => 47],
             ['codigo' => '462', 'nombre' => 'Etimología española', 'subcategoria_id' => 47],
             ['codigo' => '463', 'nombre' => 'Diccionarios de español', 'subcategoria_id' => 47],
-            ['codigo' => '464', 'nombre' => '', 'subcategoria_id' => 47],
             ['codigo' => '465', 'nombre' => 'Gramática española', 'subcategoria_id' => 47],
-            ['codigo' => '466', 'nombre' => '', 'subcategoria_id' => 47],
             ['codigo' => '467', 'nombre' => 'Variaciones del español', 'subcategoria_id' => 47],
             ['codigo' => '468', 'nombre' => 'Uso del español estándar', 'subcategoria_id' => 47],
             ['codigo' => '469', 'nombre' => 'Portugués', 'subcategoria_id' => 47], 
@@ -579,9 +534,7 @@ class TemaSeeder extends Seeder
              ['codigo' => '471', 'nombre' => 'Escritura y fonología latinas clásicas', 'subcategoria_id' => 48],
              ['codigo' => '472', 'nombre' => 'Etimología latina clásica', 'subcategoria_id' => 48],
              ['codigo' => '473', 'nombre' => 'Diccionarios de latín clásico', 'subcategoria_id' => 48],
-             ['codigo' => '474', 'nombre' => '', 'subcategoria_id' => 48],
              ['codigo' => '475', 'nombre' => 'Gramática latina clásica', 'subcategoria_id' => 48],
-             ['codigo' => '476', 'nombre' => '', 'subcategoria_id' => 48],
              ['codigo' => '477', 'nombre' => 'Latín arcaico, postclásico, vulgar', 'subcategoria_id' => 48],
              ['codigo' => '478', 'nombre' => 'Uso del latín clásico.', 'subcategoria_id' => 48],
              ['codigo' => '479', 'nombre' => 'Otras lenguas itálicas', 'subcategoria_id' => 48],
@@ -591,9 +544,7 @@ class TemaSeeder extends Seeder
              ['codigo' => '481', 'nombre' => 'Escritura y fonología griegas clásicas', 'subcategoria_id' => 49],
              ['codigo' => '482', 'nombre' => 'Etimología griega clásica', 'subcategoria_id' => 49],
              ['codigo' => '483', 'nombre' => 'Diccionarios de griego clásico', 'subcategoria_id' => 49],
-             ['codigo' => '484', 'nombre' => '', 'subcategoria_id' => 49],
              ['codigo' => '485', 'nombre' => 'Gramática griega clásica', 'subcategoria_id' => 49],
-             ['codigo' => '486', 'nombre' => '', 'subcategoria_id' => 49],
              ['codigo' => '487', 'nombre' => 'Griego preclásico y postclásico', 'subcategoria_id' => 49],
              ['codigo' => '488', 'nombre' => 'Uso del griego clásico', 'subcategoria_id' => 49],
              ['codigo' => '489', 'nombre' => 'Otras lenguas helénicas', 'subcategoria_id' => 49],            
@@ -617,7 +568,6 @@ class TemaSeeder extends Seeder
              ['codigo' => '501', 'nombre' => 'Filosofía y teoría', 'subcategoria_id' => 51],
              ['codigo' => '502', 'nombre' => 'Miscelánea', 'subcategoria_id' => 51],
              ['codigo' => '503', 'nombre' => 'Diccionarios y enciclopedias', 'subcategoria_id' => 51],
-             ['codigo' => '504', 'nombre' => '', 'subcategoria_id' => 51],
              ['codigo' => '505', 'nombre' => 'Publicaciones en serie', 'subcategoria_id' => 51],
              ['codigo' => '506', 'nombre' => 'Organizaciones y administración', 'subcategoria_id' => 51],
              ['codigo' => '507', 'nombre' => 'Educación, investigación, temas relacionados', 'subcategoria_id' => 51],
@@ -632,8 +582,6 @@ class TemaSeeder extends Seeder
               ['codigo' => '514', 'nombre' => 'Topología', 'subcategoria_id' => 52],
               ['codigo' => '515', 'nombre' => 'Análisis', 'subcategoria_id' => 52],
               ['codigo' => '516', 'nombre' => 'Geometría', 'subcategoria_id' => 52],
-              ['codigo' => '517', 'nombre' => '', 'subcategoria_id' => 52],
-              ['codigo' => '518', 'nombre' => '', 'subcategoria_id' => 52],
               ['codigo' => '519', 'nombre' => 'Probabilidades y matemáticas aplicadas', 'subcategoria_id' => 52],
 
               // Temas de la subcategoría '520' Astronomía y ciencias afines              
@@ -641,7 +589,6 @@ class TemaSeeder extends Seeder
               ['codigo' => '521', 'nombre' => 'Mecánica celeste', 'subcategoria_id' => 53],
               ['codigo' => '522', 'nombre' => 'Técnicas, equipo, materiales', 'subcategoria_id' => 53],
               ['codigo' => '523', 'nombre' => 'Cuerpos y fenómenos celestes específicos', 'subcategoria_id' => 53],
-              ['codigo' => '524', 'nombre' => '', 'subcategoria_id' => 53],
               ['codigo' => '525', 'nombre' => 'La Tierra (Geografía astronómica)', 'subcategoria_id' => 53],
               ['codigo' => '526', 'nombre' => 'Geografía matemática', 'subcategoria_id' => 53],
               ['codigo' => '527', 'nombre' => 'Navegación celeste', 'subcategoria_id' => 53],
@@ -698,7 +645,6 @@ class TemaSeeder extends Seeder
 
            // Temas de la subcategoría '570' Ciencias de la vida              
            ['codigo' => '570', 'nombre' => 'Ciencias de la vida', 'subcategoria_id' => 58],
-           ['codigo' => '571', 'nombre' => '', 'subcategoria_id' => 58],
            ['codigo' => '572', 'nombre' => 'Razas humanas', 'subcategoria_id' => 58],
            ['codigo' => '573', 'nombre' => 'Antropología física', 'subcategoria_id' => 58],
            ['codigo' => '574', 'nombre' => 'Biología', 'subcategoria_id' => 58],
@@ -766,7 +712,6 @@ class TemaSeeder extends Seeder
            ['codigo' => '623', 'nombre' => 'Ingeniería militar y naval', 'subcategoria_id' => 63],
            ['codigo' => '624', 'nombre' => 'Ingeniería civil', 'subcategoria_id' => 63],
            ['codigo' => '625', 'nombre' => 'Ingeniería de ferrocarriles, de caminos', 'subcategoria_id' => 63],
-           ['codigo' => '626', 'nombre' => '', 'subcategoria_id' => 63],
            ['codigo' => '627', 'nombre' => 'Ingeniería hidráulica', 'subcategoria_id' => 63],
            ['codigo' => '628', 'nombre' => 'Ingeniería sanitaria y municipal', 'subcategoria_id' => 63],
            ['codigo' => '629', 'nombre' => 'Otras ramas de la ingeniería', 'subcategoria_id' => 63],           
@@ -800,9 +745,6 @@ class TemaSeeder extends Seeder
            ['codigo' => '651', 'nombre' => 'Servicios de oficina', 'subcategoria_id' => 66],
            ['codigo' => '652', 'nombre' => 'Procesos de comunicación escrita', 'subcategoria_id' => 66],
            ['codigo' => '653', 'nombre' => 'Taquigrafía', 'subcategoria_id' => 66],
-           ['codigo' => '654', 'nombre' => '', 'subcategoria_id' => 66],
-           ['codigo' => '655', 'nombre' => '', 'subcategoria_id' => 66],
-           ['codigo' => '656', 'nombre' => '', 'subcategoria_id' => 66],
            ['codigo' => '657', 'nombre' => 'Contabilidad', 'subcategoria_id' => 66],
            ['codigo' => '658', 'nombre' => 'Administración general', 'subcategoria_id' => 66],
            ['codigo' => '659', 'nombre' => 'Publicidad y relaciones públicas', 'subcategoria_id' => 66],
@@ -841,7 +783,6 @@ class TemaSeeder extends Seeder
            ['codigo' => '686', 'nombre' => 'Imprentas y actividades relacionadas', 'subcategoria_id' => 69],
            ['codigo' => '687', 'nombre' => 'Vestuario', 'subcategoria_id' => 69],
            ['codigo' => '688', 'nombre' => 'Otros productos acabados, empaques', 'subcategoria_id' => 69],
-           ['codigo' => '689', 'nombre' => '', 'subcategoria_id' => 69],                    
 
            // Temas de la subcategoría '690' Construcción
            ['codigo' => '690', 'nombre' => 'Construcción', 'subcategoria_id' => 70],
@@ -853,7 +794,6 @@ class TemaSeeder extends Seeder
            ['codigo' => '696', 'nombre' => 'Servicios públicos', 'subcategoria_id' => 70],
            ['codigo' => '697', 'nombre' => 'Calefacción, ventilación, aire acondicionado', 'subcategoria_id' => 70],
            ['codigo' => '698', 'nombre' => 'Detalles de acabado', 'subcategoria_id' => 70],
-           ['codigo' => '699', 'nombre' => '', 'subcategoria_id' => 70],
 
            //..............................................................................................................
            
@@ -910,7 +850,6 @@ class TemaSeeder extends Seeder
            ['codigo' => '741', 'nombre' => 'Dibujo y dibujos', 'subcategoria_id' => 75],
            ['codigo' => '742', 'nombre' => 'Perspectiva', 'subcategoria_id' => 75],
            ['codigo' => '743', 'nombre' => 'Dibujo y dibujos por tema', 'subcategoria_id' => 75],
-           ['codigo' => '744', 'nombre' => '', 'subcategoria_id' => 75],
            ['codigo' => '745', 'nombre' => 'Artes decorativas', 'subcategoria_id' => 75],
            ['codigo' => '746', 'nombre' => 'Artes textiles', 'subcategoria_id' => 75],
            ['codigo' => '747', 'nombre' => 'Decoración de interiores', 'subcategoria_id' => 75],
@@ -932,13 +871,11 @@ class TemaSeeder extends Seeder
            // Temas de la subcategoría '760' Artes gráficas. Arte de grabar y grabados  
            ['codigo' => '760', 'nombre' => 'Artes gráficas. Arte de grabar y grabados', 'subcategoria_id' => 77],
            ['codigo' => '761', 'nombre' => 'Procesos en relieve (Grabado en bloque)', 'subcategoria_id' => 77],
-           ['codigo' => '762', 'nombre' => '', 'subcategoria_id' => 77],
            ['codigo' => '763', 'nombre' => 'Procesos litográficos (Planográficos)', 'subcategoria_id' => 77],
            ['codigo' => '764', 'nombre' => 'Cromolitografía y serigrafía', 'subcategoria_id' => 77],
            ['codigo' => '765', 'nombre' => 'Grabado en metal', 'subcategoria_id' => 77],
            ['codigo' => '766', 'nombre' => 'Media tinta y procesos relacionados', 'subcategoria_id' => 77],
            ['codigo' => '767', 'nombre' => 'Aguafuerte y grabado a buril', 'subcategoria_id' => 77],
-           ['codigo' => '768', 'nombre' => '', 'subcategoria_id' => 77],
            ['codigo' => '769', 'nombre' => 'Grabados', 'subcategoria_id' => 77],
            
             // Temas de la subcategoría '770' Fotografía                       
@@ -947,9 +884,6 @@ class TemaSeeder extends Seeder
             ['codigo' => '772', 'nombre' => 'Procesos con sales metálicas', 'subcategoria_id' => 78],
             ['codigo' => '773', 'nombre' => 'Procesos de pigmentación de la impresión', 'subcategoria_id' => 78],
             ['codigo' => '774', 'nombre' => 'Holografía', 'subcategoria_id' => 78],
-            ['codigo' => '775', 'nombre' => '', 'subcategoria_id' => 78],
-            ['codigo' => '776', 'nombre' => '', 'subcategoria_id' => 78],
-            ['codigo' => '777', 'nombre' => '', 'subcategoria_id' => 78],
             ['codigo' => '778', 'nombre' => 'Campos y clases de fotografía', 'subcategoria_id' => 78],
             ['codigo' => '779', 'nombre' => 'Fotografías', 'subcategoria_id' => 78],
 
@@ -984,7 +918,6 @@ class TemaSeeder extends Seeder
             ['codigo' => '801', 'nombre' => 'Filosofía y teoría', 'subcategoria_id' => 81],
             ['codigo' => '802', 'nombre' => 'Miscelánea', 'subcategoria_id' => 81],
             ['codigo' => '803', 'nombre' => 'Diccionarios y enciclopedias', 'subcategoria_id' => 81],
-            ['codigo' => '804', 'nombre' => '', 'subcategoria_id' => 81],
             ['codigo' => '805', 'nombre' => 'Publicaciones en serie', 'subcategoria_id' => 81],
             ['codigo' => '806', 'nombre' => 'Organizaciones', 'subcategoria_id' => 81],
             ['codigo' => '807', 'nombre' => 'Educación, investigación, temas relacionados', 'subcategoria_id' => 81],
@@ -1212,8 +1145,6 @@ class TemaSeeder extends Seeder
 
             // Temas de la subcategoría '990' Historia general de otras áreas
             ['codigo' => '990', 'nombre' => 'Historia general de otras áreas', 'subcategoria_id' => 100],
-            ['codigo' => '991', 'nombre' => '', 'subcategoria_id' => 100],
-            ['codigo' => '992', 'nombre' => '', 'subcategoria_id' => 100],
             ['codigo' => '993', 'nombre' => 'Nueva Zelanda', 'subcategoria_id' => 100],
             ['codigo' => '994', 'nombre' => 'Australia', 'subcategoria_id' => 100],
             ['codigo' => '995', 'nombre' => 'Melanesia. Nueva Guinea', 'subcategoria_id' => 100],
