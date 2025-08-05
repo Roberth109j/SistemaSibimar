@@ -39,8 +39,9 @@ class InventarioController extends Controller
                 'ejemplares as ejemplares_prestados_count' => function ($query) {
                     $query->where('estado', Ejemplar::ESTADO_PRESTADO);
                 },
+                // ✅ CORREGIDO: Usar whereIn para incluir ambos estados inactivos
                 'ejemplares as ejemplares_inactivos_count' => function ($query) {
-                    $query->where('estado', Ejemplar::ESTADO_INACTIVO);
+                    $query->whereIn('estado', [Ejemplar::ESTADO_DAR_DE_BAJA, Ejemplar::ESTADO_PERDIDO]);
                 }
             ]);
             
@@ -77,8 +78,9 @@ class InventarioController extends Controller
                     $q->where('estado', Ejemplar::ESTADO_PRESTADO);
                 });
             } elseif ($filters['estado'] === 'inactivos') {
+                // ✅ CORREGIDO: Usar whereIn para incluir ambos estados inactivos
                 $query->whereHas('ejemplares', function ($q) {
-                    $q->where('estado', Ejemplar::ESTADO_INACTIVO);
+                    $q->whereIn('estado', [Ejemplar::ESTADO_DAR_DE_BAJA, Ejemplar::ESTADO_PERDIDO]);
                 });
             }
         }
