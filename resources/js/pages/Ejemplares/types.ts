@@ -61,13 +61,23 @@ export const TIPO_ADQUISICION = {
 
 export type TipoAdquisicion = typeof TIPO_ADQUISICION[keyof typeof TIPO_ADQUISICION];
 
+// ESTADOS - CON ESPACIOS (COMO ESTÁN EN LA MIGRACIÓN)
 export const ESTADO = {
   DISPONIBLE: 'DISPONIBLE',
   PRESTADO: 'PRESTADO',
-  INACTIVO: 'INACTIVO'
+  DAR_DE_BAJA: 'DAR DE BAJA',  // ✅ CON ESPACIOS
+  PERDIDO: 'PERDIDO'
 } as const;
 
 export type Estado = typeof ESTADO[keyof typeof ESTADO];
+
+// Mapeo de estados para visualización (bonitos para el usuario)
+export const ESTADO_LABELS = {
+  [ESTADO.DISPONIBLE]: 'Disponible',
+  [ESTADO.PRESTADO]: 'Prestado',
+  [ESTADO.DAR_DE_BAJA]: 'Dar de Baja',
+  [ESTADO.PERDIDO]: 'Perdido'
+} as const;
 
 export interface Ejemplar {
   id: number;

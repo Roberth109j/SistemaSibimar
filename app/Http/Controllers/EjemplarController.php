@@ -263,6 +263,7 @@ class EjemplarController extends Controller
                 'numEjemplar' => $ejemplar->numEjemplar
             ]);
             
+
             // Redireccionar
             return Redirect::route('ejemplares.index', [$libroId, $ejemplarId])
                 ->with('success', 'Ejemplar #' . $ejemplar->numEjemplar . ' actualizado correctamente');

@@ -20,7 +20,9 @@ class LectorController extends Controller
     {
         // Validación de parámetros de paginación
         $page = max(1, (int) $request->input('page', 1));
-        $perPage = 25; // Valor fijo de 10 elementos por página
+    }
+        $perPage = 30; // Valor fijo de 30 elementos por página
+}
 
         // Query base con relaciones necesarias y conteo de préstamos activos
         $query = Lector::with(['grado.seccion'])

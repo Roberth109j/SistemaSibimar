@@ -41,7 +41,7 @@ class InventarioExport implements FromCollection, WithHeadings, WithStyles, With
                     $query->where('estado', Ejemplar::ESTADO_PRESTADO);
                 },
                 'ejemplares as ejemplares_inactivos_count' => function ($query) {
-                    $query->where('estado', Ejemplar::ESTADO_INACTIVO);
+                    $query->whereIn('estado', [Ejemplar::ESTADO_DAR_DE_BAJA, Ejemplar::ESTADO_PERDIDO]);
                 }
             ]);
 

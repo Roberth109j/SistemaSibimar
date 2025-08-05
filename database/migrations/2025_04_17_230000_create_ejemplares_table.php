@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::create('ejemplares', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('libro_id')->constrained()->onDelete('cascade'); // Relación con el libro
+            $table->foreignId('libro_id')->constrained()->onDelete('cascade');
             $table->unsignedInteger('numEjemplar')->default(1);
             $table->enum('tipo_adquisicion', ['COMPRA','REPOSICION', 'DONACION'])->default('COMPRA');
-            $table->enum('estado', ['DISPONIBLE','PRESTADO', 'INACTIVO'])->default('DISPONIBLE'); // Estado: disponible, inactivo, prestado
-            $table->text('observaciones')->nullable(); // Observaciones si hay alguna particularidad
+           $table->enum('estado', ['DISPONIBLE','PRESTADO', 'DAR DE BAJA', 'PERDIDO'])->default('DISPONIBLE');
+            $table->text('observaciones')->nullable();
             $table->timestamps();
         });              
     }

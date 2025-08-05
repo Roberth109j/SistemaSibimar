@@ -49,11 +49,12 @@ class Ejemplar extends Model
     public const TIPO_DONACION = 'DONACION';
     
     /**
-     * Constantes para estado
+     * Constantes para estado - CORREGIDAS CON ESPACIOS
      */
     public const ESTADO_DISPONIBLE = 'DISPONIBLE';
     public const ESTADO_PRESTADO = 'PRESTADO';
-    public const ESTADO_INACTIVO = 'INACTIVO';
+    public const ESTADO_DAR_DE_BAJA = 'DAR DE BAJA';  // ✅ CON ESPACIOS
+    public const ESTADO_PERDIDO = 'PERDIDO';
     
     /**
      * Retorna todos los valores posibles para tipo_adquisicion
@@ -79,7 +80,8 @@ class Ejemplar extends Model
         return [
             self::ESTADO_DISPONIBLE,
             self::ESTADO_PRESTADO,
-            self::ESTADO_INACTIVO,
+            self::ESTADO_DAR_DE_BAJA,
+            self::ESTADO_PERDIDO,
         ];
     }
     
@@ -114,13 +116,33 @@ class Ejemplar extends Model
     }
     
     /**
+     * Comprueba si el ejemplar está dado de baja
+     *
+     * @return bool
+     */
+    public function estaDadoDeBaja(): bool
+    {
+        return $this->estado === self::ESTADO_DAR_DE_BAJA;
+    }
+    
+    /**
+     * Comprueba si el ejemplar está perdido
+     *
+     * @return bool
+     */
+    public function estaPerdido(): bool
+    {
+        return $this->estado === self::ESTADO_PERDIDO;
+    }
+    
+    /**
      * Comprueba si el ejemplar está inactivo
      *
      * @return bool
      */
     public function estaInactivo(): bool
     {
-        return $this->estado === self::ESTADO_INACTIVO;
+        return $this->estaDadoDeBaja() || $this->estaPerdido();
     }
     
     /**
@@ -146,13 +168,24 @@ class Ejemplar extends Model
     }
     
     /**
-     * Marca el ejemplar como inactivo
+     * Marca el ejemplar como dado de baja
      *
      * @return void
      */
-    public function marcarComoInactivo(): void
+    public function marcarComoDadoDeBaja(): void
     {
-        $this->estado = self::ESTADO_INACTIVO;
+        $this->estado = self::ESTADO_DAR_DE_BAJA;
+        $this->save();
+    }
+    
+    /**
+     * Marca el ejemplar como perdido
+     *
+     * @return void
+     */
+    public function marcarComoPerdido(): void
+    {
+        $this->estado = self::ESTADO_PERDIDO;
         $this->save();
     }
 }

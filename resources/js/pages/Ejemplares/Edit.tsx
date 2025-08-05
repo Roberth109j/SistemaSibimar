@@ -2,7 +2,7 @@ import React, { FormEvent, useState, useEffect } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { BookOpen, Save, ArrowLeft, CheckCircle, AlertCircle, X } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
-import { BreadcrumbItem, EjemplarPageProps, TipoAdquisicion, Estado } from './types';
+import { BreadcrumbItem, EjemplarPageProps, TipoAdquisicion, Estado, ESTADO_LABELS, ESTADO } from './types';
 
 // Definir las migas de pan (breadcrumbs)
 const getBreadcrumbs = (libroId: number, libroTitulo: string, ejemplarId: number): BreadcrumbItem[] => [
@@ -321,7 +321,7 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
                     )}
                   </div>
 
-                  {/* Estado */}
+                  {/* Estado - CON ETIQUETAS BONITAS */}
                   <div className="space-y-2">
                     <label htmlFor="estado" className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
                       Estado <span className="text-red-500">*</span>
@@ -334,7 +334,7 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
                     >
                       {estados.map(estado => (
                         <option key={estado} value={estado}>
-                          {estado}
+                          {ESTADO_LABELS[estado as keyof typeof ESTADO_LABELS]}
                         </option>
                       ))}
                     </select>
@@ -412,6 +412,9 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
                 <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
                   Los campos marcados con <span className="text-red-500">*</span> son obligatorios. 
                   El número de ejemplar #{ejemplar.numEjemplar} se asignó automáticamente y no se puede modificar para mantener la integridad del sistema.
+                  <span className="block mt-1">
+                    <strong>Estados disponibles:</strong> Disponible, Prestado, Dar de Baja, Perdido.
+                  </span>
                 </p>
               </div>
             </div>
