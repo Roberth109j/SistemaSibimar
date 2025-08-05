@@ -116,7 +116,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Ruta para buscar lector por código (AJAX) - Para PRÉSTAMOS
     Route::get('/prestamos/buscar-lector', [PrestamoController::class, 'buscarLector'])->name('prestamos.buscar-lector');
 
-    // ===== 📤 RUTAS PARA DEVOLUCIONES (NUEVO CONTROLLER) =====
+    // RUTAS PARA DEVOLUCIONES (NUEVO CONTROLLER) =====
     Route::prefix('devoluciones')->name('devoluciones.')->group(function () {
         Route::get('/', [DevolucionController::class, 'index'])->name('devoluciones.index');
         Route::post('/buscar-prestamos', [DevolucionController::class, 'buscarPrestamos'])->name('buscar-prestamos');
