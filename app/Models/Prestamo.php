@@ -21,7 +21,6 @@ class Prestamo extends Model
         'fecha_devolucion',
         'fecha_devuelto',
         'estado',
-        'observaciones'
     ];
 
     // Enums para estado

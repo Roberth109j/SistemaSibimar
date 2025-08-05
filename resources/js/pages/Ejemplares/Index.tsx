@@ -94,6 +94,46 @@ function AlertNotification({
   );
 }
 
+// Componente para mostrar observaciones truncadas con tooltip
+function ObservacionesCell({ observaciones }: { observaciones?: string }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const maxLength = 60; // Máximo número de caracteres a mostrar
+
+  if (!observaciones || observaciones.trim() === '') {
+    return <span className="text-gray-400 dark:text-gray-500">-</span>;
+  }
+
+  const shouldTruncate = observaciones.length > maxLength;
+  const displayText = shouldTruncate 
+    ? observaciones.substring(0, maxLength) + '...' 
+    : observaciones;
+
+  if (!shouldTruncate) {
+    return <span className="text-gray-700 dark:text-gray-300">{observaciones}</span>;
+  }
+
+  return (
+    <div className="relative">
+      <span 
+        className="text-gray-700 dark:text-gray-300 cursor-help"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        {displayText}
+      </span>
+      
+      {/* Tooltip */}
+      {showTooltip && (
+        <div className="absolute z-50 bottom-full left-0 mb-2 px-3 py-2 text-sm text-white bg-gray-900 dark:bg-gray-700 rounded-lg shadow-lg max-w-xs whitespace-normal break-words">
+          {observaciones}
+          {/* Flecha del tooltip */}
+          <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Index({ auth, libro, ejemplares = [], search = '', success }: EjemplarPageProps) {
   const page = usePage();
   const breadcrumbs = getBreadcrumbs(libro.id, libro.titulo);
@@ -378,7 +418,7 @@ export default function Index({ auth, libro, ejemplares = [], search = '', succe
                           <span>Estado</span>
                         </div>
                       </th>
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider" style={{width: '180px'}}>Observaciones</th>
+                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider" style={{width: '200px'}}>Observaciones</th>
                       <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider" style={{width: '80px'}}>Acciones</th>
                     </tr>
                   </thead>
@@ -402,12 +442,8 @@ export default function Index({ auth, libro, ejemplares = [], search = '', succe
                             {ejemplar.estado}
                           </span>
                         </td>
-                        <td className="px-3 py-3 text-gray-700 dark:text-gray-300 text-sm">
-                          <div className="truncate" title={ejemplar.observaciones || 'Sin observaciones'}>
-                            {ejemplar.observaciones || (
-                              <span className="text-gray-400 dark:text-gray-500">-</span>
-                            )}
-                          </div>
+                        <td className="px-3 py-3 text-sm" style={{maxWidth: '200px'}}>
+                          <ObservacionesCell observaciones={ejemplar.observaciones ?? undefined} />
                         </td>
                         <td className="px-2 py-3 whitespace-nowrap">
                           <div className="flex justify-center space-x-1">

@@ -263,8 +263,9 @@ class EjemplarController extends Controller
                 'numEjemplar' => $ejemplar->numEjemplar
             ]);
             
-            // ✅ REDIRECCIÓN CORREGIDA - va a la lista en lugar de show
-            return Redirect::route('ejemplares.index', $libroId)
+
+            // Redireccionar
+            return Redirect::route('ejemplares.index', [$libroId, $ejemplarId])
                 ->with('success', 'Ejemplar #' . $ejemplar->numEjemplar . ' actualizado correctamente');
 
         } catch (\Exception $e) {

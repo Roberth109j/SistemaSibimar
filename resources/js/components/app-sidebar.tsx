@@ -81,13 +81,8 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Devoluciones',
-        href: '/prestamos/listado',
+        href: '/devoluciones',
         icon: Undo2,
-    },
-    {
-        title: 'Préstamos Vencidos',
-        href: '/prestamos/vencidos',
-        icon: BookmarkX,
     },
     {
         title: 'Historial de préstamos',
@@ -148,7 +143,7 @@ export function AppSidebar() {
     const librosItem = mainNavItems.find(item => item.title === 'Libros')!;
     const lectoresItem = mainNavItems.find(item => item.title === 'Lectores')!;
     const prestamosItems = mainNavItems.filter(item => 
-        ['Prestamos', 'Devoluciones', 'Préstamos Vencidos', 'Historial de préstamos'].includes(item.title)
+        ['Prestamos', 'Devoluciones', 'Historial de préstamos'].includes(item.title)
     );
     const informesItem = mainNavItems.find(item => item.title === 'Generación de Informes')!;
     const inventarioItem = mainNavItems.find(item => item.title === 'Inventario')!;

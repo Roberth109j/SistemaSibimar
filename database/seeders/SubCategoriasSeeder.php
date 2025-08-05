@@ -16,7 +16,6 @@ class SubCategoriasSeeder extends Seeder
             ['codigo' => '010', 'nombre' => 'Bibliografía', 'categoria_id' => 1],
             ['codigo' => '020', 'nombre' => 'Bibliotecología y ciencias de la información', 'categoria_id' => 1],
             ['codigo' => '030', 'nombre' => 'Enciclopedias generales', 'categoria_id' => 1],
-            ['codigo' => '040', 'nombre' => '', 'categoria_id' => 1],
             ['codigo' => '050', 'nombre' => 'Publicaciones en serie y generales', 'categoria_id' => 1],
             ['codigo' => '060', 'nombre' => 'Organizaciones y museología', 'categoria_id' => 1],
             ['codigo' => '070', 'nombre' => 'Periodismo y publicaciones periódicas', 'categoria_id' => 1],
@@ -130,7 +129,6 @@ class SubCategoriasSeeder extends Seeder
             ['codigo' => '970', 'nombre' => 'Historia general de América', 'categoria_id' => 10],
             ['codigo' => '980', 'nombre' => 'Historia general de América del Sur', 'categoria_id' => 10],
             ['codigo' => '990', 'nombre' => 'Historia general de otras áreas', 'categoria_id' => 10],
-
             
         ];
 

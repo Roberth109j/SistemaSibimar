@@ -6,17 +6,18 @@ use App\Models\Estanteria;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Http\RedirectResponse;
 
 class EstanteriaController extends Controller
 {
     /**
      * Display a listing of the resource with pagination.
      */
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
         // Validación de parámetros de paginación
         $page = max(1, (int) $request->input('page', 1));
-        $perPage = 10; // Valor fijo de 10 elementos por página
+        $perPage = 20; // Valor fijo de 20 elementos por página
 
         // Query base
         $query = Estanteria::query()->orderBy('cod_estante');
@@ -39,6 +40,12 @@ class EstanteriaController extends Controller
                 array_merge($request->query(), ['page' => $estanterias->lastPage()])
             );
         }
+
+        // Agregar número de posición a cada elemento
+        $estanterias->getCollection()->transform(function ($estanteria, $index) use ($estanterias) {
+            $estanteria->position = (($estanterias->currentPage() - 1) * $estanterias->perPage()) + $index + 1;
+            return $estanteria;
+        });
 
         return Inertia::render('Estanteria/index', [
             'estanterias' => $estanterias,
