@@ -125,12 +125,12 @@ export default function Create({ auth, libro, tiposAdquisicion, estados, siguien
     }
   }, [page.props.flash]);
 
-  // Formulario con Inertia - agregamos campo cantidad como string para manejo mejor
+  // **AJUSTE: Formulario con estado fijo en DISPONIBLE**
   const form = useForm({
     tipo_adquisicion: tiposAdquisicion[0] || 'COMPRA',
-    estado: estados[0] || 'DISPONIBLE',
+    estado: 'DISPONIBLE', // **FIJO EN DISPONIBLE**
     observaciones: '',
-    cantidad: '1', // **CAMBIAR A STRING**
+    cantidad: '1',
   });
 
   const showAlert = (type: 'success' | 'error', message: string) => {
@@ -187,6 +187,8 @@ export default function Create({ auth, libro, tiposAdquisicion, estados, siguien
         showAlert('success', successMessage);
         // Limpiar el formulario después del éxito
         form.reset();
+        // **MANTENER estado en DISPONIBLE después del reset**
+        form.setData('estado', 'DISPONIBLE');
         // NO redirigir automáticamente - mostrar solo la notificación
       },
       onError: (errors) => {
@@ -277,7 +279,7 @@ export default function Create({ auth, libro, tiposAdquisicion, estados, siguien
             <div className="p-6">
               <form onSubmit={handleSubmit} className="space-y-8">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Cantidad de Ejemplares - NUEVO CAMPO */}
+                  {/* Cantidad de Ejemplares */}
                   <div className="space-y-2">
                     <label htmlFor="cantidad" className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
                       Cantidad de Ejemplares <span className="text-red-500">*</span>
@@ -288,7 +290,7 @@ export default function Create({ auth, libro, tiposAdquisicion, estados, siguien
                       min="1"
                       max="50"
                       value={form.data.cantidad}
-                      onChange={e => form.setData('cantidad', e.target.value)} // **MANTENER COMO STRING**
+                      onChange={e => form.setData('cantidad', e.target.value)}
                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm
                                 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="1"
@@ -335,25 +337,26 @@ export default function Create({ auth, libro, tiposAdquisicion, estados, siguien
                     )}
                   </div>
 
-                  {/* Estado */}
+                  {/* Estado - **AJUSTADO: Solo mostrar DISPONIBLE y hacerlo read-only visualmente** */}
                   <div className="space-y-2">
                     <label htmlFor="estado" className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
                       Estado <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      id="estado"
-                      value={form.data.estado}
-                      onChange={e => form.setData('estado', e.target.value as Estado)}
-                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
-                    >
-                      {estados.map(estado => (
-                        <option key={estado} value={estado}>
-                          {estado}
-                        </option>
-                      ))}
-                    </select>
+                    {/* **CAMBIO: Campo visual deshabilitado pero funcionalmente correcto** */}
+                    <div className="relative">
+                      <select
+                        id="estado"
+                        value={form.data.estado}
+                        disabled // **DESHABILITADO para evitar cambios**
+                        className="block w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 dark:bg-gray-600 dark:border-gray-600 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 cursor-not-allowed"
+                      >
+                        <option value="DISPONIBLE">DISPONIBLE</option>
+                      </select>
+                      {/* Campo oculto que enviará el valor */}
+                      <input type="hidden" name="estado" value="DISPONIBLE" />
+                    </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Estado actual del ejemplar
+                      Los nuevos ejemplares siempre se crean como DISPONIBLE
                     </p>
                     {form.errors.estado && (
                       <p className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 p-2 rounded-md border-l-2 border-red-500">
@@ -363,7 +366,7 @@ export default function Create({ auth, libro, tiposAdquisicion, estados, siguien
                   </div>
                 </div>
 
-                {/* Información de números automáticos - MEJORADO */}
+                {/* Información de números automáticos */}
                 <div className="space-y-2 col-span-full">
                   <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800 shadow-md">
                     <div className="flex items-center justify-between">
@@ -490,7 +493,7 @@ export default function Create({ auth, libro, tiposAdquisicion, estados, siguien
             </div>
           </div>
 
-          {/* Información adicional */}
+          {/* Información adicional - **ACTUALIZADA CON INFO SOBRE ESTADO FIJO** */}
           <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
             <div className="flex items-start space-x-3">
               <div className="p-1 bg-blue-100 dark:bg-blue-800/50 rounded">
@@ -505,6 +508,9 @@ export default function Create({ auth, libro, tiposAdquisicion, estados, siguien
                 <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
                   Los campos marcados con <span className="text-red-500">*</span> son obligatorios. 
                   Los números de ejemplares se asignan automáticamente para evitar duplicados.
+                  <span className="block mt-1">
+                    <strong>Estado:</strong> Todos los ejemplares nuevos se crean automáticamente como "DISPONIBLE". Podrás cambiar el estado posteriormente desde la edición.
+                  </span>
                   <span className="block mt-1">
                     <strong>Tip:</strong> Puedes crear hasta 50 ejemplares a la vez con la misma configuración.
                   </span>
