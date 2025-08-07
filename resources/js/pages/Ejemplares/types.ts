@@ -65,7 +65,7 @@ export type TipoAdquisicion = typeof TIPO_ADQUISICION[keyof typeof TIPO_ADQUISIC
 export const ESTADO = {
   DISPONIBLE: 'DISPONIBLE',
   PRESTADO: 'PRESTADO',
-  DAR_DE_BAJA: 'DAR DE BAJA',  // ✅ CON ESPACIOS
+  DAR_DE_BAJA: 'DADO DE BAJA', 
   PERDIDO: 'PERDIDO'
 } as const;
 
@@ -75,7 +75,7 @@ export type Estado = typeof ESTADO[keyof typeof ESTADO];
 export const ESTADO_LABELS = {
   [ESTADO.DISPONIBLE]: 'Disponible',
   [ESTADO.PRESTADO]: 'Prestado',
-  [ESTADO.DAR_DE_BAJA]: 'Dar de Baja',
+  [ESTADO.DAR_DE_BAJA]: 'Dado de Baja',
   [ESTADO.PERDIDO]: 'Perdido'
 } as const;
 

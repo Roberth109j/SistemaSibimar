@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('libro_id')->constrained()->onDelete('cascade');
             $table->unsignedInteger('numEjemplar')->default(1);
             $table->enum('tipo_adquisicion', ['COMPRA','REPOSICION', 'DONACION'])->default('COMPRA');
-           $table->enum('estado', ['DISPONIBLE','PRESTADO', 'DAR DE BAJA', 'PERDIDO'])->default('DISPONIBLE');
+           $table->enum('estado', ['DISPONIBLE','PRESTADO', 'DADO DE BAJA', 'PERDIDO'])->default('DISPONIBLE');
             $table->text('observaciones')->nullable();
             $table->timestamps();
         });              

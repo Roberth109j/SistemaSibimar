@@ -53,7 +53,7 @@ class Ejemplar extends Model
      */
     public const ESTADO_DISPONIBLE = 'DISPONIBLE';
     public const ESTADO_PRESTADO = 'PRESTADO';
-    public const ESTADO_DAR_DE_BAJA = 'DAR DE BAJA';  // ✅ CON ESPACIOS
+    public const ESTADO_DADO_DE_BAJA = 'DADO DE BAJA';  // ✅ CON ESPACIOS
     public const ESTADO_PERDIDO = 'PERDIDO';
     
     /**
@@ -80,7 +80,7 @@ class Ejemplar extends Model
         return [
             self::ESTADO_DISPONIBLE,
             self::ESTADO_PRESTADO,
-            self::ESTADO_DAR_DE_BAJA,
+            self::ESTADO_DADO_DE_BAJA,
             self::ESTADO_PERDIDO,
         ];
     }
@@ -122,7 +122,7 @@ class Ejemplar extends Model
      */
     public function estaDadoDeBaja(): bool
     {
-        return $this->estado === self::ESTADO_DAR_DE_BAJA;
+        return $this->estado === self::ESTADO_DADO_DE_BAJA;
     }
     
     /**
@@ -174,7 +174,7 @@ class Ejemplar extends Model
      */
     public function marcarComoDadoDeBaja(): void
     {
-        $this->estado = self::ESTADO_DAR_DE_BAJA;
+        $this->estado = self::ESTADO_DADO_DE_BAJA;
         $this->save();
     }
     

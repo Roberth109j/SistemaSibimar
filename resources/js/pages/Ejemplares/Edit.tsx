@@ -413,7 +413,7 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
                   Los campos marcados con <span className="text-red-500">*</span> son obligatorios. 
                   El número de ejemplar #{ejemplar.numEjemplar} se asignó automáticamente y no se puede modificar para mantener la integridad del sistema.
                   <span className="block mt-1">
-                    <strong>Estados disponibles:</strong> Disponible, Prestado, Dar de Baja, Perdido.
+                    <strong>Estados disponibles:</strong> Disponible, Prestado, Dado de Baja, Perdido.
                   </span>
                 </p>
               </div>
