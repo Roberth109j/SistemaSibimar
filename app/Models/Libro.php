@@ -70,7 +70,6 @@ class Libro extends Model
     }
 
 
-
     public function editorial(): BelongsTo
     {
         return $this->belongsTo(Editorial::class);

@@ -21,7 +21,7 @@ class EditorialController extends Controller
     {
         // Validación de parámetros de paginación
         $page = max(1, (int) $request->input('page', 1));
-        $perPage = 10; // Valor fijo de 10 elementos por página
+        $perPage = 20; // Valor fijo de 20 elementos por página
 
         // Parámetros de ordenamiento - SOLO NOMBRE
         $sortOrder = $request->get('sort_order', 'asc'); // Orden por defecto: ascendente (A-Z)

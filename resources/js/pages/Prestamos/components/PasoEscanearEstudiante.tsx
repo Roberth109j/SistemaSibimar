@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, UserCheck, Calendar, Clock, AlertCircle, Info, BookOpen, Loader2 } from 'lucide-react';
+import { ArrowLeft, UserCheck, Calendar, Clock, AlertCircle, Info, BookOpen, Loader2, FileText } from 'lucide-react';
 import { type Libro, type Ejemplar, type PrestamoForm, type Lector } from '../types';
 
 interface PasoEscanearEstudianteProps {
@@ -36,6 +36,16 @@ export function PasoEscanearEstudiante({
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Inicializar las observaciones con las que ya tiene el ejemplar
+  useEffect(() => {
+    if (ejemplar.observaciones && !formularioPrestamo.observaciones) {
+      onActualizarFormulario({
+        ...formularioPrestamo,
+        observaciones: ejemplar.observaciones
+      });
+    }
+  }, [ejemplar.observaciones]);
 
   // Validar que sea un código de estudiante válido (solo números y letras)
   const esCodigoValido = (codigo: string): boolean => {
@@ -194,7 +204,7 @@ export function PasoEscanearEstudiante({
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="codigoEstudiante" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Código del Estudiante
+                  Código del lector
                 </label>
                 <div className="relative">
                   <input
@@ -233,7 +243,7 @@ export function PasoEscanearEstudiante({
                 )}
 
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Escanee el código y configure las fechas antes de continuar
+                  Escanee o digite el código y configure las fechas antes de continuar
                 </p>
               </div>
 
@@ -316,7 +326,7 @@ export function PasoEscanearEstudiante({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Observaciones (Opcional)
+                Observaciones del estado del ejemplar
               </label>
               <textarea
                 value={formularioPrestamo.observaciones}
@@ -324,9 +334,9 @@ export function PasoEscanearEstudiante({
                   ...formularioPrestamo,
                   observaciones: e.target.value
                 })}
-                rows={3}
+                rows={4}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm dark:bg-gray-700 dark:text-white"
-                placeholder="Notas adicionales sobre el préstamo..."
+                placeholder="Registre el estado actual del ejemplar o agregue nuevas observaciones..."
               />
             </div>
           </div>

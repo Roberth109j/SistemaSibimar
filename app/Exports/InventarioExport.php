@@ -41,7 +41,7 @@ class InventarioExport implements FromCollection, WithHeadings, WithStyles, With
                     $query->where('estado', Ejemplar::ESTADO_PRESTADO);
                 },
                 'ejemplares as ejemplares_inactivos_count' => function ($query) {
-                    $query->where('estado', Ejemplar::ESTADO_INACTIVO);
+                    $query->whereIn('estado', [Ejemplar::ESTADO_DADO_DE_BAJA, Ejemplar::ESTADO_PERDIDO]);
                 }
             ]);
 
@@ -76,7 +76,7 @@ class InventarioExport implements FromCollection, WithHeadings, WithStyles, With
                 });
             } elseif ($this->filters['estado'] === 'inactivos') {
                 $query->whereHas('ejemplares', function ($q) {
-                    $q->where('estado', Ejemplar::ESTADO_INACTIVO);
+                    $q->where('estado', Ejemplar::ESTADO_DADO_DE_BAJA);
                 });
             }
         }

@@ -6,6 +6,7 @@ use Inertia\Inertia;
 use Illuminate\Http\Request;
 use App\Models\Libro;
 use App\Models\Ejemplar;
+use App\Models\Prestamo; // **AGREGADO para manejar préstamos**
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\DB;
@@ -66,10 +67,13 @@ class EjemplarController extends Controller
         
         $siguienteNumero = $ultimoEjemplar ? $ultimoEjemplar->numEjemplar + 1 : 1;
         
+        // **SOLO DISPONIBLE para creación**
+        $estadosCreacion = ['DISPONIBLE'];
+        
         return Inertia::render('Ejemplares/Create', [
             'libro' => $libro,
             'tiposAdquisicion' => Ejemplar::tiposAdquisicion(),
-            'estados' => Ejemplar::estados(),
+            'estados' => $estadosCreacion, // **Solo DISPONIBLE**
             'siguienteNumero' => $siguienteNumero,
         ]);
     }
@@ -87,12 +91,15 @@ class EjemplarController extends Controller
         // Aseguramos que el libro existe
         $libro = Libro::findOrFail($libroId);
         
-        // **NUEVO: Calcular automáticamente el siguiente número de ejemplar**
+        // Calcular automáticamente el siguiente número de ejemplar
         $ultimoEjemplar = Ejemplar::where('libro_id', $libroId)
             ->orderBy('numEjemplar', 'desc')
             ->first();
         
         $siguienteNumero = $ultimoEjemplar ? $ultimoEjemplar->numEjemplar + 1 : 1;
+        
+        // **Estados permitidos solo para creación**
+        $estadosCreacion = ['DISPONIBLE'];
         
         // Validación con campo cantidad agregado
         $validatedData = $request->validate([
@@ -102,16 +109,16 @@ class EjemplarController extends Controller
             ],
             'estado' => [
                 'required',
-                Rule::in(Ejemplar::estados()),
+                Rule::in($estadosCreacion), // **Solo acepta DISPONIBLE**
             ],
             'observaciones' => 'nullable|string|max:500',
-            'cantidad' => 'required|integer|min:1|max:50', // **NUEVO CAMPO**
+            'cantidad' => 'required|integer|min:1|max:50',
         ], [
             // Mensajes personalizados de error
             'tipo_adquisicion.required' => 'El tipo de adquisición es obligatorio.',
             'tipo_adquisicion.in' => 'El tipo de adquisición seleccionado no es válido.',
             'estado.required' => 'El estado es obligatorio.',
-            'estado.in' => 'El estado seleccionado no es válido.',
+            'estado.in' => 'Al crear un ejemplar, el estado debe ser DISPONIBLE.',
             'observaciones.max' => 'Las observaciones no pueden exceder 500 caracteres.',
             'cantidad.required' => 'La cantidad es obligatoria.',
             'cantidad.integer' => 'La cantidad debe ser un número entero.',
@@ -123,15 +130,14 @@ class EjemplarController extends Controller
             $cantidad = $validatedData['cantidad'];
             $ejemplaresCreados = [];
             
-            // **NUEVO: Crear múltiples ejemplares en una transacción**
             DB::beginTransaction();
             
             for ($i = 0; $i < $cantidad; $i++) {
                 $ejemplar = Ejemplar::create([
                     'libro_id' => $libroId,
-                    'numEjemplar' => $siguienteNumero + $i, // **NÚMEROS CONSECUTIVOS**
+                    'numEjemplar' => $siguienteNumero + $i,
                     'tipo_adquisicion' => $validatedData['tipo_adquisicion'],
-                    'estado' => $validatedData['estado'],
+                    'estado' => 'DISPONIBLE', // **FORZAR SIEMPRE DISPONIBLE**
                     'observaciones' => $validatedData['observaciones'] ?? null,
                 ]);
                 
@@ -146,7 +152,6 @@ class EjemplarController extends Controller
                 'numeros_creados' => array_map(fn($e) => $e->numEjemplar, $ejemplaresCreados)
             ]);
             
-            // Mensaje de éxito personalizado según cantidad
             $mensaje = $cantidad === 1 
                 ? "Ejemplar #{$ejemplaresCreados[0]->numEjemplar} registrado correctamente"
                 : "Se crearon {$cantidad} ejemplares correctamente (#{$siguienteNumero} al #" . ($siguienteNumero + $cantidad - 1) . ")";
@@ -204,16 +209,85 @@ class EjemplarController extends Controller
             ->where('id', $ejemplarId)
             ->firstOrFail();
         
+        // **SOLO estados permitidos en edición: DADO DE BAJA y PERDIDO**
+        $estadosEdicion = ['DADO DE BAJA', 'PERDIDO'];
+        
         return Inertia::render('Ejemplares/Edit', [
             'libro' => $libro,
             'ejemplar' => $ejemplar,
             'tiposAdquisicion' => Ejemplar::tiposAdquisicion(),
-            'estados' => Ejemplar::estados(),
+            'estados' => $estadosEdicion, // **Solo DADO DE BAJA y PERDIDO**
         ]);
     }
     
     /**
+     * **MÉTODO PRIVADO: Manejar ejemplar marcado como PERDIDO**
+     * Marca préstamos activos como vencidos y libera al lector
+     */
+    private function manejarEjemplarPerdido(Ejemplar $ejemplar): void
+    {
+        try {
+            // Buscar préstamos activos del ejemplar
+            $prestamosActivos = Prestamo::where('ejemplar_id', $ejemplar->id)
+                ->where('estado', 'ACTIVO')
+                ->get();
+
+            Log::info('🔍 Buscando préstamos activos para ejemplar perdido:', [
+                'ejemplar_id' => $ejemplar->id,
+                'ejemplar_numero' => $ejemplar->numEjemplar,
+                'prestamos_encontrados' => $prestamosActivos->count()
+            ]);
+
+            foreach ($prestamosActivos as $prestamo) {
+                Log::info('📋 Procesando préstamo activo:', [
+                    'prestamo_id' => $prestamo->id,
+                    'lector_id' => $prestamo->lector_id,
+                    'fecha_prestamo' => $prestamo->fecha_prestamo,
+                    'fecha_devolucion' => $prestamo->fecha_devolucion
+                ]);
+
+                // Marcar préstamo como vencido por pérdida del ejemplar
+                $prestamo->update([
+                    'estado' => 'VENCIDO',
+                    'observaciones_devolucion' => 'Préstamo marcado como vencido debido a pérdida del ejemplar #' . $ejemplar->numEjemplar
+                ]);
+
+                Log::info('✅ Préstamo marcado como vencido por pérdida:', [
+                    'prestamo_id' => $prestamo->id,
+                    'nuevo_estado' => 'VENCIDO'
+                ]);
+            }
+
+            // Log del resultado
+            if ($prestamosActivos->count() > 0) {
+                Log::info('🎯 Préstamos procesados por pérdida de ejemplar:', [
+                    'ejemplar_id' => $ejemplar->id,
+                    'ejemplar_numero' => $ejemplar->numEjemplar,
+                    'prestamos_marcados_vencidos' => $prestamosActivos->count()
+                ]);
+            } else {
+                Log::info('ℹ️ No se encontraron préstamos activos para el ejemplar perdido:', [
+                    'ejemplar_id' => $ejemplar->id,
+                    'ejemplar_numero' => $ejemplar->numEjemplar
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('❌ Error al manejar ejemplar perdido:', [
+                'ejemplar_id' => $ejemplar->id,
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine()
+            ]);
+            
+            // Re-lanzar la excepción para que sea manejada por el método que llama
+            throw $e;
+        }
+    }
+    
+    /**
      * Actualiza un ejemplar específico en la base de datos.
+     * **MODIFICADO: Incluye lógica para manejar estado PERDIDO**
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $libroId
@@ -229,7 +303,10 @@ class EjemplarController extends Controller
             ->where('id', $ejemplarId)
             ->firstOrFail();
         
-        // Validación simplificada - removemos numEjemplar porque no se puede editar
+        // **Estados permitidos solo para edición: DADO DE BAJA y PERDIDO**
+        $estadosEdicion = ['DADO DE BAJA', 'PERDIDO'];
+        
+        // Validación
         $validatedData = $request->validate([
             'tipo_adquisicion' => [
                 'required',
@@ -237,7 +314,7 @@ class EjemplarController extends Controller
             ],
             'estado' => [
                 'required',
-                Rule::in(Ejemplar::estados()),
+                Rule::in($estadosEdicion), // **Solo acepta DADO DE BAJA y PERDIDO**
             ],
             'observaciones' => 'nullable|string|max:500',
         ], [
@@ -245,30 +322,57 @@ class EjemplarController extends Controller
             'tipo_adquisicion.required' => 'El tipo de adquisición es obligatorio.',
             'tipo_adquisicion.in' => 'El tipo de adquisición seleccionado no es válido.',
             'estado.required' => 'El estado es obligatorio.',
-            'estado.in' => 'El estado seleccionado no es válido.',
+            'estado.in' => 'Solo se puede cambiar el estado a "Dado de Baja" o "Perdido".',
             'observaciones.max' => 'Las observaciones no pueden exceder 500 caracteres.',
         ]);
         
         try {
-            // Actualizar el ejemplar sin tocar numEjemplar
+            DB::beginTransaction();
+
+            // **NUEVA LÓGICA: Verificar si se está marcando como PERDIDO**
+            $estadoAnterior = $ejemplar->estado;
+            $estadoNuevo = $validatedData['estado'];
+
+            Log::info('🔄 Iniciando actualización de ejemplar:', [
+                'ejemplar_id' => $ejemplar->id,
+                'ejemplar_numero' => $ejemplar->numEjemplar,
+                'estado_anterior' => $estadoAnterior,
+                'estado_nuevo' => $estadoNuevo
+            ]);
+
+            // Si se está marcando como PERDIDO, manejar préstamos activos
+            if ($estadoNuevo === 'PERDIDO' && $estadoAnterior !== 'PERDIDO') {
+                Log::info('⚠️ Ejemplar siendo marcado como PERDIDO - Procesando préstamos activos');
+                $this->manejarEjemplarPerdido($ejemplar);
+            }
+
+            // Actualizar el ejemplar
             $ejemplar->update([
                 'tipo_adquisicion' => $validatedData['tipo_adquisicion'],
                 'estado' => $validatedData['estado'],
                 'observaciones' => $validatedData['observaciones'] ?? null,
             ]);
 
-            Log::info('Ejemplar actualizado exitosamente:', [
+            DB::commit();
+
+            Log::info('✅ Ejemplar actualizado exitosamente:', [
                 'ejemplar_id' => $ejemplar->id,
                 'libro_id' => $libroId,
-                'numEjemplar' => $ejemplar->numEjemplar
+                'numEjemplar' => $ejemplar->numEjemplar,
+                'estado_final' => $ejemplar->estado
             ]);
-            
-            // Redireccionar
-            return Redirect::route('ejemplares.show', [$libroId, $ejemplarId])
-                ->with('success', 'Ejemplar #' . $ejemplar->numEjemplar . ' actualizado correctamente');
+
+            // Mensaje personalizado según el estado
+            $mensaje = $estadoNuevo === 'PERDIDO' 
+                ? 'Ejemplar #' . $ejemplar->numEjemplar . ' marcado como perdido. Los préstamos activos han sido actualizados.'
+                : 'Ejemplar #' . $ejemplar->numEjemplar . ' actualizado correctamente';
+
+            return Redirect::route('ejemplares.index', $libroId)
+                ->with('success', $mensaje);
 
         } catch (\Exception $e) {
-            Log::error('Error al actualizar ejemplar:', [
+            DB::rollBack();
+            Log::error('❌ Error al actualizar ejemplar:', [
                 'error' => $e->getMessage(),
                 'ejemplar_id' => $ejemplarId,
                 'libro_id' => $libroId,

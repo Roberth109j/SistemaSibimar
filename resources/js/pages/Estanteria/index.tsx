@@ -6,14 +6,7 @@ import { type BreadcrumbItem } from './types';
 import CreateEstanteria from './Create';
 import EditEstanteria from './Edit';
 import ShowEstanteria from './Show';
-
-type Estanteria = {
-  id: number;
-  cod_estante: string;
-  descripcion: string | null;
-  created_at?: string;
-  updated_at?: string;
-};
+import { type Estanteria } from './types';
 
 type FlashMessage = {
   success?: string;
@@ -99,13 +92,6 @@ const ExpandableDescription = ({ text, maxLength = 40 }: { text: string | null; 
       </button>
     </div>
   );
-};
-
-// Función para truncar texto y agregar puntos suspensivos (mantenida para compatibilidad)
-const truncateText = (text: string | null, maxLength: number) => {
-  if (!text) return '-';
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
 };
 
 function AlertNotification({
@@ -330,12 +316,12 @@ const Index = ({
               <colgroup>
                 <col className="w-16" />
                 <col className="w-32" />
-                <col className="w-48" /> {/* Incrementé el ancho para la descripción */}
+                <col className="w-48" />
                 <col className="w-28" />
               </colgroup>
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-700">
-                  <th className="px-3 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">ID</th>
+                  <th className="px-4 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">N°</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Código</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Descripción</th>
                   <th className="px-4 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Acciones</th>
@@ -345,14 +331,15 @@ const Index = ({
                 {estanterias.data.length > 0 ? (
                   estanterias.data.map((estanteria) => (
                     <tr key={estanteria.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="px-3 py-3 whitespace-nowrap text-center text-gray-600 dark:text-gray-400 text-sm font-medium">{estanteria.id}</td>
+                      <td className="px-3 py-3 whitespace-nowrap text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
+                        {estanteria.position}
+                      </td>
                       <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
                         <div className="truncate" title={estanteria.cod_estante}>
                           {estanteria.cod_estante}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm align-top">
-                        {/* Reemplazamos el truncateText con el componente expandible */}
                         <ExpandableDescription text={estanteria.descripcion} maxLength={50} />
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
