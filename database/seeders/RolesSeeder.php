@@ -17,8 +17,12 @@ class RolesSeeder extends Seeder
             Role::create(['name' => 'Administrador']);
         }
 
-        if (!Role::where('name', 'Bibliotecario')->exists()) {
-            Role::create(['name' => 'Bibliotecario']);
+        if (!Role::where('name', 'BibliotecarioPrimaria')->exists()) {
+            Role::create(['name' => 'BibliotecarioPrimaria']);
+        }
+
+        if (!Role::where('name', 'BibliotecarioBachillerato')->exists()) {
+            Role::create(['name' => 'BibliotecarioBachillerato']);
         }
     }
 }

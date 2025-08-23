@@ -10,11 +10,14 @@ type EditModalProps = {
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
   errors?: Record<string, string>;
+  all_secciones?: Array<{ id: number; nombre: string }>;
+  seccionId?: number | null;
 };
 
 type FormData = {
   cod_estante: string;
   descripcion: string;
+  seccion_id: number;
 };
 
 type FormField = {
@@ -32,19 +35,21 @@ type FormField = {
   className?: string;
 };
 
-export default function EditEstanteria({ estanteria, onSuccess, onError, errors = {} }: EditModalProps) {
+export default function EditEstanteria({ estanteria, onSuccess, onError, errors = {}, all_secciones = [], seccionId = null }: EditModalProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const { data, setData, put, processing, errors: formErrors, setError, clearErrors, reset } = useForm<FormData>({
     cod_estante: estanteria.cod_estante || '',
-    descripcion: estanteria.descripcion || ''
+    descripcion: estanteria.descripcion || '',
+    seccion_id: estanteria.seccion_id || 0
   });
 
   // Sync form data with updated estanteria prop
   useEffect(() => {
     setData({
       cod_estante: estanteria.cod_estante || '',
-      descripcion: estanteria.descripcion || ''
+      descripcion: estanteria.descripcion || '',
+      seccion_id: estanteria.seccion_id || 0
     });
     clearErrors();
   }, [estanteria, setData, clearErrors]);
@@ -52,8 +57,8 @@ export default function EditEstanteria({ estanteria, onSuccess, onError, errors 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
-    if (name === 'cod_estante' || name === 'descripcion') {
-      setData(name, value);
+    if (name === 'cod_estante' || name === 'descripcion' || name === 'seccion_id') {
+      setData(name as keyof FormData, name === 'seccion_id' ? parseInt(value) : value);
       console.log('Form data updated - Current state:', { ...data, [name]: value });
     } else {
       console.error('Invalid field name:', name);
@@ -92,6 +97,19 @@ export default function EditEstanteria({ estanteria, onSuccess, onError, errors 
       onChange: handleChange,
       rows: 4,
       className: 'resize-y min-h-[100px] max-h-[300px]'
+    },
+    {
+      name: 'seccion_id',
+      label: 'Sección',
+      type: 'select',
+      required: true,
+      value: data.seccion_id.toString(),
+      onChange: handleChange,
+      disabled: seccionId !== null,
+      options: all_secciones.map(seccion => ({
+        value: seccion.id.toString(),
+        label: seccion.nombre
+      }))
     }
   ];
 
@@ -117,7 +135,8 @@ export default function EditEstanteria({ estanteria, onSuccess, onError, errors 
         // Reset form with updated estanteria data
         setData({
           cod_estante: estanteria.cod_estante || '',
-          descripcion: estanteria.descripcion || ''
+          descripcion: estanteria.descripcion || '',
+          seccion_id: estanteria.seccion_id || 0
         });
         clearErrors();
         setIsOpen(false);
@@ -130,8 +149,11 @@ export default function EditEstanteria({ estanteria, onSuccess, onError, errors 
         if (errors.descripcion) {
           setError('descripcion', errors.descripcion);
         }
+        if (errors.seccion_id) {
+          setError('seccion_id', errors.seccion_id);
+        }
         
-        if (!errors.cod_estante && !errors.descripcion && errors.error) {
+        if (!errors.cod_estante && !errors.descripcion && !errors.seccion_id && errors.error) {
           const errorMessage = errors.error || 'Ha ocurrido un error al actualizar la estantería';
           onError(errorMessage);
         }

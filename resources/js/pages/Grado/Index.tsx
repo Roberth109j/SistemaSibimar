@@ -96,6 +96,7 @@ const Index = ({
   all_grados = [],
   all_estados = [],
   all_secciones = [],
+  seccionId = null,
   pagination
 }: IndexProps) => {
   const page = usePage();
@@ -366,6 +367,8 @@ const Index = ({
               onSuccess={(message) => showAlert('success', message)}
               onError={(message) => showAlert('error', message)}
               errors={errors}
+              secciones={all_secciones}
+              seccionId={seccionId}
             />
           </div>
         </div>
@@ -516,6 +519,7 @@ const Index = ({
                             onSuccess={(message) => showAlert('success', message)}
                             onError={(message) => showAlert('error', message)}
                             errors={errors}
+                            secciones={all_secciones}
                           />
                         </div>
                       </td>
@@ -641,4 +645,4 @@ const Index = ({
   );
 };
 
-export default Index; 
+export default Index;

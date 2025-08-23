@@ -10,6 +10,7 @@ type EditModalProps = {
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
   errors?: Record<string, string>;
+  secciones?: Array<{ id: number; nombre: string }>;
 };
 
 type FieldConfig = {
@@ -23,7 +24,7 @@ type FieldConfig = {
   options?: { value: string; label: string }[];
 };
 
-export default function EditGrado({ grado, onSuccess, onError, errors = {} }: EditModalProps) {
+export default function EditGrado({ grado, onSuccess, onError, errors = {}, secciones = [] }: EditModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -138,10 +139,13 @@ export default function EditGrado({ grado, onSuccess, onError, errors = {} }: Ed
       required: true,
       value: data.seccion_id,
       onChange: handleChange,
+      // Removed disabled property since it's not defined in FieldConfig type
       options: [
         { value: '', label: 'Seleccione una sección' },
-        { value: '1', label: 'Primaria' },
-        { value: '2', label: 'Bachillerato' },
+        ...secciones.map(seccion => ({
+          value: String(seccion.id),
+          label: seccion.nombre
+        }))
       ],
     },
   ];
@@ -245,7 +249,11 @@ export default function EditGrado({ grado, onSuccess, onError, errors = {} }: Ed
       >
         <Form
           initialData={data}
-          fields={gradoFields}
+          fields={gradoFields.map(field => ({
+            ...field,
+            onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => 
+              field.onChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)
+          }))}
           errors={formErrors}
           submitUrl={`/grados/${grado.id}`}
           method="put"

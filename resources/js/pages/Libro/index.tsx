@@ -20,6 +20,11 @@ interface Estanteria {
   cod_estante: string;
 }
 
+interface Seccion {
+  id: number;
+  nombre: string;
+}
+
 interface Libro {
   id: number;
   isbn: string;
@@ -28,6 +33,7 @@ interface Libro {
   ejemplares_count: number;
   autor?: Autor;
   estanteria?: Estanteria;
+  seccion?: Seccion;
 }
 
 interface PaginatedLibros {
@@ -54,6 +60,7 @@ interface LibroPageProps {
   idiomas: string[];
   estanterias: Estanteria[];
   filters: FilterOptions;
+  seccionId?: number | null;
   flash?: {
     success?: string;
     error?: string;
@@ -399,6 +406,7 @@ const Index: React.FC<LibroPageProps> = ({
   idiomas,
   estanterias = [],
   filters: initialFilters = {},
+  seccionId,
   flash,
   errors = {}
 }) => {
@@ -601,6 +609,7 @@ const Index: React.FC<LibroPageProps> = ({
                 <col className="w-44" />
                 <col className="w-24" />
                 <col className="w-24" />
+                <col className="w-24" />
                 <col className="w-20" />
                 <col className="w-32" />
               </colgroup>
@@ -611,6 +620,7 @@ const Index: React.FC<LibroPageProps> = ({
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Título</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Autor</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sign. Top.</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sección</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estantería</th>
                   <th className="px-3 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ej.Disp</th>
                   <th className="px-4 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
@@ -635,6 +645,9 @@ const Index: React.FC<LibroPageProps> = ({
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 text-sm">{libro.sign_top || '-'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 text-sm">
+                        {libro.seccion ? libro.seccion.nombre : '-'}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 text-sm">
                         {libro.estanteria ? libro.estanteria.cod_estante : '-'}
                       </td>
@@ -677,7 +690,7 @@ const Index: React.FC<LibroPageProps> = ({
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={9} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                       No hay libros disponibles
                     </td>
                   </tr>

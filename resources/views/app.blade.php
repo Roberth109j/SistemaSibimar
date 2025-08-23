@@ -5,6 +5,8 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        {{-- Desactivar advertencias de lazy loading --}}
+        <meta http-equiv="origin-trial" content="AlpPPj7z2ySoFxPtuTlEp77ypX1P1Sx3Tg7G9CL/+ESzEQJUxCnG5st0QUh41jUNVPxwKUF+0LXyA5T+UhkuDgsAAABfeyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0OjgwMDAiLCJmZWF0dXJlIjoiTGF6eUltYWdlTWluaW1hbEluaXRpYWxJbWFnZVJlcXVlc3RzIiwiZXhwaXJ5IjoxNzE5MzU5OTk5fQ==">
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>

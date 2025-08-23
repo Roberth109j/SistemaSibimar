@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 use App\Http\Controllers\AutorController;
 use App\Http\Controllers\CoautorController;
@@ -17,6 +19,18 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InformeController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\ExcelTestController;
+
+// Ruta para refrescar el token CSRF
+Route::get('/csrf-refresh', function () {
+    // Regenerar el token CSRF
+    Session::regenerateToken();
+    
+    // Devolver el nuevo token como respuesta JSON
+    return Response::json([
+        'token' => csrf_token(),
+        'status' => 'success'
+    ]);
+});
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -45,34 +59,47 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Rutas para EstanteriaController
     Route::get('estanterias', [EstanteriaController::class, 'index'])->name('estanterias.index');
-    Route::get('estanterias/create', [EstanteriaController::class, 'create'])->name('estanterias.create');
-    Route::post('estanterias', [EstanteriaController::class, 'store'])->name('estanterias.store');
     Route::get('estanterias/{estanteria}', [EstanteriaController::class, 'show'])->name('estanterias.show');
-    Route::get('estanterias/{estanteria}/edit', [EstanteriaController::class, 'edit'])->name('estanterias.edit');
-    Route::put('estanterias/{estanteria}', [EstanteriaController::class, 'update'])->name('estanterias.update');
-    Route::patch('estanterias/{estanteria}', [EstanteriaController::class, 'update']);
-    Route::delete('estanterias/{estanteria}', [EstanteriaController::class, 'destroy'])->name('estanterias.destroy');
+    
+    // Rutas protegidas por middleware de roles para estanterías (solo administrador o bibliotecarios)
+    Route::middleware('role:Administrador|BibliotecarioPrimaria|BibliotecarioBachillerato')->group(function () {
+        Route::get('estanterias/create', [EstanteriaController::class, 'create'])->name('estanterias.create');
+        Route::post('estanterias', [EstanteriaController::class, 'store'])->name('estanterias.store');
+        Route::get('estanterias/{estanteria}/edit', [EstanteriaController::class, 'edit'])->name('estanterias.edit');
+        Route::put('estanterias/{estanteria}', [EstanteriaController::class, 'update'])->name('estanterias.update');
+        Route::patch('estanterias/{estanteria}', [EstanteriaController::class, 'update']);
+        Route::delete('estanterias/{estanteria}', [EstanteriaController::class, 'destroy'])->name('estanterias.destroy');
+    });
 
     // Rutas para LibroController
     Route::get('libros', [LibroController::class, 'index'])->name('libros.index');
     Route::get('libros/search', [LibroController::class, 'search'])->name('libros.search');
-    Route::get('libros/create', [LibroController::class, 'create'])->name('libros.create');
-    Route::post('libros', [LibroController::class, 'store'])->name('libros.store');
+    
+    // Rutas protegidas por middleware de roles (solo administrador o bibliotecarios)
+    Route::middleware('role:Administrador|BibliotecarioPrimaria|BibliotecarioBachillerato')->group(function () {
+        Route::get('libros/create', [LibroController::class, 'create'])->name('libros.create');
+        Route::post('libros', [LibroController::class, 'store'])->name('libros.store');
+        Route::get('libros/{libro}/edit', [LibroController::class, 'edit'])->name('libros.edit');
+        Route::put('libros/{libro}', [LibroController::class, 'update'])->name('libros.update');
+        Route::patch('libros/{libro}', [LibroController::class, 'update']);
+        Route::delete('libros/{libro}', [LibroController::class, 'destroy'])->name('libros.destroy');
+    });
+    
     Route::get('libros/{libro}', [LibroController::class, 'show'])->name('libros.show');
-    Route::get('libros/{libro}/edit', [LibroController::class, 'edit'])->name('libros.edit');
-    Route::put('libros/{libro}', [LibroController::class, 'update'])->name('libros.update');
-    Route::patch('libros/{libro}', [LibroController::class, 'update']);
-    Route::delete('libros/{libro}', [LibroController::class, 'destroy'])->name('libros.destroy');
 
     // Rutas de Ejemplares
     Route::get('libros/{libro}/ejemplares', [EjemplarController::class, 'index'])->name('ejemplares.index');
-    Route::get('libros/{libro}/ejemplares/create', [EjemplarController::class, 'create'])->name('ejemplares.create');
-    Route::post('libros/{libro}/ejemplares', [EjemplarController::class, 'store'])->name('ejemplares.store');
     Route::get('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'show'])->name('ejemplares.show');
-    Route::get('libros/{libro}/ejemplares/{ejemplar}/edit', [EjemplarController::class, 'edit'])->name('ejemplares.edit');
-    Route::put('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'update'])->name('ejemplares.update');
-    Route::patch('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'update']);
-    Route::delete('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'destroy'])->name('ejemplares.destroy');
+    
+    // Rutas de Ejemplares protegidas por middleware de roles
+    Route::middleware('role:Administrador|BibliotecarioPrimaria|BibliotecarioBachillerato')->group(function () {
+        Route::get('libros/{libro}/ejemplares/create', [EjemplarController::class, 'create'])->name('ejemplares.create');
+        Route::post('libros/{libro}/ejemplares', [EjemplarController::class, 'store'])->name('ejemplares.store');
+        Route::get('libros/{libro}/ejemplares/{ejemplar}/edit', [EjemplarController::class, 'edit'])->name('ejemplares.edit');
+        Route::put('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'update'])->name('ejemplares.update');
+        Route::patch('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'update']);
+        Route::delete('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'destroy'])->name('ejemplares.destroy');
+    });
 
     // Rutas adicionales para las funciones AJAX de clasificación Dewey
     Route::get('api/categorias/{categoriaId}/subcategorias', [LibroController::class, 'getSubcategorias']);
@@ -80,13 +107,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Rutas para grados
     Route::get('grados', [GradoController::class, 'index'])->name('grados.index');
-    Route::get('grados/create', [GradoController::class, 'create'])->name('grados.create');
-    Route::post('grados', [GradoController::class, 'store'])->name('grados.store');
     Route::get('grados/{grado}', [GradoController::class, 'show'])->name('grados.show');
-    Route::get('grados/{grado}/edit', [GradoController::class, 'edit'])->name('grados.edit');
-    Route::put('grados/{grado}', [GradoController::class, 'update'])->name('grados.update');
-    Route::patch('grados/{grado}', [GradoController::class, 'update']);
-    Route::delete('grados/{grado}', [GradoController::class, 'destroy'])->name('grados.destroy');
+    
+    // Rutas protegidas por middleware de roles para grados (solo administrador o bibliotecarios)
+    Route::middleware('role:Administrador|BibliotecarioPrimaria|BibliotecarioBachillerato')->group(function () {
+        Route::get('grados/create', [GradoController::class, 'create'])->name('grados.create');
+        Route::post('grados', [GradoController::class, 'store'])->name('grados.store');
+        Route::get('grados/{grado}/edit', [GradoController::class, 'edit'])->name('grados.edit');
+        Route::put('grados/{grado}', [GradoController::class, 'update'])->name('grados.update');
+        Route::patch('grados/{grado}', [GradoController::class, 'update'])->name('grados.patch');
+        Route::delete('grados/{grado}', [GradoController::class, 'destroy'])->name('grados.destroy');
+    });
 
     // Rutas para LectorController
     Route::get('lectores', [LectorController::class, 'index'])->name('lectores.index');
