@@ -153,6 +153,7 @@ export interface LibroPageProps extends InertiaPageProps {
   estanterias?: Estanteria[];
   secciones?: Seccion[];
   categoriasDewey?: CategoriaDewey[];
+  seccionId?: number | null; // ID de la sección predeterminada según el rol del usuario
 }
 
 // Interfaz específica para las props de la página de edición de libros
@@ -167,6 +168,7 @@ export interface EditLibroPageProps extends InertiaPageProps {
   temasDewey: TemaDewey[];
   clases: string[];
   idiomas: string[];
+  seccionId?: number | null; // ID de la sección predeterminada según el rol del usuario
   success?: string;
 }
 

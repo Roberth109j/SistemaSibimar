@@ -177,15 +177,16 @@ export default function GeneralInfoSection({
           "col-span-1 md:col-span-1 xl:col-span-1"
         )}
         
-        {/* Sección */}
+        {/* Sección - Automática según el rol del usuario */}
         {renderFormField('seccion_id', 'Sección', true, 
           <select
             id="seccion_id"
             value={form.data.seccion_id}
             onChange={e => form.setData('seccion_id', e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-800"
+            disabled={true}
           >
-            <option value="">Seleccione una sección</option>
+            <option value="">Sección asignada automáticamente</option>
             {secciones.map(seccion => (
               <option key={seccion.id} value={seccion.id}>
                 {seccion.nombre}

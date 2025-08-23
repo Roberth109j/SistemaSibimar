@@ -8,19 +8,22 @@ type CreateModalProps = {
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
   errors?: Record<string, string>;
+  all_secciones?: Array<{ id: number; nombre: string }>;
+  seccionId?: number | null;
 };
 
-export default function CreateEstanteria({ onSuccess, onError, errors = {} }: CreateModalProps) {
+export default function CreateEstanteria({ onSuccess, onError, errors = {}, all_secciones = [], seccionId = null }: CreateModalProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const { data, setData, post, processing, reset, errors: formErrors, setError, clearErrors } = useForm({
     cod_estante: '',
-    descripcion: ''
+    descripcion: '',
+    seccion_id: seccionId || ''
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    const validFields: Array<keyof typeof data> = ['cod_estante', 'descripcion'];
+    const validFields: Array<keyof typeof data> = ['cod_estante', 'descripcion', 'seccion_id'];
     if (validFields.includes(name as keyof typeof data)) {
       setData(name as keyof typeof data, value);
       console.log('Form data updated - Current state:', { ...data, [name]: value });
@@ -53,7 +56,7 @@ export default function CreateEstanteria({ onSuccess, onError, errors = {} }: Cr
       },
       onError: (errors: Record<string, string>) => {
         console.log('Error response:', errors);
-        const hasFieldErrors = Object.keys(errors).some(key => ['cod_estante', 'descripcion'].includes(key));
+        const hasFieldErrors = Object.keys(errors).some(key => ['cod_estante', 'descripcion', 'seccion_id'].includes(key));
         if (hasFieldErrors) {
           Object.keys(errors).forEach((key) => {
             setError(key as keyof typeof data, errors[key]);
@@ -101,6 +104,19 @@ export default function CreateEstanteria({ onSuccess, onError, errors = {} }: Cr
       onChange: handleChange,
       rows: 4,
       className: 'resize-y min-h-[100px] max-h-[300px]'
+    },
+    {
+      name: 'seccion_id',
+      label: 'Sección',
+      type: 'select',
+      required: true,
+      value: data.seccion_id,
+      onChange: handleChange,
+      disabled: seccionId !== null,
+      options: all_secciones.map(seccion => ({
+        value: seccion.id.toString(),
+        label: seccion.nombre
+      }))
     }
   ];
 
@@ -155,7 +171,7 @@ export default function CreateEstanteria({ onSuccess, onError, errors = {} }: Cr
         <div onKeyDown={handleKeyPress}>
           <Form
             initialData={data}
-            fields={estanteriaFields}
+            fields={estanteriaFields as any[]}
             errors={formErrors}
             submitUrl="/estanterias"
             method="post"

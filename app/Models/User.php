@@ -22,6 +22,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'seccion_id',
     ];
 
     /**
@@ -45,5 +46,13 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+    
+    /**
+     * Obtiene la sección asignada al usuario (para bibliotecarios)
+     */
+    public function seccion()
+    {
+        return $this->belongsTo(Seccion::class);
     }
 }

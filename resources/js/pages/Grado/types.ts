@@ -68,6 +68,7 @@ export type IndexProps = {
   all_grados?: string[];
   all_estados?: string[];
   all_secciones?: Seccion[];
+  seccionId?: number | null;
   pagination?: {
     current_page: number;
     last_page: number;

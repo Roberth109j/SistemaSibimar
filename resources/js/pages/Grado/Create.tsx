@@ -8,16 +8,18 @@ type CreateModalProps = {
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
   errors?: Record<string, string>;
+  secciones?: Array<{ id: number; nombre: string }>;
+  seccionId?: number | null;
 };
 
-export default function CreateGrado({ onSuccess, onError, errors = {} }: CreateModalProps) {
+export default function CreateGrado({ onSuccess, onError, errors = {}, secciones = [], seccionId = null }: CreateModalProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const { data, setData, post, processing, reset, errors: formErrors, setError, clearErrors } = useForm({
     grado: '',
     subGrado: '',
     estado: 'ACTIVO',
-    seccion_id: '',
+    seccion_id: seccionId ? String(seccionId) : '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -86,10 +88,13 @@ export default function CreateGrado({ onSuccess, onError, errors = {} }: CreateM
       required: true,
       value: data.seccion_id,
       onChange: handleChange,
+      disabled: true, // Bloquear la edición de la sección
       options: [
         { value: '', label: 'Seleccione una sección' },
-        { value: '1', label: 'Primaria' },
-        { value: '2', label: 'Bachillerato' },
+        ...secciones.map(seccion => ({
+          value: String(seccion.id),
+          label: seccion.nombre
+        }))
       ],
     },
   ];
@@ -172,7 +177,11 @@ export default function CreateGrado({ onSuccess, onError, errors = {} }: CreateM
       >
         <Form
           initialData={data}
-          fields={gradoFields}
+          fields={gradoFields.map(field => ({
+            ...field,
+            onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => 
+              handleChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)
+          }))}
           errors={formErrors}
           submitUrl="/grados"
           method="post"

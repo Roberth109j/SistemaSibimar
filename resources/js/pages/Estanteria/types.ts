@@ -4,6 +4,11 @@ export type Estanteria = {
   id: number;
   cod_estante: string;
   descripcion: string | null;
+  seccion_id: number;
+  seccion?: {
+    id: number;
+    nombre: string;
+  };
   position: number;
   created_at?: string;
   updated_at?: string;
@@ -22,4 +27,5 @@ export type BreadcrumbItem = {
 export type EstanteriaFormData = {
   cod_estante: string;
   descripcion: string | null;
+  seccion_id: number;
 };

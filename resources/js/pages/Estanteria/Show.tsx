@@ -36,6 +36,16 @@ export default function ShowEstanteria({ estanteria }: ShowModalProps) {
                 {estanteria.cod_estante}
               </dd>
             </div>
+            <div className="sm:col-span-1">
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                Sección
+              </dt>
+              <dd className="text-base text-gray-900 dark:text-white font-medium">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                  {estanteria.seccion?.nombre || 'Sin sección'}
+                </span>
+              </dd>
+            </div>
             <div className="sm:col-span-2"> {/* Cambiado a col-span-2 para dar más espacio */}
               <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
                 Descripción

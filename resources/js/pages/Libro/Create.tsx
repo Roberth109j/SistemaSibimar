@@ -28,6 +28,7 @@ export default function Create({
   estanterias = [],
   secciones = [],
   categoriasDewey = [],
+  seccionId = null, // Sección predeterminada según el rol del usuario
 }: LibroPageProps) {
   const [activeSection, setActiveSection] = useState('general');
   
@@ -43,7 +44,7 @@ export default function Create({
     isbn: '',
     titulo: '',
     contenido: '',
-    seccion_id: '',
+    seccion_id: seccionId || '', // Usar la sección predeterminada según el rol
     autor_id: '',
     editorial_id: '',
     clase: '',

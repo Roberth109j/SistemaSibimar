@@ -29,10 +29,23 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
     const [showPassword, setShowPassword] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [errorVisible, setErrorVisible] = useState(false);
 
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    // Efecto para manejar la visibilidad de los errores
+    useEffect(() => {
+        if (Object.keys(errors).length > 0) {
+            setErrorVisible(true);
+            const timer = setTimeout(() => {
+                setErrorVisible(false);
+            }, 5000); // Ocultar después de 5 segundos
+            
+            return () => clearTimeout(timer);
+        }
+    }, [errors]);
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -133,7 +146,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                     />
                                     <div className="absolute right-0 top-0 bottom-0 w-1 bg-blue-200 dark:bg-blue-700 rounded-r-md opacity-50"></div>
                                 </div>
-                                <InputError message={errors.email} />
+                                {errorVisible && <InputError message={errors.email} />}
                             </div>
 
                             {/* Password */}
@@ -164,7 +177,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                     </button>
                                     <div className="absolute right-0 top-0 bottom-0 w-1 bg-blue-200 dark:bg-blue-700 rounded-r-md opacity-50"></div>
                                 </div>
-                                <InputError message={errors.password} />
+                                {errorVisible && <InputError message={errors.password} />}
                             </div>
 
                             {/* Recordarme y Olvidé contraseña */}

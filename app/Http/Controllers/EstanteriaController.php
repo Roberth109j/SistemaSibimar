@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Estanteria;
+use App\Models\Seccion;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,8 +20,29 @@ class EstanteriaController extends Controller
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 20; // Valor fijo de 20 elementos por página
 
-        // Query base
-        $query = Estanteria::query()->orderBy('cod_estante');
+        // Query base con relación de sección
+        $query = Estanteria::with('seccion')->orderBy('cod_estante');
+
+        // Filtrar por sección según el rol del usuario
+        $user = $request->user();
+        $seccionId = null;
+        
+        if ($user->hasRole('BibliotecarioPrimaria')) {
+            $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+            if ($seccionId) {
+                $query->where('seccion_id', $seccionId);
+            }
+        } elseif ($user->hasRole('BibliotecarioBachillerato')) {
+            $seccion = Seccion::where('nombre', 'BACHILLERATO')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+            if ($seccionId) {
+                $query->where('seccion_id', $seccionId);
+            }
+        }
+        
+        // Obtener todas las secciones para el formulario
+        $allSecciones = Seccion::all();
 
         // Aplicar filtros de búsqueda
         if ($request->filled('search')) {
@@ -49,6 +71,8 @@ class EstanteriaController extends Controller
 
         return Inertia::render('Estanteria/index', [
             'estanterias' => $estanterias,
+            'all_secciones' => $allSecciones,
+            'seccionId' => $seccionId,
             'flash' => [
                 'success' => session('success'),
                 'error' => session('error'),
@@ -69,9 +93,26 @@ class EstanteriaController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
+        // Obtener la sección del usuario según su rol
+        $user = $request->user();
+        $seccionId = null;
+        
+        if ($user->hasRole('BibliotecarioPrimaria')) {
+            $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+        } elseif ($user->hasRole('BibliotecarioBachillerato')) {
+            $seccion = Seccion::where('nombre', 'BACHILLERATO')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+        }
+        
+        // Obtener todas las secciones para el formulario
+        $allSecciones = Seccion::all();
+        
         return Inertia::render('Estanteria/Create', [
+            'all_secciones' => $allSecciones,
+            'seccionId' => $seccionId,
             'errors' => session('errors') ? session('errors')->getBag('default')->getMessages() : (object) [],
         ]);
     }
@@ -84,7 +125,24 @@ class EstanteriaController extends Controller
         $validated = $request->validate([
             'cod_estante' => 'required|string|max:10|unique:estanterias',
             'descripcion' => 'nullable|string|max:255',
+            'seccion_id' => 'required|exists:secciones,id',
         ]);
+        
+        // Verificar que el usuario tenga permisos para crear en esta sección
+        $user = $request->user();
+        $seccionNombre = Seccion::find($validated['seccion_id'])->nombre;
+        
+        if ($user->hasRole('BibliotecarioPrimaria') && $seccionNombre !== 'PRIMARIA') {
+            return redirect()->back()
+                ->withErrors(['seccion_id' => 'No tienes permisos para crear estanterías en esta sección.'])
+                ->withInput();
+        }
+        
+        if ($user->hasRole('BibliotecarioBachillerato') && $seccionNombre !== 'BACHILLERATO') {
+            return redirect()->back()
+                ->withErrors(['seccion_id' => 'No tienes permisos para crear estanterías en esta sección.'])
+                ->withInput();
+        }
         
         Estanteria::create($validated);
         
@@ -97,6 +155,9 @@ class EstanteriaController extends Controller
      */
     public function show(Estanteria $estanteria)
     {
+        // Cargar la relación con sección
+        $estanteria->load('seccion');
+        
         return Inertia::render('Estanteria/Show', [
             'estanteria' => $estanteria,
         ]);
@@ -105,10 +166,30 @@ class EstanteriaController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Estanteria $estanteria)
+    public function edit(Request $request, Estanteria $estanteria)
     {
+        // Cargar la relación con sección
+        $estanteria->load('seccion');
+        
+        // Obtener la sección del usuario según su rol
+        $user = $request->user();
+        $seccionId = null;
+        
+        if ($user->hasRole('BibliotecarioPrimaria')) {
+            $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+        } elseif ($user->hasRole('BibliotecarioBachillerato')) {
+            $seccion = Seccion::where('nombre', 'BACHILLERATO')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+        }
+        
+        // Obtener todas las secciones para el formulario
+        $allSecciones = Seccion::all();
+        
         return Inertia::render('Estanteria/Edit', [
             'estanteria' => $estanteria,
+            'all_secciones' => $allSecciones,
+            'seccionId' => $seccionId,
             'errors' => session('errors') ? session('errors')->getBag('default')->getMessages() : (object) [],
         ]);
     }
@@ -121,7 +202,24 @@ class EstanteriaController extends Controller
         $validated = $request->validate([
             'cod_estante' => 'required|string|max:10|unique:estanterias,cod_estante,'.$estanteria->id,
             'descripcion' => 'nullable|string|max:255',
+            'seccion_id' => 'required|exists:secciones,id',
         ]);
+        
+        // Verificar que el usuario tenga permisos para editar en esta sección
+        $user = $request->user();
+        $seccionNombre = Seccion::find($validated['seccion_id'])->nombre;
+        
+        if ($user->hasRole('BibliotecarioPrimaria') && $seccionNombre !== 'PRIMARIA') {
+            return redirect()->back()
+                ->withErrors(['seccion_id' => 'No tienes permisos para editar estanterías en esta sección.'])
+                ->withInput();
+        }
+        
+        if ($user->hasRole('BibliotecarioBachillerato') && $seccionNombre !== 'BACHILLERATO') {
+            return redirect()->back()
+                ->withErrors(['seccion_id' => 'No tienes permisos para editar estanterías en esta sección.'])
+                ->withInput();
+        }
         
         $estanteria->update($validated);
         

@@ -34,7 +34,7 @@ class LibroController extends Controller
                 ]
             ]);
         }
-        
+
         $libro = Libro::with([
             'autor',
             'editorial',
@@ -71,23 +71,43 @@ class LibroController extends Controller
     {
         // Validación de parámetros de paginación (igual que AutorController)
         $page = max(1, (int) $request->input('page', 1));
-        $perPage = 15; // Valor fijo de 20 elementos por página
+        $perPage = 15; // Valor fijo de 15 elementos por página
 
         // Query base con relaciones necesarias
         $query = Libro::with(['autor', 'editorial', 'seccion', 'temaDewey', 'estanteria'])
-            ->select(['libros.*', 
-                     \DB::raw("(SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = 'DISPONIBLE') as ejemplares_count")]);    
+            ->select([
+                'libros.*',
+                DB::raw("(SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = 'DISPONIBLE') as ejemplares_count")
+            ]);
+
+        // Filtrar por sección según el rol del usuario
+        $user = $request->user();
+        $seccionId = null;
+        
+        if ($user->hasRole('BibliotecarioPrimaria')) {
+            $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+            if ($seccionId) {
+                $query->where('seccion_id', $seccionId);
+            }
+        } elseif ($user->hasRole('BibliotecarioBachillerato')) {
+            $seccion = Seccion::where('nombre', 'BACHILLERATO')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+            if ($seccionId) {
+                $query->where('seccion_id', $seccionId);
+            }
+        }
 
         // Aplicar filtros en el backend (mucho más eficiente)
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('titulo', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('isbn', 'like', '%' . $searchTerm . '%')
-                  ->orWhereHas('autor', function($authorQuery) use ($searchTerm) {
-                      $authorQuery->where('nombres', 'like', '%' . $searchTerm . '%')
-                                  ->orWhere('apellidos', 'like', '%' . $searchTerm . '%');
-                  });
+                    ->orWhere('isbn', 'like', '%' . $searchTerm . '%')
+                    ->orWhereHas('autor', function ($authorQuery) use ($searchTerm) {
+                        $authorQuery->where('nombres', 'like', '%' . $searchTerm . '%')
+                            ->orWhere('apellidos', 'like', '%' . $searchTerm . '%');
+                    });
             });
         }
 
@@ -105,12 +125,13 @@ class LibroController extends Controller
 
         // Paginación optimizada con parámetros explícitos (igual que AutorController)
         $libros = $query->orderBy('id')
-                       ->paginate($perPage, ['*'], 'page', $page)
-                       ->withQueryString(); // Mantiene los filtros en la URL
+            ->paginate($perPage, ['*'], 'page', $page)
+            ->withQueryString(); // Mantiene los filtros en la URL
 
         // Redirigir si la página solicitada no existe pero hay resultados (igual que AutorController)
         if ($page > $libros->lastPage() && $libros->lastPage() > 0) {
-            return redirect()->route('libros.index', 
+            return redirect()->route(
+                'libros.index',
                 array_merge($request->query(), ['page' => $libros->lastPage()])
             );
         }
@@ -135,20 +156,20 @@ class LibroController extends Controller
 
         // Solo cargar datos de filtros cuando son necesarios
         $autores = Autor::select(['id', 'nombres', 'apellidos'])
-                        ->orderBy('apellidos')
-                        ->get();
-                        
+            ->orderBy('apellidos')
+            ->get();
+
         $estanterias = Estanteria::select(['id', 'cod_estante'])
-                                ->orderBy('cod_estante')
-                                ->get();
-                                
+            ->orderBy('cod_estante')
+            ->get();
+
         $secciones = Seccion::select(['id', 'nombre'])
-                           ->orderBy('nombre')
-                           ->get();
-                           
+            ->orderBy('nombre')
+            ->get();
+
         $categoriasDewey = CategoriaDewey::select(['id', 'nombre', 'codigo'])
-                                       ->orderBy('codigo')
-                                       ->get();
+            ->orderBy('codigo')
+            ->get();
 
         return Inertia::render('Libro/index', [
             'libros' => $libros, // Objeto paginado de Laravel
@@ -158,6 +179,7 @@ class LibroController extends Controller
             'estanterias' => $estanterias,
             'secciones' => $secciones,
             'categoriasDewey' => $categoriasDewey,
+            'seccionId' => $seccionId,
             'filters' => $request->only(['search', 'clase', 'idioma', 'estanteria']),
             // Datos de paginación adicionales (igual que AutorController)
             'pagination' => [
@@ -177,10 +199,28 @@ class LibroController extends Controller
      */
     public function create()
     {
+        // Obtener el usuario autenticado
+        $user = request()->user();
+        $seccionId = null;
+
+        // Asignar sección según el rol del usuario
+        if ($user->hasRole('BibliotecarioPrimaria')) {
+            $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+        } elseif ($user->hasRole('BibliotecarioBachillerato')) {
+            $seccion = Seccion::where('nombre', 'BACHILLERATO')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+        }
+
         // Utilizando apellidos (plural)
         $autores = Autor::orderBy('apellidos')->get();
         $editoriales = Editorial::orderBy('nombre')->get();
-        $estanterias = Estanteria::all();
+        
+        // Filtrar estanterías según la sección del usuario
+        $estanterias = $seccionId 
+            ? Estanteria::where('seccion_id', $seccionId)->get()
+            : Estanteria::all();
+            
         $secciones = Seccion::all();
         $categoriasDewey = CategoriaDewey::all();
 
@@ -208,7 +248,8 @@ class LibroController extends Controller
             'secciones' => $secciones,
             'categoriasDewey' => $categoriasDewey,
             'clases' => $clases,
-            'idiomas' => $idiomas
+            'idiomas' => $idiomas,
+            'seccionId' => $seccionId // Pasar la sección predeterminada según el rol
         ]);
     }
 
@@ -223,12 +264,32 @@ class LibroController extends Controller
         if ($request->has('estanteria_id') && $request->estanteria_id === '') {
             $request->merge(['estanteria_id' => null]);
         }
-        
+
         // Debug adicional
         Log::info('Después de procesar estanteria_id:', [
             'estanteria_id' => $request->estanteria_id,
             'type' => gettype($request->estanteria_id)
         ]);
+
+        // Validar que la sección corresponda al rol del usuario
+        $user = request()->user();
+        $seccionId = null;
+
+        if ($user->hasRole('BibliotecarioPrimaria')) {
+            $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+
+            if ($seccionId && $request->seccion_id != $seccionId) {
+                return redirect()->back()->withErrors(['seccion_id' => 'Como bibliotecario de primaria, solo puede crear libros para la sección PRIMARIA.']);
+            }
+        } elseif ($user->hasRole('BibliotecarioBachillerato')) {
+            $seccion = Seccion::where('nombre', 'BACHILLERATO')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+
+            if ($seccionId && $request->seccion_id != $seccionId) {
+                return redirect()->back()->withErrors(['seccion_id' => 'Como bibliotecario de bachillerato, solo puede crear libros para la sección BACHILLERATO.']);
+            }
+        }
 
         $validator = Validator::make($request->all(), [
             'estanteria_id' => 'nullable|exists:estanterias,id',
@@ -255,7 +316,7 @@ class LibroController extends Controller
             'paginas' => 'nullable|integer|min:1',
             'tema_id' => 'required|exists:temas_dewey,id',
             // CORREGIDO: nullable debe ir antes de exists
-            'estanteria_id' => 'nullable|exists:estanterias,id',
+            // Removed duplicate estanteria_id validation rule since it was already defined above
             'tomo' => 'nullable|integer|min:1',
             'edicion' => 'nullable|string|max:50',
             'anio' => 'nullable|integer|min:1000|max:' . (date('Y') + 1),
@@ -339,7 +400,7 @@ class LibroController extends Controller
             $libro->paginas = $request->paginas ?: 1;
             $libro->tema_id = $request->tema_id;
             $libro->sign_top = $signTop;
-            
+
             // NUEVA LÓGICA: Manejo mejorado de estantería
             $libro->estanteria_id = $request->estanteria_id; // Ya es null si no se proporcionó
 
@@ -357,21 +418,20 @@ class LibroController extends Controller
             DB::commit();
 
             Log::info('Libro y ejemplar creados exitosamente:', [
-                'libro_id' => $libro->id, 
+                'libro_id' => $libro->id,
                 'titulo' => $libro->titulo,
                 'ejemplar_id' => $ejemplar->id
             ]);
 
             return redirect()->route('libros.index')
                 ->with('success', 'El libro "' . $libro->titulo . '" ha sido registrado correctamente con su primer ejemplar.');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al crear libro:', [
                 'error' => $e->getMessage(),
                 'request_data' => $request->all()
             ]);
-            
+
             return redirect()->back()
                 ->with('error', 'Error al crear el libro: ' . $e->getMessage())
                 ->withInput();
@@ -414,10 +474,39 @@ class LibroController extends Controller
             'estanteria'
         ])->findOrFail($id);
 
+        // Validar que el usuario tenga permiso para editar este libro según su sección
+        if (request()->user()->hasRole('BibliotecarioPrimaria') && $libro->seccion_id != 1) {
+            return redirect()->route('libros.index')
+                ->with('error', 'Como Bibliotecario de Primaria, solo puede editar libros de la sección de Primaria.');
+        }
+
+        if (request()->user()->hasRole('BibliotecarioBachillerato') && $libro->seccion_id != 2) {
+            return redirect()->route('libros.index')
+                ->with('error', 'Como Bibliotecario de Bachillerato, solo puede editar libros de la sección de Bachillerato.');
+        }
+
+        // Obtener el usuario autenticado para filtrar estanterías
+        $user = request()->user();
+        $userSeccionId = null;
+
+        // Determinar la sección del usuario
+        if ($user->hasRole('BibliotecarioPrimaria')) {
+            $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
+            $userSeccionId = $seccion ? $seccion->id : null;
+        } elseif ($user->hasRole('BibliotecarioBachillerato')) {
+            $seccion = Seccion::where('nombre', 'BACHILLERATO')->first();
+            $userSeccionId = $seccion ? $seccion->id : null;
+        }
+
         // Datos para el formulario - usando apellidos (plural)
         $autores = Autor::orderBy('apellidos')->get();
         $editoriales = Editorial::orderBy('nombre')->get();
-        $estanterias = Estanteria::all();
+        
+        // Filtrar estanterías según la sección del usuario
+        $estanterias = $userSeccionId 
+            ? Estanteria::where('seccion_id', $userSeccionId)->get()
+            : Estanteria::all();
+            
         $secciones = Seccion::all();
         $categoriasDewey = CategoriaDewey::orderBy('codigo')->get();
 
@@ -431,7 +520,7 @@ class LibroController extends Controller
             $subcategoriasDewey = SubcategoriaDewey::where('categoria_id', $libro->temaDewey->subcategoria->categoria_id)
                 ->orderBy('codigo')
                 ->get();
-            
+
             // Cargar todos los temas de la subcategoría actual
             $temasDewey = TemaDewey::where('subcategoria_id', $libro->temaDewey->subcategoria_id)
                 ->orderBy('codigo')
@@ -455,6 +544,14 @@ class LibroController extends Controller
             Libro::IDIOMA_OTRO,
         ];
 
+        // Determinar la sección según el rol del usuario para la interfaz
+        $seccionId = null;
+        if (request()->user()->hasRole('BibliotecarioPrimaria')) {
+            $seccionId = 1; // ID de la sección Primaria
+        } elseif (request()->user()->hasRole('BibliotecarioBachillerato')) {
+            $seccionId = 2; // ID de la sección Bachillerato
+        }
+
         return Inertia::render('Libro/Edit', [
             'libro' => $libro,
             'autores' => $autores,
@@ -465,7 +562,8 @@ class LibroController extends Controller
             'subcategoriasDewey' => $subcategoriasDewey,
             'temasDewey' => $temasDewey,
             'clases' => $clases,
-            'idiomas' => $idiomas
+            'idiomas' => $idiomas,
+            'seccionId' => $seccionId
         ]);
     }
 
@@ -482,6 +580,19 @@ class LibroController extends Controller
         // NUEVA LÓGICA: Procesar estanteria_id antes de la validación
         if ($request->has('estanteria_id') && $request->estanteria_id === '') {
             $request->merge(['estanteria_id' => null]);
+        }
+
+        // Validar que la sección coincida con el rol del usuario
+        if (request()->user()->hasRole('BibliotecarioPrimaria') && $request->seccion_id != 1) {
+            return redirect()->back()
+                ->with('error', 'Como Bibliotecario de Primaria, solo puede editar libros de la sección de Primaria.')
+                ->withInput();
+        }
+
+        if (request()->user()->hasRole('BibliotecarioBachillerato') && $request->seccion_id != 2) {
+            return redirect()->back()
+                ->with('error', 'Como Bibliotecario de Bachillerato, solo puede editar libros de la sección de Bachillerato.')
+                ->withInput();
         }
 
         $validator = Validator::make($request->all(), [
@@ -603,16 +714,15 @@ class LibroController extends Controller
             // Redirigir con mensaje de éxito
             return redirect()->route('libros.index')
                 ->with('success', 'El libro "' . $libro->titulo . '" ha sido modificado correctamente.');
-
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             Log::error('Error al actualizar libro:', [
                 'error' => $e->getMessage(),
                 'libro_id' => $id,
                 'request_data' => $request->all()
             ]);
-            
+
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Error al actualizar el libro: ' . $e->getMessage());

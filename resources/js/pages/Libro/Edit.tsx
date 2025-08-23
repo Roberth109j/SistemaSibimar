@@ -117,6 +117,7 @@ export default function Edit({
   temasDewey = [],
   clases = [],
   idiomas = [],
+  seccionId = null,
   flash,
   errors = {}
 }: EditLibroPageProps) {
@@ -183,6 +184,13 @@ export default function Edit({
       });
     }
   }, [flash, page.props.flash]);
+  
+  // Efecto para establecer la sección automáticamente según el rol del usuario
+  useEffect(() => {
+    if (seccionId !== null) {
+      setData('seccion_id', seccionId.toString());
+    }
+  }, [seccionId]);
 
   // Efecto para manejar errores de validación
   useEffect(() => {
@@ -498,12 +506,13 @@ export default function Edit({
                         </label>
                         <select
                           id="seccion_id"
+                          disabled={seccionId !== null}
                           name="seccion_id"
                           value={data.seccion_id}
                           onChange={handleChange}
-                          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                          className={`w-full rounded-lg border border-gray-300 dark:border-gray-600 ${seccionId !== null ? 'bg-gray-100 dark:bg-gray-800' : 'bg-white dark:bg-gray-700'} px-4 py-3 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors`}
                         >
-                          <option value="">Seleccione una sección</option>
+                          <option value="">{seccionId !== null ? 'Sección asignada automáticamente' : 'Seleccione una sección'}</option>
                           {secciones.map((seccion: any) => (
                             <option key={seccion.id} value={seccion.id}>
                               {seccion.nombre}

@@ -43,6 +43,8 @@ type IndexProps = {
     to: number | null;
     has_pages: boolean;
   };
+  all_secciones?: Array<{ id: number; nombre: string }>;
+  seccionId?: number | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -169,7 +171,9 @@ const Index = ({
   flash, 
   errors = {}, 
   filters: initialFilters = {},
-  pagination
+  pagination,
+  all_secciones = [],
+  seccionId = null
 }: IndexProps) => {
   const page = usePage();
 
@@ -299,6 +303,8 @@ const Index = ({
               onSuccess={(message) => showAlert('success', message)}
               onError={(message) => showAlert('error', message)}
               errors={errors}
+              all_secciones={all_secciones}
+              seccionId={seccionId}
             />
           </div>
         </div>
@@ -316,6 +322,7 @@ const Index = ({
               <colgroup>
                 <col className="w-16" />
                 <col className="w-32" />
+                <col className="w-32" />
                 <col className="w-48" />
                 <col className="w-28" />
               </colgroup>
@@ -323,6 +330,7 @@ const Index = ({
                 <tr className="bg-gray-50 dark:bg-gray-700">
                   <th className="px-4 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">N°</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Código</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Sección</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Descripción</th>
                   <th className="px-4 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">Acciones</th>
                 </tr>
@@ -339,6 +347,11 @@ const Index = ({
                           {estanteria.cod_estante}
                         </div>
                       </td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                          {estanteria.seccion?.nombre || 'Sin sección'}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm align-top">
                         <ExpandableDescription text={estanteria.descripcion} maxLength={50} />
                       </td>
@@ -350,6 +363,8 @@ const Index = ({
                             onSuccess={(message) => showAlert('success', message)}
                             onError={(message) => showAlert('error', message)}
                             errors={errors}
+                            all_secciones={all_secciones}
+                            seccionId={seccionId}
                           />
                         </div>
                       </td>
@@ -357,7 +372,7 @@ const Index = ({
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                       No hay estanterías disponibles
                     </td>
                   </tr>
