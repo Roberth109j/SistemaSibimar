@@ -26,10 +26,10 @@ class InventarioController extends Controller
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 15; // Mantienes 15 elementos por página
 
-        // Obtener los filtros de la solicitud (SIN estanteria)
+        // Obtener los filtros de la solicitud
         $filters = $request->only(['search', 'clase', 'idioma', 'estado']);
         
-        // Consulta base con ejemplares y sus estados (SIN estanteria)
+        // Consulta base con ejemplares y sus estados - ACTUALIZADA
         $query = Libro::with(['ejemplares', 'autor', 'editorial', 'seccion'])
             ->withCount([
                 'ejemplares',
@@ -39,9 +39,12 @@ class InventarioController extends Controller
                 'ejemplares as ejemplares_prestados_count' => function ($query) {
                     $query->where('estado', Ejemplar::ESTADO_PRESTADO);
                 },
-                // ✅ CORREGIDO: Usar whereIn para incluir ambos estados inactivos
-                'ejemplares as ejemplares_inactivos_count' => function ($query) {
-                    $query->whereIn('estado', [Ejemplar::ESTADO_DADO_DE_BAJA, Ejemplar::ESTADO_PERDIDO]);
+                // ✅ SEPARAR DADOS DE BAJA Y PERDIDOS
+                'ejemplares as ejemplares_dados_baja_count' => function ($query) {
+                    $query->where('estado', Ejemplar::ESTADO_DADO_DE_BAJA);
+                },
+                'ejemplares as ejemplares_perdidos_count' => function ($query) {
+                    $query->where('estado', Ejemplar::ESTADO_PERDIDO);
                 }
             ]);
             
@@ -67,21 +70,34 @@ class InventarioController extends Controller
             $query->where('idioma', $filters['idioma']);
         }
         
-        // Filtrar por estado de ejemplares
+        // Filtrar por estado de ejemplares - ACTUALIZADO
         if (!empty($filters['estado'])) {
-            if ($filters['estado'] === 'disponibles') {
-                $query->whereHas('ejemplares', function ($q) {
-                    $q->where('estado', Ejemplar::ESTADO_DISPONIBLE);
-                });
-            } elseif ($filters['estado'] === 'prestados') {
-                $query->whereHas('ejemplares', function ($q) {
-                    $q->where('estado', Ejemplar::ESTADO_PRESTADO);
-                });
-            } elseif ($filters['estado'] === 'inactivos') {
-                // ✅ CORREGIDO: Usar whereIn para incluir ambos estados inactivos
-                $query->whereHas('ejemplares', function ($q) {
-                    $q->whereIn('estado', [Ejemplar::ESTADO_DADO_DE_BAJA, Ejemplar::ESTADO_PERDIDO]);
-                });
+            switch ($filters['estado']) {
+                case 'disponibles':
+                    $query->whereHas('ejemplares', function ($q) {
+                        $q->where('estado', Ejemplar::ESTADO_DISPONIBLE);
+                    });
+                    break;
+                case 'prestados':
+                    $query->whereHas('ejemplares', function ($q) {
+                        $q->where('estado', Ejemplar::ESTADO_PRESTADO);
+                    });
+                    break;
+                case 'dados_baja':
+                    $query->whereHas('ejemplares', function ($q) {
+                        $q->where('estado', Ejemplar::ESTADO_DADO_DE_BAJA);
+                    });
+                    break;
+                case 'perdidos':
+                    $query->whereHas('ejemplares', function ($q) {
+                        $q->where('estado', Ejemplar::ESTADO_PERDIDO);
+                    });
+                    break;
+                case 'en_circulacion':
+                    $query->whereHas('ejemplares', function ($q) {
+                        $q->whereIn('estado', [Ejemplar::ESTADO_DISPONIBLE, Ejemplar::ESTADO_PRESTADO]);
+                    });
+                    break;
             }
         }
         
@@ -118,11 +134,14 @@ class InventarioController extends Controller
             Libro::IDIOMA_OTRO,
         ];
         
+        // ✅ ESTADOS ACTUALIZADOS
         $estados = [
             'todos' => 'Todos los estados',
             'disponibles' => 'Disponibles',
             'prestados' => 'Prestados',
-            'inactivos' => 'Inactivos',
+            'dados_baja' => 'Dados de baja',
+            'perdidos' => 'Perdidos',
+            'en_circulacion' => 'En circulación', // Solo disponibles + prestados
         ];
         
         // Renderizar la vista de Inertia con los datos
@@ -157,19 +176,24 @@ class InventarioController extends Controller
         // Obtener todos los libros que coinciden con los filtros
         $libros = $query->get();
         
-        // Calcular estadísticas
+        // Calcular estadísticas - ACTUALIZADO
         $totalLibros = $libros->count();
         $totalEjemplares = $libros->sum('ejemplares_count');
         $totalDisponibles = $libros->sum('ejemplares_disponibles_count');
         $totalPrestados = $libros->sum('ejemplares_prestados_count');
-        $totalInactivos = $libros->sum('ejemplares_inactivos_count');
+        $totalDadosBaja = $libros->sum('ejemplares_dados_baja_count');
+        $totalPerdidos = $libros->sum('ejemplares_perdidos_count');
+        // ✅ TOTAL EN CIRCULACIÓN = DISPONIBLES + PRESTADOS
+        $totalEnCirculacion = $totalDisponibles + $totalPrestados;
         
         return [
             'total_libros' => $totalLibros,
             'total_ejemplares' => $totalEjemplares,
             'total_disponibles' => $totalDisponibles,
             'total_prestados' => $totalPrestados,
-            'total_inactivos' => $totalInactivos,
+            'total_dados_baja' => $totalDadosBaja,
+            'total_perdidos' => $totalPerdidos,
+            'total_en_circulacion' => $totalEnCirculacion, // ✅ NUEVA ESTADÍSTICA
         ];
     }
     
@@ -182,7 +206,7 @@ class InventarioController extends Controller
     public function exportarExcel(Request $request)
     {
         try {
-            // Obtener los filtros de la solicitud (SIN estanteria)
+            // Obtener los filtros de la solicitud
             $filters = $request->only(['search', 'clase', 'idioma', 'estado']);
             
             // Generar nombre de archivo dinámico

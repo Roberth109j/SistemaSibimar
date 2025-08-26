@@ -17,7 +17,9 @@ interface Libro {
   ejemplares_count: number;
   ejemplares_disponibles_count: number;
   ejemplares_prestados_count: number;
-  ejemplares_inactivos_count: number;
+  // ✅ NUEVOS CAMPOS SEPARADOS
+  ejemplares_dados_baja_count: number;
+  ejemplares_perdidos_count: number;
 }
 
 interface PaginationData {
@@ -32,7 +34,6 @@ interface PaginationData {
 
 interface LibrosData {
   data: Libro[];
-  // Estas propiedades pueden venir directamente de Laravel Paginator
   current_page?: number;
   last_page?: number;
   per_page?: number;
@@ -43,16 +44,17 @@ interface LibrosData {
 }
 
 interface BadgeEstadoProps {
-  tipo: 'disponibles' | 'prestados' | 'inactivos';
+  tipo: 'disponibles' | 'prestados' | 'dados_baja' | 'perdidos';
   cantidad: number;
 }
 
-// Componente Badge Estado
+// Componente Badge Estado - ACTUALIZADO
 const BadgeEstado: React.FC<BadgeEstadoProps> = ({ tipo, cantidad }) => {
   const estilos = {
     disponibles: 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100',
     prestados: 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100',
-    inactivos: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+    dados_baja: 'bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-100 ',
+    perdidos: 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100'
   };
 
   return (
@@ -127,10 +129,13 @@ const TablaInventario: React.FC<TablaInventarioProps> = ({ libros, pagination })
                 Prestados
               </th>
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Inactivos
+                Dados de Baja
               </th>
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Total
+                Perdidos               
+              </th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                Total Activos
               </th>
             </tr>
           </thead>
@@ -138,6 +143,8 @@ const TablaInventario: React.FC<TablaInventarioProps> = ({ libros, pagination })
             {libros.data.map((libro, index) => {
               // Calcular el número de fila considerando la paginación
               const numeroFila = (paginationData.current_page - 1) * paginationData.per_page + index + 1;
+              // ✅ CALCULAR TOTAL EN CIRCULACIÓN
+              const totalEnCirculacion = libro.ejemplares_disponibles_count + libro.ejemplares_prestados_count;
               
               return (
                 <tr key={libro.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -169,11 +176,14 @@ const TablaInventario: React.FC<TablaInventarioProps> = ({ libros, pagination })
                     <BadgeEstado tipo="prestados" cantidad={libro.ejemplares_prestados_count} />
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <BadgeEstado tipo="inactivos" cantidad={libro.ejemplares_inactivos_count} />
+                    <BadgeEstado tipo="dados_baja" cantidad={libro.ejemplares_dados_baja_count} />
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                      {libro.ejemplares_count}
+                    <BadgeEstado tipo="perdidos" cantidad={libro.ejemplares_perdidos_count} />
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                      {totalEnCirculacion}
                     </span>
                   </td>
                 </tr>
@@ -196,7 +206,7 @@ const TablaInventario: React.FC<TablaInventarioProps> = ({ libros, pagination })
         </div>
       )}
 
-      {/* Paginación - IGUAL QUE AUTORES */}
+      {/* Paginación */}
       {paginationData.has_pages && paginationData.last_page > 1 && (
         <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
           <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">

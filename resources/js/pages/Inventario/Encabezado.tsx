@@ -35,13 +35,16 @@ const TarjetaEstadistica: React.FC<TarjetaEstadisticaProps> = ({ titulo, valor, 
   );
 };
 
-// --- Props del componente (SIN estanterías) ---
+// --- Props del componente actualizado para nuevos campos ---
 interface EncabezadoInventarioProps {
   totalLibros: number;
   totalEjemplares: number;
   totalDisponibles: number;
   totalPrestados: number;
-  totalInactivos: number;
+  // ✅ CAMPOS ACTUALIZADOS
+  totalDadosBaja: number;
+  totalPerdidos: number;
+  totalEnCirculacion: number;
   terminoBusqueda: string;
   onBusquedaCambio: (valor: string) => void;
   mostrarFiltros: boolean;
@@ -68,7 +71,6 @@ const EncabezadoInventario: React.FC<EncabezadoInventarioProps> = ({
   totalEjemplares,
   totalDisponibles,
   totalPrestados,
-  totalInactivos,
   terminoBusqueda,
   onBusquedaCambio,
   mostrarFiltros,
@@ -192,7 +194,18 @@ const EncabezadoInventario: React.FC<EncabezadoInventarioProps> = ({
                   ))}
                 </select>
 
-                {/* REMOVIDO: Select de estanterías */}
+                {/* ✅ FILTRO DE ESTADO ACTUALIZADO */}
+                <select
+                  value={filtrosSeleccionados.estado}
+                  onChange={(e) => onCambioFiltro('estado', e.target.value)}
+                  className="block w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">Todos los estados</option>
+                  <option value="disponibles">Disponibles</option>
+                  <option value="prestados">Prestados</option>
+                  <option value="dados_baja">Dados de baja</option>
+                  <option value="perdidos">Perdidos</option>
+                </select>
 
                 {secciones && secciones.length > 0 && (
                   <select

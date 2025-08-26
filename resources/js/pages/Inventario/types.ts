@@ -12,7 +12,9 @@ export interface Libro {
   ejemplares_count: number;
   ejemplares_disponibles_count: number;
   ejemplares_prestados_count: number;
-  ejemplares_inactivos_count: number;
+  // ✅ NUEVOS CAMPOS SEPARADOS
+  ejemplares_dados_baja_count: number;
+  ejemplares_perdidos_count: number;
 }
 
 export interface EstadisticasGlobales {
@@ -20,7 +22,10 @@ export interface EstadisticasGlobales {
   total_ejemplares: number;
   total_disponibles: number;
   total_prestados: number;
-  total_inactivos: number;
+  // ✅ NUEVOS CAMPOS SEPARADOS
+  total_dados_baja: number;
+  total_perdidos: number;
+  total_en_circulacion: number; // disponibles + prestados
 }
 
 export interface PaginatedData<T> {
@@ -35,7 +40,6 @@ export interface PaginatedData<T> {
   total: number;
 }
 
-// Nueva interfaz de paginación unificada
 export interface PaginationInfo {
   current_page: number;
   last_page: number;
@@ -62,11 +66,9 @@ export interface InventarioProps {
     error?: string;
   };
   errors?: Record<string, string>;
-  // ✅ AGREGAR ESTA NUEVA PROP
   pagination?: PaginationInfo;
 }
 
-// Props para componentes
 export interface AlertNotificationProps {
   type: 'success' | 'error';
   message: string;
@@ -80,7 +82,8 @@ export interface StatsCardProps {
   colorClass: string;
 }
 
+// ✅ ACTUALIZADO CON NUEVOS TIPOS DE ESTADO
 export interface BadgeEstadoProps {
-  tipo: 'disponibles' | 'prestados' | 'inactivos';
+  tipo: 'disponibles' | 'prestados' | 'dados_baja' | 'perdidos';
   cantidad: number;
 }
