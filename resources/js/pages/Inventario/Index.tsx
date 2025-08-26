@@ -101,9 +101,10 @@ const Index: React.FC<InventarioProps> = ({
   filters: filtrosIniciales = {},
   flash,
   errors = {},
-  pagination // ← Agregar esta prop
+  pagination
 }) => {
-  console.log('Index props:', { libros, pagination, filters: filtrosIniciales }); // Debug
+  console.log('Index props:', { libros, pagination, filters: filtrosIniciales });
+  
   // Estados del componente
   const [terminoBusqueda, setTerminoBusqueda] = useState(filtrosIniciales.search || '');
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -181,49 +182,41 @@ const Index: React.FC<InventarioProps> = ({
     router.get('/inventario');
   };
 
-  // ✅ FUNCIÓN EXPORTAR EXCEL CORREGIDA
   const exportarExcel = async () => {
-    if (exportandoExcel) return; // Prevenir clics múltiples
+    if (exportandoExcel) return;
     
     setExportandoExcel(true);
     
     try {
       const params = new URLSearchParams();
       
-      // Agregar parámetro de búsqueda si existe
       if (terminoBusqueda.trim()) {
         params.set('search', terminoBusqueda.trim());
       }
       
-      // Agregar filtros que tengan valor
       Object.entries(filtrosSeleccionados).forEach(([clave, valor]) => {
         if (valor && valor.trim()) {
           params.set(clave, valor);
         }
       });
       
-      // Construir URL - CORREGIDA AQUÍ
-      const baseUrl = '/inventario/exportar'; // Cambiado de exportar-excel a exportar
+      const baseUrl = '/inventario/exportar';
       const queryString = params.toString();
       const fullUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
       
-      // Mostrar mensaje de inicio
       setAlertas(prev => ({ 
         ...prev, 
         success: 'Generando archivo Excel...' 
       }));
       
-      // Crear elemento de descarga
       const link = document.createElement('a');
       link.href = fullUrl;
       link.target = '_blank';
       
-      // Simular clic
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      // Esperar un momento y mostrar mensaje de finalización
       setTimeout(() => {
         setAlertas(prev => ({ 
           ...prev, 
@@ -256,9 +249,7 @@ const Index: React.FC<InventarioProps> = ({
   }, []);
 
   return (
-    <AppLayout
-      breadcrumbs={breadcrumbs}
-    >
+    <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Inventario de Biblioteca" />
 
       {/* Alertas */}
@@ -286,7 +277,9 @@ const Index: React.FC<InventarioProps> = ({
             totalEjemplares={estadisticas.total_ejemplares}
             totalDisponibles={estadisticas.total_disponibles}
             totalPrestados={estadisticas.total_prestados}
-            totalInactivos={estadisticas.total_inactivos}
+            totalDadosBaja={estadisticas.total_dados_baja}
+            totalPerdidos={estadisticas.total_perdidos}
+            totalEnCirculacion={estadisticas.total_en_circulacion}
             terminoBusqueda={terminoBusqueda}
             onBusquedaCambio={manejarBusqueda}
             mostrarFiltros={mostrarFiltros}
@@ -305,7 +298,7 @@ const Index: React.FC<InventarioProps> = ({
           {/* Tabla de libros con paginación unificada */}
           <TablaInventario 
             libros={libros} 
-            pagination={pagination} // ← Pasar la información de paginación
+            pagination={pagination}
           />
         </div>
       </div>

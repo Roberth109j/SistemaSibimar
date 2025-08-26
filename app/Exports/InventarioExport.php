@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Models\Estanteria;
 use App\Models\Libro;
 use App\Models\Ejemplar;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -30,7 +31,7 @@ class InventarioExport implements FromCollection, WithHeadings, WithStyles, With
      */
     public function collection()
     {
-        // Consulta base similar a la del controlador (SIN estanteria)
+        // ✅ CONSULTA ACTUALIZADA CON ESTADOS SEPARADOS
         $query = Libro::with(['ejemplares', 'autor', 'editorial', 'seccion'])
             ->withCount([
                 'ejemplares',
@@ -40,12 +41,16 @@ class InventarioExport implements FromCollection, WithHeadings, WithStyles, With
                 'ejemplares as ejemplares_prestados_count' => function ($query) {
                     $query->where('estado', Ejemplar::ESTADO_PRESTADO);
                 },
-                'ejemplares as ejemplares_inactivos_count' => function ($query) {
-                    $query->whereIn('estado', [Ejemplar::ESTADO_DADO_DE_BAJA, Ejemplar::ESTADO_PERDIDO]);
+                // ✅ SEPARAR DADOS DE BAJA Y PERDIDOS
+                'ejemplares as ejemplares_dados_baja_count' => function ($query) {
+                    $query->where('estado', Ejemplar::ESTADO_DADO_DE_BAJA);
+                },
+                'ejemplares as ejemplares_perdidos_count' => function ($query) {
+                    $query->where('estado', Ejemplar::ESTADO_PERDIDO);
                 }
             ]);
 
-        // Aplicar los mismos filtros del controlador
+        // ✅ FILTROS ACTUALIZADOS
         if (!empty($this->filters['search'])) {
             $search = $this->filters['search'];
             $query->where(function ($q) use ($search) {
@@ -65,19 +70,34 @@ class InventarioExport implements FromCollection, WithHeadings, WithStyles, With
             $query->where('idioma', $this->filters['idioma']);
         }
 
+        // ✅ FILTROS DE ESTADO ACTUALIZADOS
         if (!empty($this->filters['estado'])) {
-            if ($this->filters['estado'] === 'disponibles') {
-                $query->whereHas('ejemplares', function ($q) {
-                    $q->where('estado', Ejemplar::ESTADO_DISPONIBLE);
-                });
-            } elseif ($this->filters['estado'] === 'prestados') {
-                $query->whereHas('ejemplares', function ($q) {
-                    $q->where('estado', Ejemplar::ESTADO_PRESTADO);
-                });
-            } elseif ($this->filters['estado'] === 'inactivos') {
-                $query->whereHas('ejemplares', function ($q) {
-                    $q->where('estado', Ejemplar::ESTADO_DADO_DE_BAJA);
-                });
+            switch ($this->filters['estado']) {
+                case 'disponibles':
+                    $query->whereHas('ejemplares', function ($q) {
+                        $q->where('estado', Ejemplar::ESTADO_DISPONIBLE);
+                    });
+                    break;
+                case 'prestados':
+                    $query->whereHas('ejemplares', function ($q) {
+                        $q->where('estado', Ejemplar::ESTADO_PRESTADO);
+                    });
+                    break;
+                case 'dados_baja':
+                    $query->whereHas('ejemplares', function ($q) {
+                        $q->where('estado', Ejemplar::ESTADO_DADO_DE_BAJA);
+                    });
+                    break;
+                case 'perdidos':
+                    $query->whereHas('ejemplares', function ($q) {
+                        $q->where('estado', Ejemplar::ESTADO_PERDIDO);
+                    });
+                    break;
+                case 'en_circulacion':
+                    $query->whereHas('ejemplares', function ($q) {
+                        $q->whereIn('estado', [Ejemplar::ESTADO_DISPONIBLE, Ejemplar::ESTADO_PRESTADO]);
+                    });
+                    break;
             }
         }
 
@@ -85,12 +105,16 @@ class InventarioExport implements FromCollection, WithHeadings, WithStyles, With
     }
 
     /**
-     * Mapea los datos de cada libro para el Excel
+     * Mapea los datos de cada libro para el Excel - ACTUALIZADO
      */
     public function map($libro): array
     {
+        // ✅ CALCULAR TOTAL ACTIVOS (solo disponibles + prestados)
+        $totalActivos = $libro->ejemplares_disponibles_count + $libro->ejemplares_prestados_count;
+
         return [
-            $libro->titulo,
+            $libro->created_at ? $libro->created_at->format('d/m/Y') : 'N/A',
+            $libro->titulo,            
             $libro->isbn ?? 'N/A',
             $libro->autor ? ($libro->autor->nombres . ' ' . $libro->autor->apellidos) : 'Sin autor',
             $libro->editorial ? $libro->editorial->nombre : 'Sin editorial',
@@ -98,18 +122,19 @@ class InventarioExport implements FromCollection, WithHeadings, WithStyles, With
             $libro->seccion ? $libro->seccion->nombre : 'Sin sección',
             $libro->ejemplares_disponibles_count,
             $libro->ejemplares_prestados_count,
-            $libro->ejemplares_inactivos_count,
-            $libro->ejemplares_count,
-            $libro->created_at ? $libro->created_at->format('d/m/Y') : 'N/A',
+            $libro->ejemplares_dados_baja_count, 
+            $libro->ejemplares_perdidos_count,   
+            $totalActivos,                       
         ];
     }
 
     /**
-     * Define los encabezados de las columnas
+     * Define los encabezados de las columnas - ACTUALIZADO
      */
     public function headings(): array
     {
         return [
+            'Fecha Registro',
             'Título',
             'ISBN',
             'Autor',
@@ -118,24 +143,24 @@ class InventarioExport implements FromCollection, WithHeadings, WithStyles, With
             'Sección',
             'Disponibles',
             'Prestados',
-            'Inactivos',
-            'Total Ejemplares',
-            'Fecha Registro',
+            'Dados de Baja',      // ✅ NUEVO
+            'Perdidos',           // ✅ NUEVO
+            'Total Activos',      // ✅ SOLO disponibles + prestados
         ];
     }
 
     /**
-     * Define el formato de las columnas
+     * Define el formato de las columnas - ACTUALIZADO
      */
     public function columnFormats(): array
     {
         return [
-            'B' => NumberFormat::FORMAT_TEXT,
+            'B' => NumberFormat::FORMAT_TEXT, // ISBN como texto
         ];
     }
 
     /**
-     * Aplica estilos al Excel
+     * Aplica estilos al Excel - ACTUALIZADO
      */
     public function styles(Worksheet $sheet)
     {
@@ -157,15 +182,18 @@ class InventarioExport implements FromCollection, WithHeadings, WithStyles, With
                 ],
             ],
             // Estilo para todas las celdas
-            'A:K' => [
+            'A:M' => [
                 'alignment' => [
                     'vertical' => Alignment::VERTICAL_CENTER,
                 ],
             ],
             // Estilo para las columnas numéricas
-            'G:J' => [
+            'G:L' => [ // Disponibles, Prestados, Dados de Baja, Perdidos, Total Activos, Total Ejemplares
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
+                ],
+                'font' => [
+                    'bold' => true,
                 ],
             ],
         ];
