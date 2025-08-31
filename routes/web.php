@@ -89,7 +89,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Rutas de Ejemplares
     Route::get('libros/{libro}/ejemplares', [EjemplarController::class, 'index'])->name('ejemplares.index');
-    Route::get('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'show'])->name('ejemplares.show');
     
     // Rutas de Ejemplares protegidas por middleware de roles
     Route::middleware('role:Administrador|BibliotecarioPrimaria|BibliotecarioBachillerato')->group(function () {
@@ -100,6 +99,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'update']);
         Route::delete('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'destroy'])->name('ejemplares.destroy');
     });
+    
+    // Esta ruta debe ir al final para evitar conflictos con rutas específicas como 'create'
+     Route::get('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'show'])->name('ejemplares.show');
 
     // Rutas adicionales para las funciones AJAX de clasificación Dewey
     Route::get('api/categorias/{categoriaId}/subcategorias', [LibroController::class, 'getSubcategorias']);
