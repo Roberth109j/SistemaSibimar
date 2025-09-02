@@ -43,7 +43,7 @@ class LibroController extends Controller
             'estanteria'
         ])
             ->where(function ($query) use ($search) {
-                $query->where('isbn', 'like', "%{$search}%")
+                $query->where('codigo_unico', 'like', "%{$search}%")
                     ->orWhere('titulo', 'like', "%{$search}%");
             })
             ->first();
@@ -69,7 +69,7 @@ class LibroController extends Controller
 
     public function index(Request $request)
     {
-        // Validación de parámetros de paginación (igual que AutorController)
+        // Validación de parámetros de paginación
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 15; // Valor fijo de 15 elementos por página
 
@@ -98,21 +98,27 @@ class LibroController extends Controller
             }
         }
 
-        // Aplicar filtros en el backend (mucho más eficiente)
+        // Aplicar filtros en el backend
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('titulo', 'like', '%' . $searchTerm . '%')
-                    ->orWhere('isbn', 'like', '%' . $searchTerm . '%')
+                    ->orWhere('codigo_unico', 'like', '%' . $searchTerm . '%')
                     ->orWhereHas('autor', function ($authorQuery) use ($searchTerm) {
                         $authorQuery->where('nombres', 'like', '%' . $searchTerm . '%')
                             ->orWhere('apellidos', 'like', '%' . $searchTerm . '%');
-                    });
+                    })
+                    // Búsqueda por contenido usando full text search
+                    ->orWhereRaw("MATCH(titulo, contenido) AGAINST(? IN NATURAL LANGUAGE MODE)", [$searchTerm]);
             });
         }
 
         if ($request->filled('clase')) {
             $query->where('clase', $request->clase);
+        }
+
+        if ($request->filled('area')) {
+            $query->where('area', $request->area);
         }
 
         if ($request->filled('idioma')) {
@@ -123,12 +129,12 @@ class LibroController extends Controller
             $query->where('estanteria_id', $request->estanteria);
         }
 
-        // Paginación optimizada con parámetros explícitos (igual que AutorController)
+        // Paginación optimizada con parámetros explícitos
         $libros = $query->orderBy('id')
             ->paginate($perPage, ['*'], 'page', $page)
             ->withQueryString(); // Mantiene los filtros en la URL
 
-        // Redirigir si la página solicitada no existe pero hay resultados (igual que AutorController)
+        // Redirigir si la página solicitada no existe pero hay resultados
         if ($page > $libros->lastPage() && $libros->lastPage() > 0) {
             return redirect()->route(
                 'libros.index',
@@ -139,12 +145,16 @@ class LibroController extends Controller
         // Datos para filtros (solo los necesarios)
         $clases = [
             Libro::CLASE_LIBRO,
-            Libro::CLASE_CARTILLA,
-            Libro::CLASE_CUENTO,
-            Libro::CLASE_DICCIONARIO,
-            Libro::CLASE_ENCICLOPEDIA,
-            Libro::CLASE_NOVELA,
             Libro::CLASE_REVISTA,
+        ];
+
+        $areas = [
+            Libro::AREA_CIENCIAS,
+            Libro::AREA_MATEMATICAS,
+            Libro::AREA_HUMANIDADES,
+            Libro::AREA_IDIOMAS,
+            Libro::AREA_TECNOLOGIA,
+            Libro::AREA_OTRAS,
         ];
 
         $idiomas = [
@@ -174,14 +184,15 @@ class LibroController extends Controller
         return Inertia::render('Libro/index', [
             'libros' => $libros, // Objeto paginado de Laravel
             'clases' => $clases,
+            'areas' => $areas, // Nuevo filtro
             'idiomas' => $idiomas,
             'autores' => $autores,
             'estanterias' => $estanterias,
             'secciones' => $secciones,
             'categoriasDewey' => $categoriasDewey,
             'seccionId' => $seccionId,
-            'filters' => $request->only(['search', 'clase', 'idioma', 'estanteria']),
-            // Datos de paginación adicionales (igual que AutorController)
+            'filters' => $request->only(['search', 'clase', 'area', 'idioma', 'estanteria']),
+            // Datos de paginación adicionales
             'pagination' => [
                 'current_page' => $libros->currentPage(),
                 'last_page' => $libros->lastPage(),
@@ -212,7 +223,6 @@ class LibroController extends Controller
             $seccionId = $seccion ? $seccion->id : null;
         }
 
-        // Utilizando apellidos (plural)
         $autores = Autor::orderBy('apellidos')->get();
         $editoriales = Editorial::orderBy('nombre')->get();
         
@@ -226,12 +236,16 @@ class LibroController extends Controller
 
         $clases = [
             Libro::CLASE_LIBRO,
-            Libro::CLASE_CARTILLA,
-            Libro::CLASE_CUENTO,
-            Libro::CLASE_DICCIONARIO,
-            Libro::CLASE_ENCICLOPEDIA,
-            Libro::CLASE_NOVELA,
             Libro::CLASE_REVISTA,
+        ];
+
+        $areas = [
+            Libro::AREA_CIENCIAS,
+            Libro::AREA_MATEMATICAS,
+            Libro::AREA_HUMANIDADES,
+            Libro::AREA_IDIOMAS,
+            Libro::AREA_TECNOLOGIA,
+            Libro::AREA_OTRAS,
         ];
 
         $idiomas = [
@@ -248,8 +262,9 @@ class LibroController extends Controller
             'secciones' => $secciones,
             'categoriasDewey' => $categoriasDewey,
             'clases' => $clases,
+            'areas' => $areas, // Nuevo campo
             'idiomas' => $idiomas,
-            'seccionId' => $seccionId // Pasar la sección predeterminada según el rol
+            'seccionId' => $seccionId
         ]);
     }
 
@@ -291,20 +306,31 @@ class LibroController extends Controller
             }
         }
 
+        // Determinar la regla de validación para código_unico según la clase
+        $codigoRule = 'required|string|unique:libros,codigo_unico';
+        if ($request->clase === Libro::CLASE_LIBRO) {
+            $codigoRule .= '|regex:/^\d{13}$/'; // ISBN 13 dígitos
+        } elseif ($request->clase === Libro::CLASE_REVISTA) {
+            $codigoRule .= '|regex:/^\d{8}$/'; // ISSN 8 dígitos
+        }
+
         $validator = Validator::make($request->all(), [
             'estanteria_id' => 'nullable|exists:estanterias,id',
-            'isbn' => 'required|string|unique:libros,isbn',
+            'codigo_unico' => $codigoRule,
             'titulo' => 'required|string|max:255',
             'seccion_id' => 'required|exists:secciones,id',
             'autor_id' => 'required|exists:autores,id',
             'editorial_id' => 'required|exists:editoriales,id',
+            'area' => 'required|in:' . implode(',', [
+                Libro::AREA_CIENCIAS,
+                Libro::AREA_MATEMATICAS,
+                Libro::AREA_HUMANIDADES,
+                Libro::AREA_IDIOMAS,
+                Libro::AREA_TECNOLOGIA,
+                Libro::AREA_OTRAS,
+            ]),
             'clase' => 'required|in:' . implode(',', [
                 Libro::CLASE_LIBRO,
-                Libro::CLASE_CARTILLA,
-                Libro::CLASE_CUENTO,
-                Libro::CLASE_DICCIONARIO,
-                Libro::CLASE_ENCICLOPEDIA,
-                Libro::CLASE_NOVELA,
                 Libro::CLASE_REVISTA,
             ]),
             'idioma' => 'required|in:' . implode(',', [
@@ -315,8 +341,6 @@ class LibroController extends Controller
             ]),
             'paginas' => 'nullable|integer|min:1',
             'tema_id' => 'required|exists:temas_dewey,id',
-            // CORREGIDO: nullable debe ir antes de exists
-            // Removed duplicate estanteria_id validation rule since it was already defined above
             'tomo' => 'nullable|integer|min:1',
             'edicion' => 'nullable|string|max:50',
             'anio' => 'nullable|integer|min:1000|max:' . (date('Y') + 1),
@@ -326,8 +350,11 @@ class LibroController extends Controller
             'contenido' => 'nullable|string',
         ], [
             // Mensajes personalizados de error
-            'isbn.required' => 'El ISBN es obligatorio.',
-            'isbn.unique' => 'Este ISBN ya está registrado en el sistema.',
+            'codigo_unico.required' => 'El código único es obligatorio.',
+            'codigo_unico.unique' => 'Este código único ya está registrado en el sistema.',
+            'codigo_unico.regex' => $request->clase === Libro::CLASE_LIBRO ? 
+                'El ISBN debe tener exactamente 13 dígitos.' : 
+                'El ISSN debe tener exactamente 8 dígitos.',
             'titulo.required' => 'El título es obligatorio.',
             'seccion_id.required' => 'Debe seleccionar una sección.',
             'seccion_id.exists' => 'La sección seleccionada no es válida.',
@@ -335,6 +362,8 @@ class LibroController extends Controller
             'autor_id.exists' => 'El autor seleccionado no es válido.',
             'editorial_id.required' => 'Debe seleccionar una editorial.',
             'editorial_id.exists' => 'La editorial seleccionada no es válida.',
+            'area.required' => 'Debe seleccionar un área.',
+            'area.in' => 'El área seleccionada no es válida.',
             'clase.required' => 'Debe seleccionar una clase.',
             'clase.in' => 'La clase seleccionada no es válida.',
             'idioma.required' => 'Debe seleccionar un idioma.',
@@ -383,12 +412,13 @@ class LibroController extends Controller
 
             // Crear el libro
             $libro = new Libro();
-            $libro->isbn = $request->isbn;
+            $libro->codigo_unico = $request->codigo_unico; // Cambio de isbn a codigo_unico
             $libro->titulo = $request->titulo;
             $libro->contenido = $request->contenido;
             $libro->seccion_id = $request->seccion_id;
             $libro->autor_id = $request->autor_id;
             $libro->editorial_id = $request->editorial_id;
+            $libro->area = $request->area; // Nuevo campo
             $libro->clase = $request->clase;
             $libro->tomo = $request->tomo;
             $libro->edicion = $request->edicion;
@@ -400,9 +430,7 @@ class LibroController extends Controller
             $libro->paginas = $request->paginas ?: 1;
             $libro->tema_id = $request->tema_id;
             $libro->sign_top = $signTop;
-
-            // NUEVA LÓGICA: Manejo mejorado de estantería
-            $libro->estanteria_id = $request->estanteria_id; // Ya es null si no se proporcionó
+            $libro->estanteria_id = $request->estanteria_id;
 
             $libro->save();
 
@@ -498,7 +526,7 @@ class LibroController extends Controller
             $userSeccionId = $seccion ? $seccion->id : null;
         }
 
-        // Datos para el formulario - usando apellidos (plural)
+        // Datos para el formulario
         $autores = Autor::orderBy('apellidos')->get();
         $editoriales = Editorial::orderBy('nombre')->get();
         
@@ -529,12 +557,16 @@ class LibroController extends Controller
 
         $clases = [
             Libro::CLASE_LIBRO,
-            Libro::CLASE_CARTILLA,
-            Libro::CLASE_CUENTO,
-            Libro::CLASE_DICCIONARIO,
-            Libro::CLASE_ENCICLOPEDIA,
-            Libro::CLASE_NOVELA,
             Libro::CLASE_REVISTA,
+        ];
+
+        $areas = [
+            Libro::AREA_CIENCIAS,
+            Libro::AREA_MATEMATICAS,
+            Libro::AREA_HUMANIDADES,
+            Libro::AREA_IDIOMAS,
+            Libro::AREA_TECNOLOGIA,
+            Libro::AREA_OTRAS,
         ];
 
         $idiomas = [
@@ -562,6 +594,7 @@ class LibroController extends Controller
             'subcategoriasDewey' => $subcategoriasDewey,
             'temasDewey' => $temasDewey,
             'clases' => $clases,
+            'areas' => $areas, // Nuevo campo
             'idiomas' => $idiomas,
             'seccionId' => $seccionId
         ]);
@@ -577,7 +610,7 @@ class LibroController extends Controller
         // Log para debugging
         Log::info('Datos recibidos para actualizar libro:', $request->all());
 
-        // NUEVA LÓGICA: Procesar estanteria_id antes de la validación
+        // Procesar estanteria_id antes de la validación
         if ($request->has('estanteria_id') && $request->estanteria_id === '') {
             $request->merge(['estanteria_id' => null]);
         }
@@ -595,19 +628,30 @@ class LibroController extends Controller
                 ->withInput();
         }
 
+        // Determinar la regla de validación para código_unico según la clase
+        $codigoRule = 'required|string|unique:libros,codigo_unico,' . $id;
+        if ($request->clase === Libro::CLASE_LIBRO) {
+            $codigoRule .= '|regex:/^\d{13}$/'; // ISBN 13 dígitos
+        } elseif ($request->clase === Libro::CLASE_REVISTA) {
+            $codigoRule .= '|regex:/^\d{8}$/'; // ISSN 8 dígitos
+        }
+
         $validator = Validator::make($request->all(), [
-            'isbn' => 'required|string|unique:libros,isbn,' . $id,
+            'codigo_unico' => $codigoRule,
             'titulo' => 'required|string|max:255',
             'seccion_id' => 'required|exists:secciones,id',
             'autor_id' => 'required|exists:autores,id',
             'editorial_id' => 'required|exists:editoriales,id',
+            'area' => 'required|in:' . implode(',', [
+                Libro::AREA_CIENCIAS,
+                Libro::AREA_MATEMATICAS,
+                Libro::AREA_HUMANIDADES,
+                Libro::AREA_IDIOMAS,
+                Libro::AREA_TECNOLOGIA,
+                Libro::AREA_OTRAS,
+            ]),
             'clase' => 'required|in:' . implode(',', [
                 Libro::CLASE_LIBRO,
-                Libro::CLASE_CARTILLA,
-                Libro::CLASE_CUENTO,
-                Libro::CLASE_DICCIONARIO,
-                Libro::CLASE_ENCICLOPEDIA,
-                Libro::CLASE_NOVELA,
                 Libro::CLASE_REVISTA,
             ]),
             'idioma' => 'required|in:' . implode(',', [
@@ -618,7 +662,6 @@ class LibroController extends Controller
             ]),
             'paginas' => 'nullable|integer|min:1',
             'tema_id' => 'required|exists:temas_dewey,id',
-            // CORREGIDO: nullable debe ir antes de exists
             'estanteria_id' => 'nullable|exists:estanterias,id',
             'tomo' => 'nullable|integer|min:1',
             'edicion' => 'nullable|string|max:50',
@@ -628,9 +671,12 @@ class LibroController extends Controller
             'edad_recomendada' => 'nullable|integer|min:0|max:100',
             'contenido' => 'nullable|string',
         ], [
-            // Mensajes personalizados de error (mismo que store)
-            'isbn.required' => 'El ISBN es obligatorio.',
-            'isbn.unique' => 'Este ISBN ya está registrado en el sistema.',
+            // Mensajes personalizados de error
+            'codigo_unico.required' => 'El código único es obligatorio.',
+            'codigo_unico.unique' => 'Este código único ya está registrado en el sistema.',
+            'codigo_unico.regex' => $request->clase === Libro::CLASE_LIBRO ? 
+                'El ISBN debe tener exactamente 13 dígitos.' : 
+                'El ISSN debe tener exactamente 8 dígitos.',
             'titulo.required' => 'El título es obligatorio.',
             'seccion_id.required' => 'Debe seleccionar una sección.',
             'seccion_id.exists' => 'La sección seleccionada no es válida.',
@@ -638,6 +684,8 @@ class LibroController extends Controller
             'autor_id.exists' => 'El autor seleccionado no es válido.',
             'editorial_id.required' => 'Debe seleccionar una editorial.',
             'editorial_id.exists' => 'La editorial seleccionada no es válida.',
+            'area.required' => 'Debe seleccionar un área.',
+            'area.in' => 'El área seleccionada no es válida.',
             'clase.required' => 'Debe seleccionar una clase.',
             'clase.in' => 'La clase seleccionada no es válida.',
             'idioma.required' => 'Debe seleccionar un idioma.',
@@ -683,12 +731,13 @@ class LibroController extends Controller
 
             // Preparar datos para actualización
             $updateData = [
-                'isbn' => $request->isbn,
+                'codigo_unico' => $request->codigo_unico, // Cambio de isbn a codigo_unico
                 'titulo' => $request->titulo,
                 'contenido' => $request->contenido,
                 'seccion_id' => $request->seccion_id,
                 'autor_id' => $request->autor_id,
                 'editorial_id' => $request->editorial_id,
+                'area' => $request->area, // Nuevo campo
                 'clase' => $request->clase,
                 'tomo' => $request->tomo,
                 'edicion' => $request->edicion,
@@ -700,8 +749,7 @@ class LibroController extends Controller
                 'paginas' => $request->paginas ?: 1,
                 'tema_id' => $request->tema_id,
                 'sign_top' => $signTop,
-                // NUEVA LÓGICA: Manejo simplificado de estantería
-                'estanteria_id' => $request->estanteria_id, // Ya es null si no se proporcionó
+                'estanteria_id' => $request->estanteria_id,
             ];
 
             // Actualizar todos los campos del libro

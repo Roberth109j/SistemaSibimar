@@ -14,72 +14,69 @@ return new class extends Migration
         Schema::create('libros', function (Blueprint $table) {
             $table->id();
 
-            //codigo ISBN - codigo de barras
-            $table->string('isbn')
+            // Código único - ISBN para libros (13 dígitos) o ISSN para revistas (8 dígitos)
+            $table->string('codigo_unico')
                 ->unique()
-                ->index();  // index para mejorar la busqueda
+                ->index();  // index para mejorar la búsqueda
 
             $table->string('titulo')
-                -> index();
+                ->index();
 
-            //contenido del libro
+            // contenido del libro con índice de texto completo para búsqueda
             $table->text('contenido')->nullable();
 
-            //seccion a la que pertenece el libro primaria o bachillerato
+            // seccion a la que pertenece el libro primaria o bachillerato
             $table->foreignId('seccion_id')->constrained('secciones')->onDelete('restrict');
 
-            //relacion con tabla autores
+            // relacion con tabla autores
             $table->foreignId('autor_id')->constrained('autores')->onDelete('restrict');
 
-            //relacion de coautores en la migracion coautores por si el libro tiene mas de un autor
-
-            //relacion con tabla editoriales
+            // relacion con tabla editoriales
             $table->foreignId('editorial_id')->constrained('editoriales')->onDelete('restrict');
             
-            
-            //coautores relacion con libros definida en la otra migracion
+            // Nuevo campo Áreas
+            $table->enum('area', ['CIENCIAS', 'MATEMATICAS', 'HUMANIDADES', 'IDIOMAS', 'TECNOLOGIA', 'OTRAS']);
 
-            //opciones para Clase de libro
-            $table->enum('clase', ['LIBRO','CARTILLA', 'CUENTO', 'DICCIONARIO', 'ENCICLOPEDIA', 'NOVELA','REVISTA'])->default('LIBRO');
+            // Clase de material - Solo LIBRO y REVISTA
+            $table->enum('clase', ['LIBRO', 'REVISTA'])->default('LIBRO');
 
-            //Numero de tomo
+            // Numero de tomo
             $table->integer('tomo')->nullable();
 
-            //edicion del libro
+            // edicion del libro
             $table->string('edicion')->nullable();
 
-            //numero de ejemplares en la tabla ejemplares 
-
-            //año de publicacion
+            // año de publicacion
             $table->year('anio')->nullable();
 
-            //fecha de ingreso
+            // fecha de ingreso
             $table->date('fecha_ingreso');
 
-
-            //precio de adquisicion
+            // precio de adquisicion
             $table->decimal('precio', 8, 2)->nullable();
 
-            //Idioma del libro
+            // Idioma del libro
             $table->enum('idioma', ['ESPANOL', 'INGLES', 'FRANCES','OTRO']);
 
-            //Edad recomendada para leer el libro
+            // Edad recomendada para leer el libro
             $table->integer('edad_recomendada')->nullable();
             
-            //numero de paginas
+            // numero de paginas
             $table->integer('paginas');
             
-            //relacion con tabla temas dewey
+            // relacion con tabla temas dewey
             $table->foreignId('tema_id')->constrained('temas_dewey')->onDelete('restrict');
            
-            //signatura topografica primera letra apellido numero consecutivo y primera letra del titulo del libro   
+            // signatura topografica primera letra apellido numero consecutivo y primera letra del titulo del libro   
             $table->string('sign_top')->nullable();
 
-            //estanteria donde se encuentra el libro (opcional)
+            // estanteria donde se encuentra el libro (opcional)
             $table->foreignId('estanteria_id')->nullable()->constrained('estanterias')->onDelete('set null');
-            
 
             $table->timestamps();
+
+            // Índice de texto completo para búsqueda eficiente por contenido
+            $table->fullText(['titulo', 'contenido']);
         });
     }
 

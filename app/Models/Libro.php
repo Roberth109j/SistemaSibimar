@@ -15,12 +15,13 @@ class Libro extends Model
     protected $table = 'libros';
 
     protected $fillable = [
-        'isbn',
+        'codigo_unico', // Cambio de 'isbn' a 'codigo_unico'
         'titulo',
         'contenido',
         'seccion_id',
         'autor_id',
         'editorial_id',
+        'area', // Nuevo campo
         'clase',
         'tomo',
         'edicion',
@@ -43,14 +44,17 @@ class Libro extends Model
         'tomo' => 'integer'
     ];
 
-    // Enums para las clases de libro
+    // Enums para las clases de material (solo LIBRO y REVISTA)
     const CLASE_LIBRO = 'LIBRO';
-    const CLASE_CARTILLA = 'CARTILLA';
-    const CLASE_CUENTO = 'CUENTO';
-    const CLASE_DICCIONARIO = 'DICCIONARIO';
-    const CLASE_ENCICLOPEDIA = 'ENCICLOPEDIA';
-    const CLASE_NOVELA = 'NOVELA';
     const CLASE_REVISTA = 'REVISTA';
+
+    // Enums para las áreas
+    const AREA_CIENCIAS = 'CIENCIAS';
+    const AREA_MATEMATICAS = 'MATEMATICAS';
+    const AREA_HUMANIDADES = 'HUMANIDADES';
+    const AREA_IDIOMAS = 'IDIOMAS';
+    const AREA_TECNOLOGIA = 'TECNOLOGIA';
+    const AREA_OTRAS = 'OTRAS';
 
     // Enums para idiomas
     const IDIOMA_ESPANOL = 'ESPANOL';
@@ -68,7 +72,6 @@ class Libro extends Model
     {
         return $this->belongsTo(Autor::class);
     }
-
 
     public function editorial(): BelongsTo
     {
@@ -110,5 +113,62 @@ class Libro extends Model
     public function scopePorClase($query, $clase)
     {
         return $query->where('clase', $clase);
+    }
+
+    public function scopePorArea($query, $area)
+    {
+        return $query->where('area', $area);
+    }
+
+    // Scope para búsqueda de texto completo
+    public function scopeSearchByContent($query, $searchTerm)
+    {
+        return $query->whereRaw(
+            "MATCH(titulo, contenido) AGAINST(? IN NATURAL LANGUAGE MODE)",
+            [$searchTerm]
+        );
+    }
+
+    // Métodos auxiliares para validación de códigos
+    public static function getCodigoValidationRule($clase)
+    {
+        if ($clase === self::CLASE_LIBRO) {
+            return 'regex:/^\d{13}$/'; // ISBN 13 dígitos
+        } elseif ($clase === self::CLASE_REVISTA) {
+            return 'regex:/^\d{8}$/'; // ISSN 8 dígitos
+        }
+        return 'required|string';
+    }
+
+    public static function getCodigoPlaceholder($clase)
+    {
+        if ($clase === self::CLASE_LIBRO) {
+            return 'Ej: 9780123456789 (13 dígitos)';
+        } elseif ($clase === self::CLASE_REVISTA) {
+            return 'Ej: 12345678 (8 dígitos)';
+        }
+        return 'Código único';
+    }
+
+    public static function getCodigoLabel($clase)
+    {
+        if ($clase === self::CLASE_LIBRO) {
+            return 'ISBN';
+        } elseif ($clase === self::CLASE_REVISTA) {
+            return 'ISSN';
+        }
+        return 'Código Único';
+    }
+
+    // Accessor para mantener compatibilidad con código existente que use 'isbn'
+    public function getIsbnAttribute()
+    {
+        return $this->codigo_unico;
+    }
+
+    // Mutator para mantener compatibilidad
+    public function setIsbnAttribute($value)
+    {
+        $this->attributes['codigo_unico'] = $value;
     }
 }

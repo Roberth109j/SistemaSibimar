@@ -1,5 +1,5 @@
 // components/libros/GeneralInfoSection.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookOpen, X } from 'lucide-react';
 import { router } from '@inertiajs/react';
 
@@ -9,6 +9,7 @@ interface GeneralInfoSectionProps {
   editoriales: any[];
   secciones: any[];
   clases: string[];
+  areas: string[]; // Nuevo prop
   idiomas: string[];
   estanterias: any[];
   onNext: () => void;
@@ -20,19 +21,35 @@ export default function GeneralInfoSection({
   editoriales,
   secciones,
   clases,
+  areas, // Nuevo prop
   idiomas,
   estanterias,
   onNext
 }: GeneralInfoSectionProps) {
   
+  // Estado para manejar el tipo de código según la clase seleccionada
+  const [codigoTipo, setCodigoTipo] = useState<'ISBN' | 'ISSN' | null>(null);
+
+  // Efecto para determinar el tipo de código según la clase
+  useEffect(() => {
+    if (form.data.clase === 'LIBRO') {
+      setCodigoTipo('ISBN');
+    } else if (form.data.clase === 'REVISTA') {
+      setCodigoTipo('ISSN');
+    } else {
+      setCodigoTipo(null);
+    }
+  }, [form.data.clase]);
+
   // Función para validar campos obligatorios de esta sección
   const validateSection = () => {
     const requiredFields = {
-      isbn: 'ISBN',
+      codigo_unico: 'Código único',
       titulo: 'Título',
       autor_id: 'Autor Principal',
       editorial_id: 'Editorial',
       seccion_id: 'Sección',
+      area: 'Área',
       clase: 'Clase',
       idioma: 'Idioma'
     };
@@ -45,9 +62,19 @@ export default function GeneralInfoSection({
       }
     }
 
-    // Validación específica para ISBN (debe tener 13 dígitos)
-    if (form.data.isbn && !/^\d{13}$/.test(form.data.isbn.replace(/[^0-9]/g, ''))) {
-      errors.push('ISBN debe tener exactamente 13 dígitos');
+    // Validación específica para código único según la clase
+    if (form.data.codigo_unico) {
+      if (form.data.clase === 'LIBRO') {
+        // ISBN debe tener 13 dígitos
+        if (!/^\d{13}$/.test(form.data.codigo_unico.replace(/[^0-9]/g, ''))) {
+          errors.push('ISBN debe tener exactamente 13 dígitos');
+        }
+      } else if (form.data.clase === 'REVISTA') {
+        // ISSN debe tener 8 dígitos
+        if (!/^\d{8}$/.test(form.data.codigo_unico.replace(/[^0-9]/g, ''))) {
+          errors.push('ISSN debe tener exactamente 8 dígitos');
+        }
+      }
     }
 
     return errors;
@@ -71,6 +98,40 @@ export default function GeneralInfoSection({
     if (confirm('¿Está seguro que desea cancelar? Se perderán todos los datos ingresados.')) {
       router.visit(route('libros.index'));
     }
+  };
+
+  // Función para manejar cambio de clase
+  const handleClaseChange = (value: string) => {
+    form.setData('clase', value);
+    // Limpiar el código único cuando cambie la clase
+    form.setData('codigo_unico', '');
+  };
+
+  // Función para manejar el cambio de código único
+  const handleCodigoChange = (value: string) => {
+    // Permitir solo números
+    const numericValue = value.replace(/[^0-9]/g, '');
+    form.setData('codigo_unico', numericValue);
+  };
+
+  // Función para obtener el placeholder del código según la clase
+  const getCodigoPlaceholder = () => {
+    if (form.data.clase === 'LIBRO') {
+      return '9780123456789 (13 dígitos)';
+    } else if (form.data.clase === 'REVISTA') {
+      return '12345678 (8 dígitos)';
+    }
+    return 'Seleccione primero una clase';
+  };
+
+  // Función para obtener el label del código según la clase
+  const getCodigoLabel = () => {
+    if (form.data.clase === 'LIBRO') {
+      return 'ISBN';
+    } else if (form.data.clase === 'REVISTA') {
+      return 'ISSN';
+    }
+    return 'Código Único';
   };
 
   // NUEVA FUNCIÓN: Manejo específico para estantería
@@ -106,28 +167,54 @@ export default function GeneralInfoSection({
       
       {/* Grid mejorado con mejor distribución */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {/* ISBN - Ancho completo en móvil, medio en tablet, tercio en desktop */}
-        {renderFormField('isbn', 'ISBN', true, 
+        {/* Clase - Primero para determinar el tipo de código */}
+        {renderFormField('clase', 'Tipo de Material', true, 
+          <select
+            id="clase"
+            value={form.data.clase}
+            onChange={e => handleClaseChange(e.target.value)}
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
+          >
+            <option value="">Seleccione el tipo</option>
+            {clases.map(clase => (
+              <option key={clase} value={clase}>
+                {clase}
+              </option>
+            ))}
+          </select>,
+          "col-span-1 md:col-span-1 xl:col-span-1"
+        )}
+
+        {/* Código Único - Dinámico según la clase */}
+        {renderFormField('codigo_unico', getCodigoLabel(), true, 
           <div className="relative rounded-md shadow-sm">
             <input
               type="text"
-              id="isbn"
-              value={form.data.isbn}
-              onChange={e => form.setData('isbn', e.target.value)}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
-              placeholder="9780123456789"
-              maxLength={13}
+              id="codigo_unico"
+              value={form.data.codigo_unico}
+              onChange={e => handleCodigoChange(e.target.value)}
+              disabled={!form.data.clase}
+              maxLength={form.data.clase === 'LIBRO' ? 13 : form.data.clase === 'REVISTA' ? 8 : undefined}
+              className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm ${
+                !form.data.clase ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : ''
+              }`}
+              placeholder={getCodigoPlaceholder()}
             />
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
               <span className="text-gray-400 text-xs">
-                13 dígitos
+                {form.data.clase === 'LIBRO' ? '13 dígitos' : form.data.clase === 'REVISTA' ? '8 dígitos' : ''}
               </span>
             </div>
+            {!form.data.clase && (
+              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                Primero seleccione el tipo de material
+              </p>
+            )}
           </div>,
           "col-span-1 md:col-span-1 xl:col-span-1"
         )}
         
-        {/* Título - Span de 2 columnas en desktop para darle más espacio */}
+        {/* Título - Span de 1 columna */}
         {renderFormField('titulo', 'Título', true, 
           <input
             type="text"
@@ -137,7 +224,7 @@ export default function GeneralInfoSection({
             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
             placeholder="Ingrese el título del libro"
           />,
-          "col-span-1 md:col-span-1 xl:col-span-2"
+          "col-span-1 md:col-span-1 xl:col-span-1"
         )}
         
         {/* Segunda fila - 3 campos con mejor distribución */}
@@ -197,18 +284,18 @@ export default function GeneralInfoSection({
         )}
         
         {/* Tercera fila - 3 campos */}
-        {/* Clase */}
-        {renderFormField('clase', 'Clase', true, 
+        {/* Área - Nuevo campo */}
+        {renderFormField('area', 'Área', true, 
           <select
-            id="clase"
-            value={form.data.clase}
-            onChange={e => form.setData('clase', e.target.value)}
+            id="area"
+            value={form.data.area}
+            onChange={e => form.setData('area', e.target.value)}
             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
           >
-            <option value="">Seleccione una clase</option>
-            {clases.map(clase => (
-              <option key={clase} value={clase}>
-                {clase}
+            <option value="">Seleccione un área</option>
+            {areas.map(area => (
+              <option key={area} value={area}>
+                {area}
               </option>
             ))}
           </select>,
@@ -269,6 +356,52 @@ export default function GeneralInfoSection({
           <p className="mt-1 text-sm text-red-600">{form.errors.contenido}</p>
         )}
       </div>
+
+      {/* Información sobre el código único */}
+      {form.data.clase && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <div className="flex items-center justify-center w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+                <span className="text-blue-600 dark:text-blue-400 font-bold text-sm">
+                  {form.data.clase === 'LIBRO' ? 'ISBN' : 'ISSN'}
+                </span>
+              </div>
+            </div>
+            <div className="ml-3">
+              <h4 className="text-base font-semibold text-blue-800 dark:text-blue-200 mb-2">
+                {form.data.clase === 'LIBRO' ? 'ISBN (International Standard Book Number)' : 'ISSN (International Standard Serial Number)'}
+              </h4>
+              <div className="text-blue-700 dark:text-blue-300 space-y-2">
+                <p className="text-sm">
+                  {form.data.clase === 'LIBRO' 
+                    ? 'Identificador único de 13 dígitos para libros'
+                    : 'Identificador único de 8 dígitos para publicaciones periódicas como revistas'
+                  }
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                    <span>Solo números permitidos</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                    <span>{form.data.clase === 'LIBRO' ? '13 dígitos exactos' : '8 dígitos exactos'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                    <span>Debe ser único en el sistema</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
+                    <span>Requerido para registro</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="flex justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
         <button
