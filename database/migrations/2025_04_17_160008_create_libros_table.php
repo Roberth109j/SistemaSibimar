@@ -31,14 +31,10 @@ return new class extends Migration
             //relacion con tabla autores
             $table->foreignId('autor_id')->constrained('autores')->onDelete('restrict');
 
-            //relacion de coautores en la migracion coautores por si el libro tiene mas de un autor
-
             //relacion con tabla editoriales
             $table->foreignId('editorial_id')->constrained('editoriales')->onDelete('restrict');
             
             
-            //coautores relacion con libros definida en la otra migracion
-
             //opciones para Clase de libro
             $table->enum('clase', ['LIBRO','CARTILLA', 'CUENTO', 'DICCIONARIO', 'ENCICLOPEDIA', 'NOVELA','REVISTA'])->default('LIBRO');
 

@@ -5,7 +5,6 @@ use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 use App\Http\Controllers\AutorController;
-use App\Http\Controllers\CoautorController;
 use App\Http\Controllers\EditorialController;
 use App\Http\Controllers\EstanteriaController;
 use App\Http\Controllers\LibroController;
@@ -18,7 +17,7 @@ use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InformeController;
 use App\Http\Controllers\InventarioController;
-use App\Http\Controllers\ExcelTestController;
+use App\Http\Controllers\BuscadorController;
 
 // Ruta para refrescar el token CSRF
 Route::get('/csrf-refresh', function () {
@@ -35,6 +34,8 @@ Route::get('/csrf-refresh', function () {
 Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
+
+Route::get('/buscador', [BuscadorController::class, 'index'])->name('buscar');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -179,6 +180,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('inventario', [InventarioController::class, 'index'])->name('inventario.index');
     Route::get('/inventario/exportar', [InventarioController::class, 'exportarExcel'])
         ->name('inventario.exportar');
+
 });
 
 require __DIR__ . '/settings.php';

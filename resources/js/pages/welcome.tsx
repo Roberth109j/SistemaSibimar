@@ -1,97 +1,48 @@
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 
 export default function Welcome() {
     const { auth } = usePage<SharedData>().props;
-    const [isDarkMode, setIsDarkMode] = useState(false);
-    
-    // Agregar animación onload con JavaScript
+
+    // Animaciones onload
     useEffect(() => {
-        // Verificar preferencias de tema
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) {
-            setIsDarkMode(savedTheme === 'dark');
-            document.documentElement.classList.toggle('dark', savedTheme === 'dark');
-        } else {
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            setIsDarkMode(prefersDark);
-            document.documentElement.classList.toggle('dark', prefersDark);
-        }
-        
-        // Agregar keyframes y estilos de animación
         const styleSheet = document.createElement("style");
         styleSheet.innerHTML = `
-            @keyframes pulse-glow {
-                0% { transform: scale(1); filter: brightness(1); }
-                50% { transform: scale(1.08); filter: brightness(1.2) contrast(1.1); }
-                100% { transform: scale(1); filter: brightness(1); }
-            }
-            
             .img-hover-container:hover .img-hover-effect {
-                animation: pulse-glow 2s ease-in-out;
                 transform: scale(1.08);
                 filter: brightness(1.2) contrast(1.1);
                 box-shadow: 0 0 20px rgba(10, 47, 108, 0.5);
             }
-            
+
             .img-hover-effect {
-                transition: transform 0.5s ease, filter 0.5s ease, box-shadow 0.5s ease;
+                transition: transform 0.6s ease, filter 0.6s ease, box-shadow 0.6s ease;
             }
-            
-            /* Animaciones para header y footer - más pronunciadas */
+
             @keyframes slideInDown {
-                from {
-                    transform: translateY(-100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateY(0);
-                    opacity: 1;
-                }
+                from { transform: translateY(-100%); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
             }
-            
+
             @keyframes slideInUp {
-                from {
-                    transform: translateY(100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateY(0);
-                    opacity: 1;
-                }
+                from { transform: translateY(100%); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
             }
-            
+
             @keyframes fadeIn {
-                from {
-                    opacity: 0;
-                }
-                to {
-                    opacity: 1;
-                }
+                from { opacity: 0; }
+                to { opacity: 1; }
             }
-            
-            /* Aplicar animaciones cuando se carga el DOM */
-            .header-animation {
-                animation: slideInDown 1.2s ease-out forwards;
-            }
-            
-            .footer-animation {
-                animation: slideInUp 1.2s ease-out forwards;
-            }
-            
-            .contact-animation {
-                opacity: 0;
-                animation: fadeIn 1s ease-out forwards;
-            }
+
+            .header-animation { animation: slideInDown 1.2s ease-out forwards; }
+            .footer-animation { animation: slideInUp 1.2s ease-out forwards; }
+            .contact-animation { opacity: 0; animation: fadeIn 1s ease-out forwards; }
         `;
         document.head.appendChild(styleSheet);
-        
-        // Añadir script para iniciar animaciones después de que la página cargue
+
         const animationScript = document.createElement("script");
         animationScript.innerHTML = `
             window.addEventListener('load', function() {
-                // Asegurarse de que las animaciones se ejecuten después de que todo esté cargado
                 setTimeout(function() {
                     const header = document.querySelector('.header-animation');
                     const footer = document.querySelector('.footer-animation');
@@ -108,7 +59,7 @@ export default function Welcome() {
             });
         `;
         document.head.appendChild(animationScript);
-        
+
         return () => {
             document.head.removeChild(styleSheet);
             if (document.head.contains(animationScript)) {
@@ -117,34 +68,19 @@ export default function Welcome() {
         };
     }, []);
 
-    // Manejar cambio de tema
-    const toggleDarkMode = () => {
-        const newMode = !isDarkMode;
-        setIsDarkMode(newMode);
-        document.documentElement.classList.toggle('dark', newMode);
-        localStorage.setItem('theme', newMode ? 'dark' : 'light');
-    };
-
     return (
         <>
             <Head title="Biblioteca Madre Caridad">
                 <link rel="preconnect" href="https://fonts.bunny.net" />
                 <link href="https://fonts.bunny.net/css?family=outfit:300,400,500,600,700|montserrat:400,500,600,700&display=swap" rel="stylesheet" />
             </Head>
-            <div className="min-h-screen overflow-hidden flex flex-col bg-gradient-to-br from-slate-50 to-white text-gray-800 transition-colors duration-300 dark:from-gray-900 dark:to-gray-800 dark:text-gray-100 font-['Montserrat',sans-serif] relative">
-                {/* Elementos decorativos de fondo */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
-                    <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
-                    <div className="hidden md:block absolute top-1/2 right-1/3 w-16 h-16 bg-blue-500/10 rounded-full dark:bg-blue-400/10"></div>
-                    <div className="hidden md:block absolute bottom-1/3 left-1/4 w-8 h-8 bg-indigo-500/20 rounded-full dark:bg-indigo-400/20"></div>
-                </div>
+            <div className="min-h-screen overflow-hidden flex flex-col bg-gradient-to-br from-slate-50 to-white text-gray-800 font-['Montserrat',sans-serif] relative">
                 {/* Header */}
-                <header className="bg-[#0a2f6c] sticky top-0 z-50 shadow-md py-0.5 dark:bg-gray-800 header-animation">
+                <header className="bg-[#0a2f6c] sticky top-0 z-50 shadow-md py-0.5 header-animation">
                     <div className="container mx-auto px-4">
                         <nav className="flex items-center justify-between">
                             <div className="flex items-center">
-                                {/* Logo mucho más grande tipo banner */}
+                                {/* Logo tipo banner */}
                                 <div className="w-72 h-24 relative">
                                     <img 
                                         src="https://franciscanaspasto.edu.co/wp-content/uploads/2024/03/logo.png" 
@@ -153,22 +89,15 @@ export default function Welcome() {
                                     />
                                 </div>
                             </div>
+                            
                             <div className="flex items-center space-x-4">
-                                <button
-                                    onClick={toggleDarkMode}
-                                    className="p-2 rounded-full bg-blue-800/80 text-white hover:bg-blue-700/80 transition-colors duration-300"
-                                    aria-label="Cambiar tema"
+
+                               <Link
+                                    href={route('buscar')}
+                                    className="rounded-lg bg-white text-blue-900 px-5 py-2 text-sm font-medium transition-all hover:translate-y-[-2px] hover:shadow-lg"
                                 >
-                                    {isDarkMode ? (
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                                        </svg>
-                                    ) : (
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                                        </svg>
-                                    )}
-                                </button>
+                                    Buscar Material
+                                </Link>
                                 {auth.user ? (
                                     <Link
                                         href={route('dashboard')}
@@ -324,7 +253,7 @@ export default function Welcome() {
                                     </svg>
                                     <div className="text-center md:text-left">
                                         <p className="text-white text-sm">liceo.merced@franciscanaspasto.edu.co</p>
-                                        <p className="text-white text-sm">maridiaz_3@hotmail.com</p>
+                                        
                                     </div>
                                 </div>
                             </div>
