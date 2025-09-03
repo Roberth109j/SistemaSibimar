@@ -223,6 +223,7 @@ export default function Create({
                   clases={clases}
                   idiomas={idiomas}
                   estanterias={estanterias}
+                  seccionId={seccionId}
                   onNext={() => setActiveSection('clasificacion')}
                 />
               )}

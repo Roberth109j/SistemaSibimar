@@ -11,6 +11,7 @@ interface GeneralInfoSectionProps {
   clases: string[];
   idiomas: string[];
   estanterias: any[];
+  seccionId?: number | null;
   onNext: () => void;
 }
 
@@ -22,6 +23,7 @@ export default function GeneralInfoSection({
   clases,
   idiomas,
   estanterias,
+  seccionId = null,
   onNext
 }: GeneralInfoSectionProps) {
   
@@ -183,10 +185,12 @@ export default function GeneralInfoSection({
             id="seccion_id"
             value={form.data.seccion_id}
             onChange={e => form.setData('seccion_id', e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-800"
-            disabled={true}
+            className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm ${
+              seccionId !== null ? 'bg-gray-100 dark:bg-gray-800' : ''
+            }`}
+            disabled={seccionId !== null}
           >
-            <option value="">Sección asignada automáticamente</option>
+            <option value="">{seccionId !== null ? 'Sección asignada automáticamente' : 'Seleccione una sección'}</option>
             {secciones.map(seccion => (
               <option key={seccion.id} value={seccion.id}>
                 {seccion.nombre}

@@ -8,11 +8,11 @@ type CreateModalProps = {
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
   errors?: Record<string, string>;
-  secciones?: Array<{ id: number; nombre: string }>;
+  all_secciones?: Array<{ id: number; nombre: string }>;
   seccionId?: number | null;
 };
 
-export default function CreateGrado({ onSuccess, onError, errors = {}, secciones = [], seccionId = null }: CreateModalProps) {
+export default function CreateGrado({ onSuccess, onError, errors = {}, all_secciones = [], seccionId = null }: CreateModalProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const { data, setData, post, processing, reset, errors: formErrors, setError, clearErrors } = useForm({
@@ -88,10 +88,10 @@ export default function CreateGrado({ onSuccess, onError, errors = {}, secciones
       required: true,
       value: data.seccion_id,
       onChange: handleChange,
-      disabled: true, // Bloquear la edición de la sección
+      disabled: seccionId !== null,
       options: [
         { value: '', label: 'Seleccione una sección' },
-        ...secciones.map(seccion => ({
+        ...all_secciones.map(seccion => ({
           value: String(seccion.id),
           label: seccion.nombre
         }))

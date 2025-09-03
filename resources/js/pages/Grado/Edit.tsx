@@ -10,7 +10,8 @@ type EditModalProps = {
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
   errors?: Record<string, string>;
-  secciones?: Array<{ id: number; nombre: string }>;
+  all_secciones?: Array<{ id: number; nombre: string }>;
+  seccionId?: number | null;
 };
 
 type FieldConfig = {
@@ -22,9 +23,10 @@ type FieldConfig = {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   options?: { value: string; label: string }[];
+  disabled?: boolean;
 };
 
-export default function EditGrado({ grado, onSuccess, onError, errors = {}, secciones = [] }: EditModalProps) {
+export default function EditGrado({ grado, onSuccess, onError, errors = {}, all_secciones = [], seccionId = null }: EditModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -139,10 +141,10 @@ export default function EditGrado({ grado, onSuccess, onError, errors = {}, secc
       required: true,
       value: data.seccion_id,
       onChange: handleChange,
-      // Removed disabled property since it's not defined in FieldConfig type
+      disabled: seccionId !== null,
       options: [
         { value: '', label: 'Seleccione una sección' },
-        ...secciones.map(seccion => ({
+        ...all_secciones.map(seccion => ({
           value: String(seccion.id),
           label: seccion.nombre
         }))

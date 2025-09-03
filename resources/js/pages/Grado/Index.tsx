@@ -367,7 +367,7 @@ const Index = ({
               onSuccess={(message) => showAlert('success', message)}
               onError={(message) => showAlert('error', message)}
               errors={errors}
-              secciones={all_secciones}
+              all_secciones={all_secciones}
               seccionId={seccionId}
             />
           </div>
@@ -519,7 +519,8 @@ const Index = ({
                             onSuccess={(message) => showAlert('success', message)}
                             onError={(message) => showAlert('error', message)}
                             errors={errors}
-                            secciones={all_secciones}
+                            all_secciones={all_secciones}
+                            seccionId={seccionId}
                           />
                         </div>
                       </td>
