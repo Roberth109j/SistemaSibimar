@@ -76,6 +76,9 @@ class DashboardController extends Controller
                 ];
             });
 
+        // Contar ejemplares marcados como reposición (independientemente del estado)
+        $librosReposicion = Ejemplar::where('tipo_adquisicion', 'REPOSICION')->count();
+
         // Obtener estadísticas generales del año actual
         $estadisticasGenerales = [
             'total_prestamos' => Prestamo::whereBetween('fecha_prestamo', [$yearStart, $yearEnd])->count(),
@@ -85,6 +88,7 @@ class DashboardController extends Controller
             'prestamos_vencidos' => Prestamo::where('estado', Prestamo::ESTADO_VENCIDO)
                 ->whereBetween('fecha_prestamo', [$yearStart, $yearEnd])
                 ->count(),
+            'libros_reposicion' => $librosReposicion,
             'total_libros' => Libro::count(),
             'total_lectores' => Lector::count(),
             'total_ejemplares' => Ejemplar::count(),
