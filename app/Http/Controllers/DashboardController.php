@@ -110,54 +110,20 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Obtener estadísticas generales del año actual (filtrado por sección si aplica)
-        $prestamosQuery = Prestamo::join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
-            ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
-            ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd]);
-            
-        if ($seccionId) {
-            $prestamosQuery->where('grados.seccion_id', $seccionId);
-        }
-        
-        $prestamosActivosQuery = Prestamo::join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
-            ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
-            ->where('prestamos.estado', Prestamo::ESTADO_ACTIVO)
-            ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd]);
-            
-        if ($seccionId) {
-            $prestamosActivosQuery->where('grados.seccion_id', $seccionId);
-        }
-        
-        $prestamosVencidosQuery = Prestamo::join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
-            ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
-            ->where('prestamos.estado', Prestamo::ESTADO_VENCIDO)
-            ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd]);
-            
-        if ($seccionId) {
-            $prestamosVencidosQuery->where('grados.seccion_id', $seccionId);
-        }
-        
-        $lectoresQuery = Lector::leftJoin('grados', 'lectores.grado_id', '=', 'grados.id');
-        $docentesQuery = Lector::leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
-            ->where('lectores.tipo', 'DOCENTE');
-        $estudiantesQuery = Lector::leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
-            ->where('lectores.tipo', 'ESTUDIANTE');
-            
-        if ($seccionId) {
-            $lectoresQuery->where('grados.seccion_id', $seccionId);
-            $docentesQuery->where('grados.seccion_id', $seccionId);
-            $estudiantesQuery->where('grados.seccion_id', $seccionId);
-        }
-        
+        // Obtener estadísticas generales del año actual
         $estadisticasGenerales = [
-            'total_prestamos' => $prestamosQuery->count(),
-            'prestamos_activos' => $prestamosActivosQuery->count(),
-            'prestamos_vencidos' => $prestamosVencidosQuery->count(),
-            'total_libros' => Libro::count(), // Los libros no se filtran por sección
-            'total_lectores' => $lectoresQuery->count(),
-            'total_ejemplares' => Ejemplar::count(), // Los ejemplares no se filtran por sección
-            'total_docentes' => $docentesQuery->count(),
-            'total_estudiantes' => $estudiantesQuery->count(),
+            'total_prestamos' => Prestamo::whereBetween('fecha_prestamo', [$yearStart, $yearEnd])->count(),
+            'prestamos_activos' => Prestamo::where('estado', Prestamo::ESTADO_ACTIVO)
+                ->whereBetween('fecha_prestamo', [$yearStart, $yearEnd])
+                ->count(),
+            'prestamos_vencidos' => Prestamo::where('estado', Prestamo::ESTADO_VENCIDO)
+                ->whereBetween('fecha_prestamo', [$yearStart, $yearEnd])
+                ->count(),
+            'total_libros' => Libro::count(),
+            'total_lectores' => Lector::count(),
+            'total_ejemplares' => Ejemplar::count(),
+            'total_docentes' => Lector::where('tipo', 'DOCENTE')->count(),
+            'total_estudiantes' => Lector::where('tipo', 'ESTUDIANTE')->count(),
         ];
 
         // Obtener datos para el gráfico de préstamos por mes del año actual (filtrado por sección si aplica)
