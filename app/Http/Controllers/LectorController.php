@@ -118,9 +118,26 @@ class LectorController extends Controller
      */
     public function create(): Response
     {
-        $grados = Grado::select('id', 'grado', 'subGrado')
+        // Filtrar grados según el rol del usuario
+        $user = request()->user();
+        $gradosQuery = Grado::select('id', 'grado', 'subGrado')
             ->where('estado', 'ACTIVO')
-            ->orderBy('grado')
+            ->with('seccion');
+        
+        if ($user->hasRole('BibliotecarioPrimaria')) {
+            $seccion = \App\Models\Seccion::where('nombre', 'PRIMARIA')->first();
+            if ($seccion) {
+                $gradosQuery->where('seccion_id', $seccion->id);
+            }
+        } elseif ($user->hasRole('BibliotecarioBachillerato')) {
+            $seccion = \App\Models\Seccion::where('nombre', 'BACHILLERATO')->first();
+            if ($seccion) {
+                $gradosQuery->where('seccion_id', $seccion->id);
+            }
+        }
+        // Los administradores pueden ver todos los grados
+        
+        $grados = $gradosQuery->orderBy('grado')
             ->orderBy('subGrado')
             ->get();
 
@@ -192,9 +209,26 @@ class LectorController extends Controller
      */
     public function edit(Lector $lector): Response
     {
-        $grados = Grado::select('id', 'grado', 'subGrado')
+        // Filtrar grados según el rol del usuario
+        $user = request()->user();
+        $gradosQuery = Grado::select('id', 'grado', 'subGrado')
             ->where('estado', 'ACTIVO')
-            ->orderBy('grado')
+            ->with('seccion');
+        
+        if ($user->hasRole('BibliotecarioPrimaria')) {
+            $seccion = \App\Models\Seccion::where('nombre', 'PRIMARIA')->first();
+            if ($seccion) {
+                $gradosQuery->where('seccion_id', $seccion->id);
+            }
+        } elseif ($user->hasRole('BibliotecarioBachillerato')) {
+            $seccion = \App\Models\Seccion::where('nombre', 'BACHILLERATO')->first();
+            if ($seccion) {
+                $gradosQuery->where('seccion_id', $seccion->id);
+            }
+        }
+        // Los administradores pueden ver todos los grados
+        
+        $grados = $gradosQuery->orderBy('grado')
             ->orderBy('subGrado')
             ->get();
 
