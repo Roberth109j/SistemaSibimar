@@ -17,7 +17,10 @@ use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InformeController;
 use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\ExcelTestController;
+use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\BuscadorController;
+
 
 // Ruta para refrescar el token CSRF
 Route::get('/csrf-refresh', function () {
@@ -183,6 +186,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/inventario/exportar', [InventarioController::class, 'exportarExcel'])
         ->name('inventario.exportar');
 
+
+    Route::middleware('role:Administrador')->group(function () {
+        Route::get('usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
+        Route::post('usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
+        Route::get('usuarios/{usuario}', [UsuarioController::class, 'show'])->name('usuarios.show');
+        Route::put('usuarios/{usuario}', [UsuarioController::class, 'update'])->name('usuarios.update');
+        Route::patch('usuarios/{usuario}', [UsuarioController::class, 'update']);
+        Route::delete('usuarios/{usuario}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
+    });
 });
 
 require __DIR__ . '/settings.php';
