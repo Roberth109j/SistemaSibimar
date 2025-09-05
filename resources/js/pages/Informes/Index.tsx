@@ -174,7 +174,6 @@ export default function Index({ auth, flash }: InformesProps) {
     setCargando(true);
 
     const datos = {
-      _token: getCSRFToken(),
       fecha_inicio: fechaInicio,
       fecha_fin: fechaFin,
       periodo: tipoPeriodo !== 'personalizado' ? tipoPeriodo : null,
@@ -183,15 +182,16 @@ export default function Index({ auth, flash }: InformesProps) {
 
     console.log('Vista previa - Datos enviados:', datos);
 
-    // Usar router.post con método explícito
+    // Usar router.visit con método POST para mejor manejo de CSRF
     const url = tipoInforme === 'prestamos-realizados' 
       ? '/informes/prestamos-realizados'
       : '/informes/libros-no-devueltos';
 
-    router.post(url, datos, {
+    router.visit(url, {
+      method: 'post',
+      data: datos,
       preserveScroll: false,
       preserveState: false,
-      forceFormData: true,
       onStart: () => {
         console.log('Iniciando petición POST para vista previa');
       },
@@ -204,20 +204,13 @@ export default function Index({ auth, flash }: InformesProps) {
         console.error('Error en vista previa:', errors);
         
         // Manejar errores específicos
-        if (errors.message && errors.message.includes('419')) {
-          setAlerts(prev => ({ 
-            ...prev, 
-            error: 'Sesión expirada. Recargue la página e intente nuevamente.' 
-          }));
-        } else {
-          const errorMessage = typeof errors === 'object' 
-            ? Object.values(errors).flat().join(', ')
-            : 'Error al generar la vista previa';
-          setAlerts(prev => ({ 
-            ...prev, 
-            error: errorMessage
-          }));
-        }
+        const errorMessage = typeof errors === 'object' 
+          ? Object.values(errors).flat().join(', ')
+          : 'Error al generar la vista previa';
+        setAlerts(prev => ({ 
+          ...prev, 
+          error: errorMessage
+        }));
       },
       onFinish: () => {
         setCargando(false);

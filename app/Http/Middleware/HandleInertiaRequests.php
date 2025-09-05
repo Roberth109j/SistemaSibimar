@@ -38,7 +38,9 @@ class HandleInertiaRequests extends Middleware
         return array_merge(parent::share($request), [
             'auth' => [
                 'user' => $user ? array_merge($user->toArray(), [
-                    'roles' => $user->getRoleNames(),
+                    'roles' => $user->load('roles')->roles->map(function($role) {
+                        return ['name' => $role->name, 'id' => $role->id, 'guard_name' => $role->guard_name];
+                    }),
                 ]) : null,
             ],
             // Compartir los mensajes flash con todos los componentes

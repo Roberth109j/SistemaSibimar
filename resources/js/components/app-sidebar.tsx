@@ -1,12 +1,12 @@
 import { NavFooter } from '@/components/nav-footer';
 import { NavUser } from '@/components/nav-user';
-import { 
-    Sidebar, 
-    SidebarContent, 
-    SidebarFooter, 
-    SidebarHeader, 
-    SidebarMenu, 
-    SidebarMenuButton, 
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
     SidebarMenuItem,
     SidebarMenuSub,
     SidebarMenuSubButton,
@@ -15,12 +15,12 @@ import {
     SidebarGroupContent,
     useSidebar
 } from '@/components/ui/sidebar';
-import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/react';
-import { 
-    BookOpen, 
-    LayoutGrid, 
-    BookUser, 
+import { type NavItem, type SharedData } from '@/types';
+import { Link, usePage } from '@inertiajs/react';
+import {
+    BookOpen,
+    LayoutGrid,
+    BookUser,
     NotebookPen,
     Navigation,
     GraduationCap,
@@ -100,26 +100,36 @@ const mainNavItems: NavItem[] = [
         href: '/inventario',
         icon: NotebookTabs,
     },
+    {
+        title: 'Administrar Usuarios',
+        href: '/usuarios',
+        icon: UsersRound,
+    }
+
 ];
 
 const footerNavItems: NavItem[] = [];
 
 export function AppSidebar() {
+    const { auth } = usePage<SharedData>().props;
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
     const sidebarRef = useRef<HTMLDivElement>(null);
     const { setOpen } = useSidebar();
+
+    // Verificar si el usuario tiene rol de administrador
+    const isAdmin = Array.isArray(auth.user.roles) ? auth.user.roles.some(role => role.name === 'Administrador') : false;
 
     // Optimizar con useCallback para evitar re-renders innecesarios
     const toggleSection = useCallback((sectionKey: string) => {
         // Expandir sidebar primero (más eficiente)
         setOpen(true);
-        
+
         // Luego actualizar las secciones
         setOpenSections(prev => ({
             ...prev,
             [sectionKey]: !prev[sectionKey]
         }));
-        
+
         // Fallback optimizado con requestAnimationFrame para mejor performance
         if (sidebarRef.current?.classList.contains('collapsed')) {
             requestAnimationFrame(() => {
@@ -137,22 +147,23 @@ export function AppSidebar() {
 
     // Memorizar los items filtrados para evitar recálculos
     const dashboardItem = mainNavItems.find(item => item.title === 'Dashboard')!;
-    const gestionItems = mainNavItems.filter(item => 
+    const gestionItems = mainNavItems.filter(item =>
         ['Autores', 'Estanterias', 'Editoriales', 'Grados'].includes(item.title)
     );
     const librosItem = mainNavItems.find(item => item.title === 'Libros')!;
     const lectoresItem = mainNavItems.find(item => item.title === 'Lectores')!;
-    const prestamosItems = mainNavItems.filter(item => 
+    const prestamosItems = mainNavItems.filter(item =>
         ['Prestamos', 'Devoluciones', 'Historial de préstamos'].includes(item.title)
     );
     const informesItem = mainNavItems.find(item => item.title === 'Generación de Informes')!;
     const inventarioItem = mainNavItems.find(item => item.title === 'Inventario')!;
+    const usuariosItem = mainNavItems.find(item => item.title === 'Administrar Usuarios')!;
 
     return (
-        <Sidebar 
-            ref={sidebarRef} 
-            collapsible="icon" 
-            variant="inset" 
+        <Sidebar
+            ref={sidebarRef}
+            collapsible="icon"
+            variant="inset"
             className="transition-all duration-200 ease-out"
         >
             <SidebarHeader>
@@ -166,7 +177,7 @@ export function AppSidebar() {
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>
-            
+
             <SidebarContent>
                 <SidebarGroup>
                     <SidebarGroupContent>
@@ -183,16 +194,15 @@ export function AppSidebar() {
 
                             {/* Gestión General - Autores, Estanterías, Editoriales, Grados */}
                             <SidebarMenuItem>
-                                <SidebarMenuButton 
+                                <SidebarMenuButton
                                     onClick={() => toggleSection('gestion')}
                                     className="w-full justify-start [&>svg:last-child]:ml-auto cursor-pointer transition-colors duration-150"
                                 >
                                     <Folder className="h-5 w-5" />
                                     <span>Gestión General</span>
-                                    <ChevronDown 
-                                        className={`h-4 w-4 transition-transform duration-200 ease-out ${
-                                            openSections.gestion ? 'rotate-180' : ''
-                                        }`} 
+                                    <ChevronDown
+                                        className={`h-4 w-4 transition-transform duration-200 ease-out ${openSections.gestion ? 'rotate-180' : ''
+                                            }`}
                                     />
                                 </SidebarMenuButton>
                                 {openSections.gestion && (
@@ -216,16 +226,15 @@ export function AppSidebar() {
 
                             {/* Operaciones de Préstamos */}
                             <SidebarMenuItem>
-                                <SidebarMenuButton 
+                                <SidebarMenuButton
                                     onClick={() => toggleSection('prestamos')}
                                     className="w-full justify-start [&>svg:last-child]:ml-auto cursor-pointer transition-colors duration-150"
                                 >
                                     <ArrowRightLeft className="h-5 w-5" />
                                     <span>Gestión de Préstamos</span>
-                                    <ChevronDown 
-                                        className={`h-4 w-4 transition-transform duration-200 ease-out ${
-                                            openSections.prestamos ? 'rotate-180' : ''
-                                        }`} 
+                                    <ChevronDown
+                                        className={`h-4 w-4 transition-transform duration-200 ease-out ${openSections.prestamos ? 'rotate-180' : ''
+                                            }`}
                                     />
                                 </SidebarMenuButton>
                                 {openSections.prestamos && (
@@ -277,7 +286,7 @@ export function AppSidebar() {
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                             {/* Inventario - Individual */}
-                            
+
                             {/* Generación de Informes - Individual */}
                             <SidebarMenuItem>
                                 <SidebarMenuButton asChild>
@@ -287,11 +296,22 @@ export function AppSidebar() {
                                     </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
+                            {/* Administrar Usuarios - Solo para administradores */}
+                            {isAdmin && (
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton asChild>
+                                        <Link href={usuariosItem.href!}>
+                                            {usuariosItem.icon && <usuariosItem.icon className="h-5 w-5" />}
+                                            <span>{usuariosItem.title}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            )}
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
-            
+
             <SidebarFooter>
                 <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
