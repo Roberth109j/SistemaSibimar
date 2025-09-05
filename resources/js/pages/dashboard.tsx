@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     BookOpen, Users, BookMarked, AlertCircle, UserCheck, Clock, CheckCircle,
     TrendingUp, Calendar, Star, GraduationCap, User, Award, BarChart3,
-    PieChart, Activity, BookText, Users2, AlertTriangle, TrendingDown
+    PieChart, Activity, BookText, Users2, AlertTriangle, TrendingDown, RefreshCw
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -50,6 +50,7 @@ interface DashboardProps {
         total_prestamos: number;
         prestamos_activos: number;
         prestamos_vencidos: number;
+        libros_reposicion: number;
         total_libros: number;
         total_lectores: number;
         total_ejemplares: number;
@@ -313,7 +314,15 @@ export default function Dashboard({
                             <StatCard title="Total Préstamos" value={estadisticasGenerales.total_prestamos} icon={BookOpen} trend={false} colorClass="bg-blue-600" description={`Año ${yearCurrent}`} />
                             <StatCard title="Préstamos Activos" value={estadisticasGenerales.prestamos_activos} icon={BookMarked} trend={false} colorClass="bg-emerald-600" />
                             <StatCard title="Préstamos Vencidos" value={estadisticasGenerales.prestamos_vencidos} icon={AlertTriangle} trend={false} colorClass="bg-rose-600" />
-                            <StatCard title="Tasa Devolución" value={`${tasaDevolucionTiempo}%`} icon={CheckCircle} trend={tasaDevolucionTiempo > 80} trendValue={tasaDevolucionTiempo > 80 ? "Excelente" : "Mejorable"} colorClass="bg-indigo-600" />
+                            <StatCard 
+                                title="Libros Reposición" 
+                                value={estadisticasGenerales.libros_reposicion} 
+                                icon={RefreshCw} 
+                                trend={estadisticasGenerales.libros_reposicion === 0} 
+                                trendValue={estadisticasGenerales.libros_reposicion === 0 ? "Perfecto" : "Requiere atención"} 
+                                colorClass="bg-orange-600" 
+                                description="Requieren reposición"
+                            />
                         </div>
 
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

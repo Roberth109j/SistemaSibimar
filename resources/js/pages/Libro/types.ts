@@ -84,13 +84,15 @@ export interface TemaDewey {
 
 export interface Libro {
   id: number;
-  isbn: string;
+  codigo_unico: string; // Cambio de 'isbn' a 'codigo_unico'
+  isbn?: string; // Mantener para compatibilidad con código existente
   titulo: string;
   contenido?: string;
   seccion_id: number;
   autor_id: number;
   editorial_id: number;
-  clase: string;
+  area: string; // Nuevo campo obligatorio
+  clase: string; // Solo 'LIBRO' o 'REVISTA'
   tomo?: number;
   edicion?: string;
   anio?: number;
@@ -140,11 +142,13 @@ export interface LaravelPagination<T> {
 // Interfaz para las props de la página de índice de libros
 export interface LibroPageProps extends InertiaPageProps {
   libros: LaravelPagination<Libro>;
-  clases: string[];
+  clases: string[]; // Solo ['LIBRO', 'REVISTA']
+  areas: string[]; // Nuevo campo: ['CIENCIAS', 'MATEMATICAS', 'HUMANIDADES', 'IDIOMAS', 'TECNOLOGIA', 'OTRAS']
   idiomas: string[];
   filters?: {
     search?: string;
     clase?: string;
+    area?: string; // Nuevo filtro
     idioma?: string;
     estanteria?: string;
   };
@@ -166,7 +170,8 @@ export interface EditLibroPageProps extends InertiaPageProps {
   categoriasDewey: CategoriaDewey[];
   subcategoriasDewey: SubcategoriaDewey[];
   temasDewey: TemaDewey[];
-  clases: string[];
+  clases: string[]; // Solo ['LIBRO', 'REVISTA']
+  areas: string[]; // Nuevo campo
   idiomas: string[];
   seccionId?: number | null; // ID de la sección predeterminada según el rol del usuario
   success?: string;

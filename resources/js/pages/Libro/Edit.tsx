@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
@@ -116,6 +115,7 @@ export default function Edit({
   subcategoriasDewey = [],
   temasDewey = [],
   clases = [],
+  areas = [], // Nuevo prop
   idiomas = [],
   seccionId = null,
   flash,
@@ -144,13 +144,17 @@ export default function Edit({
     libro.tema_dewey?.subcategoria?.id?.toString() || ''
   );
 
+  // Estado para manejar el tipo de código según la clase seleccionada
+  const [codigoTipo, setCodigoTipo] = useState<'ISBN' | 'ISSN' | null>(null);
+
   const { data, setData, put, processing, errors: formErrors, wasSuccessful, recentlySuccessful } = useForm({
-    isbn: libro.isbn || '',
+    codigo_unico: libro.codigo_unico || libro.isbn || '', // Compatibilidad con código existente
     titulo: libro.titulo || '',
     contenido: libro.contenido || '',
     seccion_id: libro.seccion_id?.toString() || '',
     autor_id: libro.autor_id?.toString() || '',
     editorial_id: libro.editorial_id?.toString() || '',
+    area: libro.area || '', // Nuevo campo
     clase: libro.clase || '',
     tomo: libro.tomo?.toString() || '',
     edicion: libro.edicion || '',
@@ -164,6 +168,17 @@ export default function Edit({
     sign_top: libro.sign_top || '',
     estanteria_id: libro.estanteria_id?.toString() || ''
   });
+
+  // Efecto para determinar el tipo de código según la clase
+  useEffect(() => {
+    if (data.clase === 'LIBRO') {
+      setCodigoTipo('ISBN');
+    } else if (data.clase === 'REVISTA') {
+      setCodigoTipo('ISSN');
+    } else {
+      setCodigoTipo(null);
+    }
+  }, [data.clase]);
 
   // Efecto para manejar los mensajes flash
   useEffect(() => {
@@ -259,6 +274,33 @@ export default function Edit({
     }
   };
 
+  // Función para manejar cambio de código único
+  const handleCodigoChange = (value: string) => {
+    // Permitir solo números
+    const numericValue = value.replace(/[^0-9]/g, '');
+    setData('codigo_unico', numericValue);
+  };
+
+  // Función para obtener el placeholder del código según la clase
+  const getCodigoPlaceholder = () => {
+    if (data.clase === 'LIBRO') {
+      return '9780123456789 (13 dígitos)';
+    } else if (data.clase === 'REVISTA') {
+      return '12345678 (8 dígitos)';
+    }
+    return 'Código único';
+  };
+
+  // Función para obtener el label del código según la clase
+  const getCodigoLabel = () => {
+    if (data.clase === 'LIBRO') {
+      return 'ISBN';
+    } else if (data.clase === 'REVISTA') {
+      return 'ISSN';
+    }
+    return 'Código Único';
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -352,7 +394,9 @@ export default function Edit({
                         <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                           Editando: {libro.titulo}
                         </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">ISBN: {libro.isbn}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {getCodigoLabel()}: {libro.codigo_unico || libro.isbn}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -369,22 +413,57 @@ export default function Edit({
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* ISBN */}
+                      {/* Tipo de Material */}
                       <div>
-                        <label htmlFor="isbn" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          ISBN <span className="text-red-500">*</span>
+                        <label htmlFor="clase" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Tipo de Material <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          type="text"
-                          id="isbn"
-                          name="isbn"
-                          value={data.isbn}
+                        <select
+                          id="clase"
+                          name="clase"
+                          value={data.clase}
                           onChange={handleChange}
-                          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                          placeholder="Ingrese el ISBN"
-                        />
-                        {(formErrors.isbn || errors.isbn) && (
-                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.isbn || errors.isbn}</p>
+                          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        >
+                          <option value="">Seleccione el tipo</option>
+                          {clases.map((clase: string) => (
+                            <option key={clase} value={clase}>
+                              {clase}
+                            </option>
+                          ))}
+                        </select>
+                        {(formErrors.clase || errors.clase) && (
+                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.clase || errors.clase}</p>
+                        )}
+                      </div>
+
+                      {/* Código Único */}
+                      <div>
+                        <label htmlFor="codigo_unico" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          {getCodigoLabel()} <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative rounded-md shadow-sm">
+                          <input
+                            type="text"
+                            id="codigo_unico"
+                            name="codigo_unico"
+                            value={data.codigo_unico}
+                            onChange={e => handleCodigoChange(e.target.value)}
+                            disabled={!data.clase}
+                            maxLength={data.clase === 'LIBRO' ? 13 : data.clase === 'REVISTA' ? 8 : undefined}
+                            className={`w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                              !data.clase ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : ''
+                            }`}
+                            placeholder={getCodigoPlaceholder()}
+                          />
+                          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <span className="text-gray-400 text-xs">
+                              {data.clase === 'LIBRO' ? '13 dígitos' : data.clase === 'REVISTA' ? '8 dígitos' : ''}
+                            </span>
+                          </div>
+                        </div>
+                        {(formErrors.codigo_unico || errors.codigo_unico) && (
+                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.codigo_unico || errors.codigo_unico}</p>
                         )}
                       </div>
                       
@@ -404,6 +483,30 @@ export default function Edit({
                         />
                         {(formErrors.titulo || errors.titulo) && (
                           <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.titulo || errors.titulo}</p>
+                        )}
+                      </div>
+
+                      {/* Área - Nuevo campo */}
+                      <div>
+                        <label htmlFor="area" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Área <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          id="area"
+                          name="area"
+                          value={data.area}
+                          onChange={handleChange}
+                          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        >
+                          <option value="">Seleccione un área</option>
+                          {areas.map((area: string) => (
+                            <option key={area} value={area}>
+                              {area}
+                            </option>
+                          ))}
+                        </select>
+                        {(formErrors.area || errors.area) && (
+                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.area || errors.area}</p>
                         )}
                       </div>
                       
@@ -475,30 +578,6 @@ export default function Edit({
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Clase */}
-                      <div>
-                        <label htmlFor="clase" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Clase <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          id="clase"
-                          name="clase"
-                          value={data.clase}
-                          onChange={handleChange}
-                          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                        >
-                          <option value="">Seleccione una clase</option>
-                          {clases.map((clase: string) => (
-                            <option key={clase} value={clase}>
-                              {clase}
-                            </option>
-                          ))}
-                        </select>
-                        {(formErrors.clase || errors.clase) && (
-                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.clase || errors.clase}</p>
-                        )}
-                      </div>
-                      
                       {/* Sección */}
                       <div>
                         <label htmlFor="seccion_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

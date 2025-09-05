@@ -110,7 +110,7 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Obtener estadísticas generales del año actual (filtrado por sección si aplica)
+        // Preparar consultas para estadísticas generales (filtrado por sección si aplica)
         $prestamosQuery = Prestamo::join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
             ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
             ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd]);
@@ -149,10 +149,15 @@ class DashboardController extends Controller
             $estudiantesQuery->where('grados.seccion_id', $seccionId);
         }
         
+        // Contar ejemplares marcados como reposición (independientemente del estado)
+        $librosReposicion = Ejemplar::where('tipo_adquisicion', 'REPOSICION')->count();
+
+        // Obtener estadísticas generales del año actual
         $estadisticasGenerales = [
             'total_prestamos' => $prestamosQuery->count(),
             'prestamos_activos' => $prestamosActivosQuery->count(),
             'prestamos_vencidos' => $prestamosVencidosQuery->count(),
+            'libros_reposicion' => $librosReposicion,
             'total_libros' => Libro::count(), // Los libros no se filtran por sección
             'total_lectores' => $lectoresQuery->count(),
             'total_ejemplares' => Ejemplar::count(), // Los ejemplares no se filtran por sección

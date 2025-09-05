@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { Library, PlusCircle, BookOpen, Calendar, DollarSign, Globe, Hash, MapPin, Tag, Users, Edit, ArrowLeft, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react';
+import { Library, PlusCircle, BookOpen, Calendar, DollarSign, Globe, Hash, MapPin, Tag, Users, Edit, ArrowLeft, ChevronDown, ChevronUp, Maximize2, Minimize2, Award } from 'lucide-react';
 import { Libro } from './types';
 
 // Definir las migas de pan (breadcrumbs)
@@ -57,7 +57,7 @@ const InfoField = ({
   label: string; 
   value: any; 
   icon?: React.ComponentType<any>;
-  type?: 'text' | 'badge' | 'currency' | 'date';
+  type?: 'text' | 'badge' | 'currency' | 'date' | 'tipo-material';
 }) => {
   const renderValue = () => {
     if (!value || value === '-') {
@@ -68,6 +68,16 @@ const InfoField = ({
       case 'badge':
         return (
           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+            {value}
+          </span>
+        );
+      case 'tipo-material':
+        return (
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+            value === 'LIBRO' 
+              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+          }`}>
             {value}
           </span>
         );
@@ -128,7 +138,7 @@ const ExpandableContent = ({ content }: { content: string }) => {
             <div className="flex items-center gap-3">
               <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Contenido del Libro
+                Contenido del Material
               </h2>
             </div>
             <button
@@ -224,13 +234,23 @@ export default function Show({ auth, libro, success }: ShowLibroProps) {
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-black">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Cargando información del libro...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Cargando información del material...</p>
         </div>
       </div>
     );
   }
 
   const breadcrumbs = getBreadcrumbs(libro.id, libro.titulo);
+
+  // Función para obtener el label del código según la clase
+  const getCodigoLabel = () => {
+    if (libro.clase === 'LIBRO') {
+      return 'ISBN';
+    } else if (libro.clase === 'REVISTA') {
+      return 'ISSN';
+    }
+    return 'Código Único';
+  };
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -268,8 +288,14 @@ export default function Show({ auth, libro, success }: ShowLibroProps) {
                         <div className="flex items-center gap-3 text-blue-100 text-sm">
                           <span className="flex items-center gap-1">
                             <Hash className="w-3 h-3" />
-                            ISBN: {libro.isbn}
+                            {getCodigoLabel()}: {libro.codigo_unico || libro.isbn}
                           </span>
+                          {libro.area && (
+                            <span className="flex items-center gap-1">
+                              <Award className="w-3 h-3" />
+                              Área: {libro.area}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -286,7 +312,7 @@ export default function Show({ auth, libro, success }: ShowLibroProps) {
                         className="flex items-center gap-2 px-4 py-1.5 bg-white text-blue-600 text-sm rounded-lg hover:bg-blue-50 transition-all duration-200 font-medium shadow-lg"
                       >
                         <Edit className="w-4 h-4" />
-                        Editar Libro
+                        Editar Material
                       </Link>
                     </div>
                   </div>
@@ -320,9 +346,15 @@ export default function Show({ auth, libro, success }: ShowLibroProps) {
                         icon={Tag}
                       />
                       <InfoField 
-                        label="Clase" 
+                        label="Tipo de Material" 
                         value={libro.clase}
+                        type="tipo-material"
+                      />
+                      <InfoField 
+                        label="Área" 
+                        value={libro.area}
                         type="badge"
+                        icon={Award}
                       />
                     </div>
                     <div>
@@ -409,7 +441,7 @@ export default function Show({ auth, libro, success }: ShowLibroProps) {
 
                 {/* Content - Mejorado */}
                 {libro.contenido && (
-                  <InfoCard title="Contenido del Libro" icon={BookOpen}>
+                  <InfoCard title="Contenido del Material" icon={BookOpen}>
                     <ExpandableContent content={libro.contenido} />
                   </InfoCard>
                 )}

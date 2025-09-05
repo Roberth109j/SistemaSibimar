@@ -22,6 +22,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Create({
   clases,
+  areas, // Nuevo prop
   idiomas,
   autores = [],
   editoriales = [],
@@ -41,12 +42,13 @@ export default function Create({
   });
 
   const form = useForm({
-    isbn: '',
+    codigo_unico: '', // Cambio de 'isbn' a 'codigo_unico'
     titulo: '',
     contenido: '',
     seccion_id: seccionId || '', // Usar la sección predeterminada según el rol
     autor_id: '',
     editorial_id: '',
+    area: '', // Nuevo campo
     clase: '',
     tomo: '',
     edicion: '',
@@ -65,12 +67,13 @@ export default function Create({
 
     // Validar campos requeridos
     const camposRequeridos = {
-      isbn: 'ISBN',
+      codigo_unico: 'Código único',
       titulo: 'Título',
       autor_id: 'Autor Principal',
       editorial_id: 'Editorial',
       seccion_id: 'Sección',
       tema_id: 'Tema Dewey',
+      area: 'Área',
       clase: 'Clase',
       idioma: 'Idioma',
       fecha_ingreso: 'Fecha de Ingreso'
@@ -86,11 +89,21 @@ export default function Create({
       return;
     }
 
-    // Validar formato de ISBN (13 dígitos)
-    const isbnRegex = /^\d{13}$/;
-    if (!isbnRegex.test(form.data.isbn.replace(/[^0-9]/g, ''))) {
-      alert('El ISBN debe contener exactamente 13 dígitos');
-      return;
+    // Validar formato de código único según la clase
+    if (form.data.clase === 'LIBRO') {
+      // ISBN - 13 dígitos
+      const isbnRegex = /^\d{13}$/;
+      if (!isbnRegex.test(form.data.codigo_unico.replace(/[^0-9]/g, ''))) {
+        alert('El ISBN debe contener exactamente 13 dígitos');
+        return;
+      }
+    } else if (form.data.clase === 'REVISTA') {
+      // ISSN - 8 dígitos
+      const issnRegex = /^\d{8}$/;
+      if (!issnRegex.test(form.data.codigo_unico.replace(/[^0-9]/g, ''))) {
+        alert('El ISSN debe contener exactamente 8 dígitos');
+        return;
+      }
     }
 
     // Validaciones adicionales
@@ -119,11 +132,9 @@ export default function Create({
       return;
     }
 
-    // Enviar formulario - SIN router.visit() para permitir que la notificación se muestre
+    // Enviar formulario
     form.post(route('libros.store'), {
       onSuccess: () => {
-        // Dejar que Inertia maneje la redirección naturalmente
-        // El backend ya redirige con redirect()->route('libros.index')->with('success', ...)
         console.log('Libro creado exitosamente');
       },
       onError: (errors) => {
@@ -168,8 +179,8 @@ export default function Create({
           {/* Header con título y barra de navegación por secciones */}
           <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg mb-6">
             <div className="p-6 bg-gradient-to-r from-blue-600 to-indigo-700">
-              <h1 className="text-2xl font-bold text-white mb-2">Registrar Nuevo Libro</h1>
-              <p className="text-blue-100">Complete los campos para agregar un nuevo libro al catálogo</p>
+              <h1 className="text-2xl font-bold text-white mb-2">Registrar Nuevo Material</h1>
+              <p className="text-blue-100">Complete los campos para agregar un nuevo libro o revista al catálogo</p>
             </div>
             
             {/* Navegación entre secciones */}
@@ -221,6 +232,7 @@ export default function Create({
                   editoriales={editoriales}
                   secciones={secciones}
                   clases={clases}
+                  areas={areas} // Nuevo prop
                   idiomas={idiomas}
                   estanterias={estanterias}
                   seccionId={seccionId}
@@ -267,6 +279,7 @@ export default function Create({
                   <ul className="list-disc list-inside space-y-1">
                     <li>Los campos marcados con <span className="text-red-500">*</span> son obligatorios</li>
                     <li>Puede navegar entre secciones sin perder los datos ingresados</li>
+                    <li>El código único cambia según el tipo: ISBN para libros (13 dígitos), ISSN para revistas (8 dígitos)</li>
                     <li>La estantería es opcional y puede asignarse posteriormente</li>
                     <li>Asegúrese de completar todos los campos antes de guardar</li>
                   </ul>

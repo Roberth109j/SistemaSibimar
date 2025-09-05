@@ -27,8 +27,11 @@ interface Seccion {
 
 interface Libro {
   id: number;
-  isbn: string;
+  codigo_unico: string; // Cambio de 'isbn' a 'codigo_unico'
+  isbn?: string; // Mantener para compatibilidad
   titulo: string;
+  area?: string; // Nuevo campo
+  clase: string;
   sign_top?: string;
   ejemplares_count: number;
   autor?: Autor;
@@ -49,14 +52,15 @@ interface PaginatedLibros {
 interface FilterOptions {
   search?: string;
   clase?: string;
+  area?: string; // Nuevo filtro
   idioma?: string;
-  estanteria?: string;
 }
 
 interface LibroPageProps {
   auth?: any;
   libros: PaginatedLibros;
   clases: string[];
+  areas: string[]; // Nuevo prop
   idiomas: string[];
   estanterias: Estanteria[];
   filters: FilterOptions;
@@ -232,8 +236,8 @@ function useLibroFilters(initialFilters: FilterOptions) {
   const [searchTerm, setSearchTerm] = useState<string>(initialFilters.search || '');
   const [selectedFilters, setSelectedFilters] = useState({
     clase: initialFilters.clase || '',
-    idioma: initialFilters.idioma || '',
-    estanteria: initialFilters.estanteria || ''
+    area: initialFilters.area || '', // Nuevo filtro
+    idioma: initialFilters.idioma || ''
   });
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
@@ -241,8 +245,8 @@ function useLibroFilters(initialFilters: FilterOptions) {
     const params: Record<string, string> = {};
     if (currentSearchTerm) params.search = currentSearchTerm;
     if (currentSelectedFilters.clase) params.clase = currentSelectedFilters.clase;
+    if (currentSelectedFilters.area) params.area = currentSelectedFilters.area; // Nuevo filtro
     if (currentSelectedFilters.idioma) params.idioma = currentSelectedFilters.idioma;
-    if (currentSelectedFilters.estanteria) params.estanteria = currentSelectedFilters.estanteria;
 
     router.get('/libros', params, {
       preserveState: true,
@@ -271,8 +275,8 @@ function useLibroFilters(initialFilters: FilterOptions) {
     setSearchTerm('');
     setSelectedFilters({
       clase: '',
-      idioma: '',
-      estanteria: ''
+      area: '', // Nuevo filtro
+      idioma: ''
     });
     router.get('/libros', {}, {
       preserveState: true,
@@ -403,6 +407,7 @@ const Index: React.FC<LibroPageProps> = ({
   auth,
   libros,
   clases,
+  areas = [], // Nuevo prop
   idiomas,
   estanterias = [],
   filters: initialFilters = {},
@@ -496,14 +501,14 @@ const Index: React.FC<LibroPageProps> = ({
       <div className="max-w-full mx-auto relative z-10">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Gestión de Libros
+            Gestión de Libros y Revistas
           </h1>
           <div className="flex gap-4">
             <div className="relative">
               <input
                 type="text"
-                placeholder="Buscar por título, ISBN o autor..."
-                className="w-64 pl-10 py-2.5 pr-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700
+                placeholder="Buscar por título, código, autor o contenido..."
+                className="w-80 pl-10 py-2.5 pr-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700
                            text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                            shadow-sm transition-all duration-200"
                 value={searchTerm}
@@ -527,12 +532,12 @@ const Index: React.FC<LibroPageProps> = ({
                 transform hover:-translate-y-0.5"
             >
               <PlusCircle className="w-5 h-5" />
-              <span>Nuevo Libro</span>
+              <span>Nuevo Material</span>
             </Link>
           </div>
         </div>
 
-        {/* Panel de filtros */}
+        {/* Panel de filtros - SIN ESTANTERÍA */}
         {showFilters && (
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-md border border-gray-100 dark:border-gray-700 mb-6">
             <div className="flex justify-between items-center mb-4">
@@ -545,17 +550,31 @@ const Index: React.FC<LibroPageProps> = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Clase</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de Material</label>
                 <select
                   className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
                   value={selectedFilters.clase}
                   onChange={(e) => handleFilterChange('clase', e.target.value)}
                 >
-                  <option value="">Todas las clases</option>
+                  <option value="">Todos los tipos</option>
                   {clases.map((clase: string) => (
                     <option key={clase} value={clase}>{clase}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Área</label>
+                <select
+                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
+                  value={selectedFilters.area}
+                  onChange={(e) => handleFilterChange('area', e.target.value)}
+                >
+                  <option value="">Todas las áreas</option>
+                  {areas.map((area: string) => (
+                    <option key={area} value={area}>{area}</option>
                   ))}
                 </select>
               </div>
@@ -573,20 +592,6 @@ const Index: React.FC<LibroPageProps> = ({
                   ))}
                 </select>
               </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Estantería</label>
-                <select
-                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
-                  value={selectedFilters.estanteria}
-                  onChange={(e) => handleFilterChange('estanteria', e.target.value)}
-                >
-                  <option value="">Todas las estanterías</option>
-                  {estanterias.map((estanteria: Estanteria) => (
-                    <option key={estanteria.id} value={estanteria.id}>{estanteria.cod_estante}</option>
-                  ))}
-                </select>
-              </div>
             </div>
           </div>
         )}
@@ -598,17 +603,17 @@ const Index: React.FC<LibroPageProps> = ({
           </div>
         )}
 
-        {/* Tabla de libros */}
+        {/* Tabla de libros - SIN COLUMNA TIPO, CON SEPARACIÓN MEJORADA */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] table-fixed">
+            <table className="w-full min-w-[1000px] table-fixed">
               <colgroup>
                 <col className="w-16" />
                 <col className="w-32" />
-                <col className="w-48" />
                 <col className="w-44" />
-                <col className="w-24" />
-                <col className="w-24" />
+                <col className="w-40" />
+                <col className="w-36" />
+                <col className="w-28" />
                 <col className="w-24" />
                 <col className="w-20" />
                 <col className="w-32" />
@@ -616,11 +621,11 @@ const Index: React.FC<LibroPageProps> = ({
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-700">
                   <th className="px-3 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">N°</th>
-                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">ISBN</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Código</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Título</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Autor</th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Área</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sign. Top.</th>
-                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sección</th>
                   <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estantería</th>
                   <th className="px-3 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ej.Disp</th>
                   <th className="px-4 py-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
@@ -633,7 +638,9 @@ const Index: React.FC<LibroPageProps> = ({
                       <td className="px-3 py-3 whitespace-nowrap text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
                         {(libros.current_page - 1) * libros.per_page + index + 1}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">{libro.isbn}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">
+                        {libro.codigo_unico || libro.isbn}
+                      </td>
                       <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
                         <div className="truncate" title={libro.titulo}>
                           {libro.titulo}
@@ -644,9 +651,15 @@ const Index: React.FC<LibroPageProps> = ({
                           {libro.autor ? `${libro.autor.nombres} ${libro.autor.apellidos}` : '-'}
                         </div>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 text-sm">{libro.sign_top || '-'}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 text-sm">
-                        {libro.seccion ? libro.seccion.nombre : '-'}
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm">
+                        <div className="break-words" title={libro.area || '-'}>
+                          {libro.area || '-'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm">
+                        <div className="truncate max-w-[100px]" title={libro.sign_top || '-'}>
+                          {libro.sign_top || '-'}
+                        </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 text-sm">
                         {libro.estanteria ? libro.estanteria.cod_estante : '-'}
@@ -708,7 +721,7 @@ const Index: React.FC<LibroPageProps> = ({
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
-      <Head title="Gestión de Libros" />
+      <Head title="Gestión de Libros y Revistas" />
       {content}
     </AppLayout>
   );
