@@ -8,12 +8,13 @@ use App\Models\Ejemplar;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class BuscadorController extends Controller
 {
     public function index(Request $request)
     {
-        // Validar parámetros
+        // Validación de parámetros
         $request->validate([
             'search' => 'nullable|string|max:255',
             'seccion_id' => 'nullable|integer|exists:secciones,id',
@@ -58,12 +59,13 @@ class BuscadorController extends Controller
             ->select([
                 'libros.id',
                 'libros.titulo',
-                'libros.isbn',
+                'libros.codigo_unico',
                 'libros.autor_id',
                 'libros.estanteria_id',
                 'libros.seccion_id',
                 'libros.sign_top',
-                // MODIFICADO: Subconsulta para contar SOLO ejemplares disponibles
+                'libros.contenido', // ← AGREGAMOS EL CONTENIDO
+                // Subconsulta para contar SOLO ejemplares disponibles
                 DB::raw("(SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = 'DISPONIBLE') as ejemplares_count")
             ])
             ->with([
@@ -80,8 +82,8 @@ class BuscadorController extends Controller
             $query->where(function ($q) use ($search) {
                 // Búsqueda en título
                 $q->where('titulo', 'like', "%{$search}%")
-                  // Búsqueda en ISBN
-                  ->orWhere('isbn', 'like', "%{$search}%")
+                  // Búsqueda en código único
+                  ->orWhere('codigo_unico', 'like', "%{$search}%")
                   // Búsqueda en autor usando EXISTS para mejor performance
                   ->orWhereExists(function ($subQuery) use ($search) {
                       $subQuery->select(DB::raw(1))
@@ -93,7 +95,9 @@ class BuscadorController extends Controller
                                              // Búsqueda en nombre completo concatenado
                                              ->orWhereRaw("CONCAT(nombres, ' ', apellidos) LIKE ?", ["%{$search}%"]);
                               });
-                  });
+                  })
+                  // Búsqueda por contenido usando full text search
+                  ->orWhereRaw("MATCH(titulo, contenido) AGAINST(? IN NATURAL LANGUAGE MODE)", [$search]);
             });
         } elseif (strlen($search) > 0 && strlen($search) < 3) {
             // Si hay búsqueda pero menos de 3 caracteres, devolver vacío
@@ -132,7 +136,7 @@ class BuscadorController extends Controller
                                    'id' => $libro->autor->id,
                                    'nombre' => $libro->autor->nombre_completo,
                                ],
-                               'isbn' => $libro->isbn,
+                               'isbn' => $libro->codigo_unico, // Mantenemos 'isbn' en la respuesta por compatibilidad
                                'ejemplares_count' => (int) $libro->ejemplares_count,
                                'estanteria' => $libro->estanteria ? [
                                    'id' => $libro->estanteria->id,
@@ -144,6 +148,7 @@ class BuscadorController extends Controller
                                    'nombre' => $libro->seccion->nombre,
                                ],
                                'sign_top' => $libro->sign_top,
+                               'contenido' => $libro->contenido, // ← INCLUIMOS EL CONTENIDO EN LA RESPUESTA
                            ];
                        });
 
@@ -155,5 +160,64 @@ class BuscadorController extends Controller
                 'seccion_id' => $seccionId,
             ],
         ]);
+    }
+
+    /**
+     * Mostrar información básica de un libro desde el buscador (PÚBLICO)
+     */
+    public function show($id)
+    {
+        try {
+            $libro = Libro::with([
+                'autor:id,nombres,apellidos',
+                'editorial:id,nombre',
+                'seccion:id,nombre'
+            ])->select([
+                'id',
+                'titulo', 
+                'codigo_unico',
+                'autor_id',
+                'editorial_id', 
+                'seccion_id',
+                'clase',
+                'area',
+                'idioma', 
+                'paginas',
+                'anio',
+                'contenido'
+            ])->findOrFail($id);
+
+            return Inertia::render('Buscador/Show', [
+                'libro' => [
+                    'id' => $libro->id,
+                    'titulo' => $libro->titulo,
+                    'codigo_unico' => $libro->codigo_unico,
+                    'autor' => $libro->autor ? [
+                        'nombre_completo' => trim($libro->autor->nombres . ' ' . $libro->autor->apellidos)
+                    ] : null,
+                    'editorial' => $libro->editorial ? [
+                        'nombre' => $libro->editorial->nombre
+                    ] : null,
+                    'clase' => $libro->clase,
+                    'area' => $libro->area,
+                    'idioma' => $libro->idioma,
+                    'paginas' => $libro->paginas,
+                    'anio' => $libro->anio,
+                    'contenido' => $libro->contenido,
+                    'seccion' => $libro->seccion ? [
+                        'nombre' => $libro->seccion->nombre
+                    ] : null,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al mostrar libro desde buscador:', [
+                'libro_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->route('buscador.index')
+                ->with('error', 'No se pudo cargar la información del libro.');
+        }
     }
 }

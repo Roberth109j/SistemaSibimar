@@ -80,8 +80,8 @@ export default function Welcome() {
                     <div className="container mx-auto px-4">
                         <nav className="flex items-center justify-between">
                             <div className="flex items-center">
-                                {/* Logo tipo banner */}
-                                <div className="w-72 h-24 relative">
+                                {/* Logo responsive - más pequeño en móviles */}
+                                <div className="w-40 h-16 sm:w-56 sm:h-20 lg:w-72 lg:h-24 relative">
                                     <img 
                                         src="https://franciscanaspasto.edu.co/wp-content/uploads/2024/03/logo.png" 
                                         alt="Logo Biblioteca Madre Caridad" 
@@ -90,27 +90,29 @@ export default function Welcome() {
                                 </div>
                             </div>
                             
-                            <div className="flex items-center space-x-4">
-
+                            <div className="flex items-center space-x-2 sm:space-x-4">
                                <Link
                                     href={route('buscar')}
-                                    className="rounded-lg bg-white text-blue-900 px-5 py-2 text-sm font-medium transition-all hover:translate-y-[-2px] hover:shadow-lg"
+                                    className="rounded-lg bg-white text-blue-900 px-3 py-2 sm:px-5 text-xs sm:text-sm font-medium transition-all hover:translate-y-[-2px] hover:shadow-lg"
                                 >
-                                    Buscar Material
+                                    <span className="hidden sm:inline">Buscar Material</span>
+                                    <span className="sm:hidden">Buscar</span>
                                 </Link>
                                 {auth.user ? (
                                     <Link
                                         href={route('dashboard')}
-                                        className="rounded-lg bg-white text-blue-900 px-5 py-2 text-sm font-medium transition-all hover:translate-y-[-2px] hover:shadow-lg"
+                                        className="rounded-lg bg-white text-blue-900 px-3 py-2 sm:px-5 text-xs sm:text-sm font-medium transition-all hover:translate-y-[-2px] hover:shadow-lg"
                                     >
-                                        Dashboard
+                                        <span className="hidden sm:inline">Dashboard</span>
+                                        <span className="sm:hidden">Panel</span>
                                     </Link>
                                 ) : (
                                     <Link
                                         href={route('login')}
-                                        className="rounded-lg bg-white text-blue-900 px-5 py-2 text-sm font-medium transition-all hover:translate-y-[-2px] hover:shadow-lg"
+                                        className="rounded-lg bg-white text-blue-900 px-3 py-2 sm:px-5 text-xs sm:text-sm font-medium transition-all hover:translate-y-[-2px] hover:shadow-lg"
                                     >
-                                        Ingresar
+                                        <span className="hidden sm:inline">Ingresar</span>
+                                        <span className="sm:hidden">Login</span>
                                     </Link>
                                 )}
                             </div>
@@ -198,7 +200,7 @@ export default function Welcome() {
                             <div className="order-1 w-full lg:order-2 lg:w-1/2">
                                 <div className="relative h-64 w-full overflow-hidden lg:h-full group cursor-pointer img-hover-container">
                                     <img
-                                        src="/IMG/Bilbioteca.JPEG"
+                                        src="/IMG/chico.jpg"
                                         alt="Biblioteca"
                                         className="h-full w-full object-cover object-center img-hover-effect"
                                         loading="lazy"
