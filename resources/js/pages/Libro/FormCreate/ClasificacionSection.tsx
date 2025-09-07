@@ -177,7 +177,7 @@ export default function ClasificacionSection({
             <option value="">Seleccione una categoría</option>
             {categoriasDewey.map(categoria => (
               <option key={categoria.id} value={categoria.id}>
-                {categoria.nombre}
+                {categoria.codigo} - {categoria.nombre}
               </option>
             ))}
           </select>
@@ -203,7 +203,7 @@ export default function ClasificacionSection({
             <option value="">Seleccione una subcategoría</option>
             {loadedSubcategorias.map(subcategoria => (
               <option key={subcategoria.id} value={subcategoria.id}>
-                {subcategoria.nombre}
+                {subcategoria.codigo} - {subcategoria.nombre}
               </option>
             ))}
           </select>
@@ -236,7 +236,7 @@ export default function ClasificacionSection({
             <option value="">Seleccione un tema</option>
             {loadedTemas.map(tema => (
               <option key={tema.id} value={tema.id}>
-                {tema.nombre}
+                {tema.codigo} - {tema.nombre}
               </option>
             ))}
           </select>
@@ -268,17 +268,17 @@ export default function ClasificacionSection({
           <div className="flex flex-wrap gap-2">
             <div className="flex items-center px-3 py-1 bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 rounded-full text-xs font-medium">
               <span className="inline-block w-1.5 h-1.5 bg-purple-500 rounded-full mr-1"></span>
-              {categoriasDewey.find(c => c.id === selectedCategoriaId)?.nombre}
+              {categoriasDewey.find(c => c.id === selectedCategoriaId)?.codigo} - {categoriasDewey.find(c => c.id === selectedCategoriaId)?.nombre}
             </div>
             <span className="flex items-center text-gray-400 text-xs">→</span>
             <div className="flex items-center px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 rounded-full text-xs font-medium">
               <span className="inline-block w-1.5 h-1.5 bg-indigo-500 rounded-full mr-1"></span>
-              {loadedSubcategorias.find(s => s.id === selectedSubcategoriaId)?.nombre}
+              {loadedSubcategorias.find(s => s.id === selectedSubcategoriaId)?.codigo} - {loadedSubcategorias.find(s => s.id === selectedSubcategoriaId)?.nombre}
             </div>
             <span className="flex items-center text-gray-400 text-xs">→</span>
             <div className="flex items-center px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full text-xs font-medium">
               <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mr-1"></span>
-              {loadedTemas.find(t => t.id === parseInt(form.data.tema_id))?.nombre}
+              {loadedTemas.find(t => t.id === parseInt(form.data.tema_id))?.codigo} - {loadedTemas.find(t => t.id === parseInt(form.data.tema_id))?.nombre}
             </div>
           </div>
           <div className="mt-3 p-2 bg-green-50 dark:bg-green-900/20 rounded border-l-2 border-green-500">

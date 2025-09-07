@@ -235,7 +235,6 @@ export default function Create({
                   areas={areas} // Nuevo prop
                   idiomas={idiomas}
                   estanterias={estanterias}
-                  seccionId={seccionId}
                   onNext={() => setActiveSection('clasificacion')}
                 />
               )}

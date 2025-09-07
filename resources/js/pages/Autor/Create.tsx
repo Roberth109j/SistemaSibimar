@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import Modal from '@/components/Modal';
-import Form from '@/components/Form';
+import Form, { FormField } from '@/components/Form';
 
 type CreateModalProps = {
   onSuccess: (message: string) => void;
@@ -32,8 +32,8 @@ export default function CreateAutor({ onSuccess, onError, errors = {} }: CreateM
     setIsOpen(true);
   };
 
-  // Solución: Actualizar handleChange para manejar tanto input como select
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  // Solución: Actualizar handleChange para manejar input, select y textarea
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['nombres', 'apellidos'];
     
@@ -45,7 +45,7 @@ export default function CreateAutor({ onSuccess, onError, errors = {} }: CreateM
     }
   };
 
-  const autorFields = [
+  const autorFields: FormField[] = [
     {
       name: 'nombres',
       label: 'Nombres',

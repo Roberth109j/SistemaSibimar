@@ -18,6 +18,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InformeController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\ExcelTestController;
+use App\Http\Controllers\InlineCreateController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\BuscadorController;
 
@@ -195,6 +196,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('usuarios/{usuario}', [UsuarioController::class, 'update']);
         Route::delete('usuarios/{usuario}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
     });
+
+    Route::prefix('api/inline-create')->middleware(['auth', 'verified'])->group(function () {
+    Route::post('/autor', [InlineCreateController::class, 'storeAutor'])
+        ->name('api.inline-create.autor');
+    
+    Route::post('/editorial', [InlineCreateController::class, 'storeEditorial'])
+        ->name('api.inline-create.editorial');
+    
+    Route::post('/estanteria', [InlineCreateController::class, 'storeEstanteria'])
+        ->middleware('role:Administrador|BibliotecarioPrimaria|BibliotecarioBachillerato')
+        ->name('api.inline-create.estanteria');
+});   
 });
 
 require __DIR__ . '/settings.php';
