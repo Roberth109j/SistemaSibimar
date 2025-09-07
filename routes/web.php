@@ -170,12 +170,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/libros-no-devueltos', function () {
             return redirect()->route('informes.index');
         })->name('informes.libros-no-devueltos');
+        Route::get('/libros-perdidos', function () {
+            return redirect()->route('informes.index');
+        })->name('informes.libros-perdidos-view');
         Route::post('/prestamos-realizados', [InformeController::class, 'prestamosRealizados']);
         Route::post('/libros-no-devueltos', [InformeController::class, 'librosNoDevueltos']);
+        Route::post('/libros-perdidos', [InformeController::class, 'librosPerdidos'])->name('informes.libros-perdidos');
         Route::get('/descargar-prestamos', [InformeController::class, 'descargarPDFPrestamos'])
             ->name('informes.descargar-prestamos');
         Route::get('/descargar-no-devueltos', [InformeController::class, 'descargarPDFNoDevueltos'])
             ->name('informes.descargar-no-devueltos');
+        Route::get('/descargar-libros-perdidos', [InformeController::class, 'descargarPDFLibrosPerdidos'])
+            ->name('informes.descargar-libros-perdidos');
     });
 
     // Rutas para InventarioController

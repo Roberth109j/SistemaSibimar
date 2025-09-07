@@ -6,6 +6,7 @@ use App\Models\Prestamo;
 use App\Models\Lector;
 use App\Models\Libro;
 use App\Models\Grado;
+use App\Models\Ejemplar; // AGREGADO para libros perdidos
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -184,6 +185,75 @@ class InformeController extends Controller
     }
 
     /**
+     * Generar informe de libros perdidos - NUEVO
+     */
+    public function librosPerdidos(Request $request)
+    {
+        $validated = $request->validate([
+            'fecha_inicio' => 'required|date',
+            'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
+            'periodo' => 'nullable|in:mensual,trimestral,semestral,anual',
+            'formato' => 'required|in:vista,pdf'
+        ]);
+
+        try {
+            $fechaInicio = Carbon::parse($validated['fecha_inicio'])->startOfDay();
+            $fechaFin = Carbon::parse($validated['fecha_fin'])->endOfDay();
+
+            // Obtener ejemplares marcados como PERDIDO en el período especificado
+            $ejemplaresPerdidos = Ejemplar::with(['libro.autor'])
+                ->where('estado', 'PERDIDO')
+                ->whereBetween('updated_at', [$fechaInicio, $fechaFin])
+                ->orderBy('updated_at', 'desc')
+                ->get()
+                ->map(function ($ejemplar) {
+                    // Agregar fecha formateada para facilitar el manejo en frontend
+                    $ejemplar->fecha_perdida = $ejemplar->updated_at->format('Y-m-d H:i:s');
+                    $ejemplar->fecha_perdida_formateada = $ejemplar->updated_at->format('d/m/Y');
+                    return $ejemplar;
+                });
+
+            // NUEVA CONSULTA: Pérdidas del año actual completo (independiente del filtro)
+            $añoActual = Carbon::now()->year;
+            $inicioAño = Carbon::create($añoActual, 1, 1)->startOfDay();
+            $finAño = Carbon::create($añoActual, 12, 31)->endOfDay();
+            
+            $perdidasAñoActual = Ejemplar::where('estado', 'PERDIDO')
+                ->whereBetween('updated_at', [$inicioAño, $finAño])
+                ->count();
+
+            // Estadísticas básicas - ACTUALIZADA
+            $estadisticas = [
+                'total_perdidos' => $ejemplaresPerdidos->count(),
+                'por_mes' => $this->getEjemplaresPerdidosPorMes($ejemplaresPerdidos, $fechaInicio, $fechaFin),
+                'libros_afectados' => $ejemplaresPerdidos->groupBy('libro.titulo')->count(),
+                'valor_estimado' => $ejemplaresPerdidos->count() * 25000, // Valor promedio estimado por libro
+                'perdidas_año_actual' => $perdidasAñoActual, // NUEVA ESTADÍSTICA
+            ];
+
+            $datos = [
+                'ejemplares_perdidos' => $ejemplaresPerdidos,
+                'estadisticas' => $estadisticas,
+                'periodo' => [
+                    'inicio' => $fechaInicio->format('d/m/Y'),
+                    'fin' => $fechaFin->format('d/m/Y'),
+                    'tipo' => $validated['periodo'] ?? 'personalizado'
+                ]
+            ];
+
+            if ($validated['formato'] === 'pdf') {
+                return $this->descargarPDF('libros-perdidos', $datos);
+            }
+
+            return Inertia::render('Informes/LibrosPerdidos', $datos);
+
+        } catch (\Exception $e) {
+            Log::error('Error generando informe de libros perdidos: ' . $e->getMessage());
+            return back()->with('error', 'Error al generar el informe: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Descarga directa de PDF de préstamos (GET) - Método universal
      */
     public function descargarPDFPrestamos(Request $request)
@@ -298,6 +368,66 @@ class InformeController extends Controller
         }
     }
 
+    /**
+     * Descarga directa de PDF de libros perdidos (GET) - NUEVO
+     */
+    public function descargarPDFLibrosPerdidos(Request $request)
+    {
+        $validated = $request->validate([
+            'fecha_inicio' => 'required|date',
+            'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
+            'periodo' => 'nullable|in:mensual,trimestral,semestral,anual'
+        ]);
+
+        try {
+            $fechaInicio = Carbon::parse($validated['fecha_inicio'])->startOfDay();
+            $fechaFin = Carbon::parse($validated['fecha_fin'])->endOfDay();
+
+            $ejemplaresPerdidos = Ejemplar::with(['libro.autor'])
+                ->where('estado', 'PERDIDO')
+                ->whereBetween('updated_at', [$fechaInicio, $fechaFin])
+                ->orderBy('updated_at', 'desc')
+                ->get()
+                ->map(function ($ejemplar) {
+                    $ejemplar->fecha_perdida = $ejemplar->updated_at->format('Y-m-d H:i:s');
+                    $ejemplar->fecha_perdida_formateada = $ejemplar->updated_at->format('d/m/Y');
+                    return $ejemplar;
+                });
+
+            // NUEVA CONSULTA: Pérdidas del año actual completo
+            $añoActual = Carbon::now()->year;
+            $inicioAño = Carbon::create($añoActual, 1, 1)->startOfDay();
+            $finAño = Carbon::create($añoActual, 12, 31)->endOfDay();
+            
+            $perdidasAñoActual = Ejemplar::where('estado', 'PERDIDO')
+                ->whereBetween('updated_at', [$inicioAño, $finAño])
+                ->count();
+
+            $estadisticas = [
+                'total_perdidos' => $ejemplaresPerdidos->count(),
+                'por_mes' => $this->getEjemplaresPerdidosPorMes($ejemplaresPerdidos, $fechaInicio, $fechaFin),
+                'libros_afectados' => $ejemplaresPerdidos->groupBy('libro.titulo')->count(),
+                'valor_estimado' => $ejemplaresPerdidos->count() * 25000,
+                'perdidas_año_actual' => $perdidasAñoActual, // NUEVA ESTADÍSTICA
+            ];
+
+            $datos = [
+                'ejemplares_perdidos' => $ejemplaresPerdidos,
+                'estadisticas' => $estadisticas,
+                'periodo' => [
+                    'inicio' => $fechaInicio->format('d/m/Y'),
+                    'fin' => $fechaFin->format('d/m/Y'),
+                    'tipo' => $validated['periodo'] ?? 'personalizado'
+                ]
+            ];
+
+            return $this->descargarPDF('libros-perdidos', $datos);
+
+        } catch (\Exception $e) {
+            Log::error('Error en descarga directa PDF libros perdidos: ' . $e->getMessage());
+            return back()->with('error', 'Error al descargar el PDF: ' . $e->getMessage());
+        }
+    }
     /**
      * Obtener rangos de fechas predefinidos - CORREGIDO
      */
@@ -474,17 +604,53 @@ class InformeController extends Controller
     }
 
     /**
-     * Método unificado para descargar PDF - Compatible con todos los navegadores
+     * Método privado: Obtener ejemplares perdidos por mes - NUEVO
+     */
+    private function getEjemplaresPerdidosPorMes($ejemplares, $fechaInicio, $fechaFin)
+    {
+        try {
+            $meses = [];
+            $inicio = $fechaInicio->copy()->startOfMonth();
+            $fin = $fechaFin->copy()->endOfMonth();
+
+            while ($inicio <= $fin) {
+                $mesKey = $inicio->format('Y-m');
+                $meses[$mesKey] = [
+                    'mes' => $inicio->format('M Y'),
+                    'cantidad' => 0
+                ];
+                $inicio->addMonth();
+            }
+
+            $ejemplares->groupBy(function ($ejemplar) {
+                return Carbon::parse($ejemplar->updated_at)->format('Y-m');
+            })->each(function ($group, $mesKey) use (&$meses) {
+                if (isset($meses[$mesKey])) {
+                    $meses[$mesKey]['cantidad'] = $group->count();
+                }
+            });
+
+            return array_values($meses);
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Método unificado para descargar PDF - Compatible con todos los navegadores - ACTUALIZADO
      */
     private function descargarPDF($tipo, $datos)
     {
         try {
             Log::info("Iniciando generación de PDF: {$tipo}");
 
-            // Seleccionar template según tipo
-            $template = $tipo === 'prestamos' 
-                ? 'pdfs.informe-prestamos' 
-                : 'pdfs.informe-no-devueltos';
+            // Seleccionar template según tipo - ACTUALIZADO PARA INCLUIR LIBROS PERDIDOS
+            $template = match($tipo) {
+                'prestamos' => 'pdfs.informe-prestamos',
+                'no-devueltos' => 'pdfs.informe-no-devueltos',
+                'libros-perdidos' => 'pdfs.informe-libros-perdidos',
+                default => 'pdfs.informe-prestamos'
+            };
 
             // Crear el PDF
             $pdf = Pdf::loadView($template, $datos);
