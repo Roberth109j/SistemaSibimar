@@ -1,3 +1,4 @@
+// types.ts - Versión actualizada con mejor tipado
 export interface Autor {
   id: number;
   nombre: string;
@@ -17,12 +18,13 @@ export interface Seccion {
 export interface Libro {
   id: number;
   titulo: string;
+  isbn: string; // código único
   autor: Autor;
-  isbn: string;
-  ejemplares_count: number;
   estanteria?: Estanteria;
+  ejemplares_count: number;
   seccion: Seccion;
   sign_top?: string;
+  contenido?: string; // Descripción del contenido del libro
 }
 
 export interface PaginationLink {

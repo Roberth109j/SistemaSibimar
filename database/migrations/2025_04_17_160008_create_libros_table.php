@@ -56,7 +56,7 @@ return new class extends Migration
             $table->decimal('precio', 8, 2)->nullable();
 
             // Idioma del libro
-            $table->enum('idioma', ['ESPANOL', 'INGLES', 'FRANCES','OTRO']);
+            $table->enum('idioma', ['ESPAÑOL', 'INGLES', 'FRANCES','OTRO']);
 
             // Edad recomendada para leer el libro
             $table->integer('edad_recomendada')->nullable();

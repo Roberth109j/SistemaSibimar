@@ -57,7 +57,7 @@ class Libro extends Model
     const AREA_OTRAS = 'OTRAS';
 
     // Enums para idiomas
-    const IDIOMA_ESPANOL = 'ESPANOL';
+    const IDIOMA_ESPANOL = 'ESPAÑOL';
     const IDIOMA_INGLES = 'INGLES';
     const IDIOMA_FRANCES = 'FRANCES';
     const IDIOMA_OTRO = 'OTRO';
