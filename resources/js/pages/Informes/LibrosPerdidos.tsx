@@ -20,49 +20,11 @@ import {
 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-
-// Interfaces
-interface EstadisticasLibrosPerdidos {
-  total_perdidos: number;
-  libros_afectados: number;
-  valor_estimado: number;
-  por_mes: PerdidosPorMes[];
-  perdidas_año_actual: number;
-}
-
-interface PerdidosPorMes {
-  mes: string;
-  cantidad: number;
-}
-
-interface EjemplarPerdido {
-  id: number;
-  numEjemplar: number;
-  estado: string;
-  observaciones?: string;
-  updated_at: string;
-  fecha_perdida: string;
-  fecha_perdida_formateada: string;
-  libro: {
-    id: number;
-    titulo: string;
-    isbn?: string;
-    autor: {
-      nombres: string;
-      apellidos: string;
-    };
-  };
-}
-
-interface LibrosPerdidosProps {
-  ejemplares_perdidos: EjemplarPerdido[];
-  estadisticas: EstadisticasLibrosPerdidos;
-  periodo: {
-    inicio: string;
-    fin: string;
-    tipo: string;
-  };
-}
+import { 
+  type LibrosPerdidosProps,
+  type EstadisticasLibrosPerdidos,
+  type EjemplarPerdido 
+} from './types';
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: 'Informes', href: '/informes' },

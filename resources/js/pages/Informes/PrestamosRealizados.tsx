@@ -25,26 +25,11 @@ import {
 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type InformeEstadisticas, type PrestamoDetalle } from './types';
-
-interface PrestamosRealizadosProps {
-  prestamos: PrestamoDetalle[];
-  estadisticas: InformeEstadisticas;
-  periodo: {
-    inicio: string;
-    fin: string;
-    tipo: string;
-  };
-  pagination?: {
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number | null;
-    to: number | null;
-    has_pages: boolean;
-  };
-}
+import { 
+  type PrestamosRealizadosProps,
+  type InformeEstadisticas, 
+  type PrestamoDetalle 
+} from './types';
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: 'Informes', href: '/informes' },
