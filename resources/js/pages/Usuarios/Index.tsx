@@ -113,7 +113,6 @@ const Index = ({
   if (!isAdmin) {
     return (
       <AppLayout
-        title="Acceso Denegado"
         renderHeader={() => (
           <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
             Acceso Denegado
@@ -198,6 +197,31 @@ const Index = ({
     setShowCreateModal(true);
   };
 
+  const handleCreateSuccess = (message: string) => {
+    setAlerts(prev => ({ ...prev, success: message }));
+    setShowCreateModal(false);
+    // Recargar la página para mostrar el nuevo usuario
+    router.reload();
+  };
+
+  const handleCreateError = (message: string) => {
+    setAlerts(prev => ({ ...prev, error: message }));
+  };
+
+
+
+  const handleEditSuccess = () => {
+    setAlerts(prev => ({ ...prev, success: 'Usuario actualizado exitosamente' }));
+    setShowEditModal(false);
+    setSelectedUsuario(null);
+    // Recargar la página para mostrar los cambios
+    router.reload();
+  };
+
+  const handleEditError = () => {
+    setAlerts(prev => ({ ...prev, error: 'Error al actualizar el usuario' }));
+  };
+
   const handleEdit = (usuario: Usuario) => {
     setSelectedUsuario(usuario);
     setShowEditModal(true);
@@ -237,7 +261,6 @@ const Index = ({
 
   return (
     <AppLayout
-      title="Usuarios"
       renderHeader={() => (
         <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
           Administración de Usuarios
@@ -464,15 +487,16 @@ const Index = ({
       </div>
 
       {/* Modales */}
-      {showCreateModal && (
-        <CreateUsuario
-          auth={auth}
-          secciones={secciones}
-          roles={roles}
-          errors={errors}
-          onClose={closeModals}
-        />
-      )}
+      <CreateUsuario
+        auth={auth}
+        secciones={secciones}
+        roles={roles}
+        errors={errors}
+        onSuccess={handleCreateSuccess}
+        onError={handleCreateError}
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
 
       {showEditModal && selectedUsuario && (
         <EditUsuario
@@ -481,6 +505,9 @@ const Index = ({
           secciones={secciones}
           roles={roles}
           errors={errors}
+          onSuccess={handleEditSuccess}
+          onError={handleEditError}
+          open={showEditModal}
           onClose={closeModals}
         />
       )}
