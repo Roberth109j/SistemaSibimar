@@ -6,7 +6,8 @@ use App\Models\Prestamo;
 use App\Models\Lector;
 use App\Models\Libro;
 use App\Models\Grado;
-use App\Models\Ejemplar; // AGREGADO para libros perdidos
+use App\Models\Ejemplar; 
+use App\Models\Seccion; // AGREGADO para control de roles
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -18,6 +19,52 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class InformeController extends Controller
 {
     /**
+     * Obtener la sección según el rol del usuario - NUEVO MÉTODO
+     */
+    private function getSeccionByRole(Request $request)
+    {
+        $user = $request->user();
+        $seccionId = null;
+        
+        if ($user->hasRole('BibliotecarioPrimaria')) {
+            $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+        } elseif ($user->hasRole('BibliotecarioBachillerato')) {
+            $seccion = Seccion::where('nombre', 'BACHILLERATO')->first();
+            $seccionId = $seccion ? $seccion->id : null;
+        }
+        // Si es Administrador, $seccionId queda null y verá todos los datos
+        
+        return $seccionId;
+    }
+
+    /**
+     * Aplicar filtro de sección a consulta de préstamos - NUEVO MÉTODO
+     */
+    private function aplicarFiltroSeccion($query, $seccionId)
+    {
+        if ($seccionId) {
+            $query->whereHas('ejemplar.libro.estanteria', function ($q) use ($seccionId) {
+                $q->where('seccion_id', $seccionId);
+            });
+        }
+        return $query;
+    }
+
+    /**
+     * Aplicar filtro de sección a consulta de ejemplares - NUEVO MÉTODO
+     */
+    private function aplicarFiltroSeccionEjemplares($query, $seccionId)
+    {
+        if ($seccionId) {
+            $query->whereHas('libro.estanteria', function ($q) use ($seccionId) {
+                $q->where('seccion_id', $seccionId);
+            });
+        }
+        return $query;
+    }
+
+    /**
      * Mostrar la página principal de informes
      */
     public function index()
@@ -26,7 +73,7 @@ class InformeController extends Controller
     }
 
     /**
-     * Generar informe de préstamos realizados
+     * Generar informe de préstamos realizados - ACTUALIZADO CON CONTROL DE ROLES
      */
     public function prestamosRealizados(Request $request)
     {
@@ -41,6 +88,9 @@ class InformeController extends Controller
             $fechaInicio = Carbon::parse($validated['fecha_inicio'])->startOfDay();
             $fechaFin = Carbon::parse($validated['fecha_fin'])->endOfDay();
 
+            // NUEVO: Obtener sección según rol del usuario
+            $seccionId = $this->getSeccionByRole($request);
+
             // Verificar si existen préstamos en la base de datos
             $totalPrestamos = Prestamo::count();
             
@@ -48,10 +98,13 @@ class InformeController extends Controller
                 return back()->with('error', 'No hay préstamos registrados en la base de datos.');
             }
 
-            // Consulta base de préstamos con paginación para vista
-            $prestamosQuery = Prestamo::with(['ejemplar.libro.autor', 'lector.grado'])
+            // Consulta base de préstamos con filtro de sección
+            $prestamosQuery = Prestamo::with(['ejemplar.libro.autor', 'ejemplar.libro.estanteria.seccion', 'lector.grado'])
                 ->whereBetween('fecha_prestamo', [$fechaInicio, $fechaFin])
                 ->orderBy('fecha_prestamo', 'desc');
+
+            // NUEVO: Aplicar filtro de sección según rol
+            $prestamosQuery = $this->aplicarFiltroSeccion($prestamosQuery, $seccionId);
 
             // Para estadísticas usamos todos los registros
             $todosPrestamos = $prestamosQuery->get();
@@ -81,6 +134,7 @@ class InformeController extends Controller
                     'fin' => $fechaFin->format('d/m/Y'),
                     'tipo' => $validated['periodo'] ?? 'personalizado'
                 ],
+                'seccion_info' => $seccionId ? Seccion::find($seccionId)->nombre : 'TODAS LAS SECCIONES', // NUEVO
                 'pagination' => $validated['formato'] === 'vista' ? [
                     'current_page' => $prestamos->currentPage(),
                     'last_page' => $prestamos->lastPage(),
@@ -107,7 +161,7 @@ class InformeController extends Controller
     }
 
     /**
-     * Generar informe de libros no devueltos - CORREGIDO COMPLETAMENTE
+     * Generar informe de libros no devueltos - ACTUALIZADO CON CONTROL DE ROLES
      */
     public function librosNoDevueltos(Request $request)
     {
@@ -123,15 +177,23 @@ class InformeController extends Controller
             $fechaFin = Carbon::parse($validated['fecha_fin'])->endOfDay();
             $hoy = Carbon::now();
 
-            // SOLO préstamos VENCIDOS con cálculo CORRECTO de días
-            $prestamosNoDevueltos = Prestamo::with([
+            // NUEVO: Obtener sección según rol del usuario
+            $seccionId = $this->getSeccionByRole($request);
+
+            // SOLO préstamos VENCIDOS con cálculo CORRECTO de días y filtro de sección
+            $prestamosNoDevueltosQuery = Prestamo::with([
                 'ejemplar.libro.autor', 
+                'ejemplar.libro.estanteria.seccion',
                 'lector.grado'
             ])
                 ->where('estado', 'VENCIDO')
                 ->whereBetween('fecha_prestamo', [$fechaInicio, $fechaFin])
-                ->orderBy('fecha_devolucion', 'asc')
-                ->get()
+                ->orderBy('fecha_devolucion', 'asc');
+
+            // NUEVO: Aplicar filtro de sección según rol
+            $prestamosNoDevueltosQuery = $this->aplicarFiltroSeccion($prestamosNoDevueltosQuery, $seccionId);
+
+            $prestamosNoDevueltos = $prestamosNoDevueltosQuery->get()
                 ->map(function ($prestamo) use ($hoy) {
                     // CORRECCIÓN CRÍTICA: Calcular días de retraso correctamente
                     $fechaVencimiento = Carbon::parse($prestamo->fecha_devolucion)->startOfDay();
@@ -169,7 +231,8 @@ class InformeController extends Controller
                     'inicio' => $fechaInicio->format('d/m/Y'),
                     'fin' => $fechaFin->format('d/m/Y'),
                     'tipo' => $validated['periodo'] ?? 'personalizado'
-                ]
+                ],
+                'seccion_info' => $seccionId ? Seccion::find($seccionId)->nombre : 'TODAS LAS SECCIONES', // NUEVO
             ];
 
             if ($validated['formato'] === 'pdf') {
@@ -185,7 +248,7 @@ class InformeController extends Controller
     }
 
     /**
-     * Generar informe de libros perdidos - NUEVO
+     * Generar informe de libros perdidos - ACTUALIZADO CON CONTROL DE ROLES
      */
     public function librosPerdidos(Request $request)
     {
@@ -200,12 +263,19 @@ class InformeController extends Controller
             $fechaInicio = Carbon::parse($validated['fecha_inicio'])->startOfDay();
             $fechaFin = Carbon::parse($validated['fecha_fin'])->endOfDay();
 
-            // Obtener ejemplares marcados como PERDIDO en el período especificado
-            $ejemplaresPerdidos = Ejemplar::with(['libro.autor'])
+            // NUEVO: Obtener sección según rol del usuario
+            $seccionId = $this->getSeccionByRole($request);
+
+            // Obtener ejemplares marcados como PERDIDO en el período especificado con filtro de sección
+            $ejemplaresPerdidosQuery = Ejemplar::with(['libro.autor', 'libro.estanteria.seccion'])
                 ->where('estado', 'PERDIDO')
                 ->whereBetween('updated_at', [$fechaInicio, $fechaFin])
-                ->orderBy('updated_at', 'desc')
-                ->get()
+                ->orderBy('updated_at', 'desc');
+
+            // NUEVO: Aplicar filtro de sección según rol
+            $ejemplaresPerdidosQuery = $this->aplicarFiltroSeccionEjemplares($ejemplaresPerdidosQuery, $seccionId);
+
+            $ejemplaresPerdidos = $ejemplaresPerdidosQuery->get()
                 ->map(function ($ejemplar) {
                     // Agregar fecha formateada para facilitar el manejo en frontend
                     $ejemplar->fecha_perdida = $ejemplar->updated_at->format('Y-m-d H:i:s');
@@ -213,14 +283,17 @@ class InformeController extends Controller
                     return $ejemplar;
                 });
 
-            // NUEVA CONSULTA: Pérdidas del año actual completo (independiente del filtro)
+            // NUEVA CONSULTA: Pérdidas del año actual completo (con filtro de sección)
             $añoActual = Carbon::now()->year;
             $inicioAño = Carbon::create($añoActual, 1, 1)->startOfDay();
             $finAño = Carbon::create($añoActual, 12, 31)->endOfDay();
             
-            $perdidasAñoActual = Ejemplar::where('estado', 'PERDIDO')
-                ->whereBetween('updated_at', [$inicioAño, $finAño])
-                ->count();
+            $perdidasAñoActualQuery = Ejemplar::where('estado', 'PERDIDO')
+                ->whereBetween('updated_at', [$inicioAño, $finAño]);
+
+            // NUEVO: Aplicar filtro de sección según rol para estadística anual
+            $perdidasAñoActualQuery = $this->aplicarFiltroSeccionEjemplares($perdidasAñoActualQuery, $seccionId);
+            $perdidasAñoActual = $perdidasAñoActualQuery->count();
 
             // Estadísticas básicas - ACTUALIZADA
             $estadisticas = [
@@ -238,7 +311,8 @@ class InformeController extends Controller
                     'inicio' => $fechaInicio->format('d/m/Y'),
                     'fin' => $fechaFin->format('d/m/Y'),
                     'tipo' => $validated['periodo'] ?? 'personalizado'
-                ]
+                ],
+                'seccion_info' => $seccionId ? Seccion::find($seccionId)->nombre : 'TODAS LAS SECCIONES', // NUEVO
             ];
 
             if ($validated['formato'] === 'pdf') {
@@ -254,7 +328,7 @@ class InformeController extends Controller
     }
 
     /**
-     * Descarga directa de PDF de préstamos (GET) - Método universal
+     * Descarga directa de PDF de préstamos (GET) - ACTUALIZADO CON CONTROL DE ROLES
      */
     public function descargarPDFPrestamos(Request $request)
     {
@@ -268,10 +342,16 @@ class InformeController extends Controller
             $fechaInicio = Carbon::parse($validated['fecha_inicio'])->startOfDay();
             $fechaFin = Carbon::parse($validated['fecha_fin'])->endOfDay();
 
-            $prestamos = Prestamo::with(['ejemplar.libro.autor', 'lector.grado'])
+            // NUEVO: Obtener sección según rol del usuario
+            $seccionId = $this->getSeccionByRole($request);
+
+            $prestamosQuery = Prestamo::with(['ejemplar.libro.autor', 'ejemplar.libro.estanteria.seccion', 'lector.grado'])
                 ->whereBetween('fecha_prestamo', [$fechaInicio, $fechaFin])
-                ->orderBy('fecha_prestamo', 'desc')
-                ->get();
+                ->orderBy('fecha_prestamo', 'desc');
+
+            // NUEVO: Aplicar filtro de sección según rol
+            $prestamosQuery = $this->aplicarFiltroSeccion($prestamosQuery, $seccionId);
+            $prestamos = $prestamosQuery->get();
 
             $estadisticas = [
                 'total_prestamos' => $prestamos->count(),
@@ -291,7 +371,8 @@ class InformeController extends Controller
                     'inicio' => $fechaInicio->format('d/m/Y'),
                     'fin' => $fechaFin->format('d/m/Y'),
                     'tipo' => $validated['periodo'] ?? 'personalizado'
-                ]
+                ],
+                'seccion_info' => $seccionId ? Seccion::find($seccionId)->nombre : 'TODAS LAS SECCIONES', // NUEVO
             ];
 
             return $this->descargarPDF('prestamos', $datos);
@@ -303,7 +384,7 @@ class InformeController extends Controller
     }
 
     /**
-     * Descarga directa de PDF de no devueltos (GET) - CORREGIDO
+     * Descarga directa de PDF de no devueltos (GET) - ACTUALIZADO CON CONTROL DE ROLES
      */
     public function descargarPDFNoDevueltos(Request $request)
     {
@@ -318,12 +399,19 @@ class InformeController extends Controller
             $fechaFin = Carbon::parse($validated['fecha_fin'])->endOfDay();
             $hoy = Carbon::now();
 
-            // SOLO VENCIDOS con cálculo corregido
-            $prestamosNoDevueltos = Prestamo::with(['ejemplar.libro.autor', 'lector.grado'])
+            // NUEVO: Obtener sección según rol del usuario
+            $seccionId = $this->getSeccionByRole($request);
+
+            // SOLO VENCIDOS con cálculo corregido y filtro de sección
+            $prestamosNoDevueltosQuery = Prestamo::with(['ejemplar.libro.autor', 'ejemplar.libro.estanteria.seccion', 'lector.grado'])
                 ->where('estado', 'VENCIDO')
                 ->whereBetween('fecha_prestamo', [$fechaInicio, $fechaFin])
-                ->orderBy('fecha_devolucion', 'asc')
-                ->get()
+                ->orderBy('fecha_devolucion', 'asc');
+
+            // NUEVO: Aplicar filtro de sección según rol
+            $prestamosNoDevueltosQuery = $this->aplicarFiltroSeccion($prestamosNoDevueltosQuery, $seccionId);
+
+            $prestamosNoDevueltos = $prestamosNoDevueltosQuery->get()
                 ->map(function ($prestamo) use ($hoy) {
                     // CORRECCIÓN CRÍTICA: Calcular días de retraso correctamente
                     $fechaVencimiento = Carbon::parse($prestamo->fecha_devolucion)->startOfDay();
@@ -357,7 +445,8 @@ class InformeController extends Controller
                     'inicio' => $fechaInicio->format('d/m/Y'),
                     'fin' => $fechaFin->format('d/m/Y'),
                     'tipo' => $validated['periodo'] ?? 'personalizado'
-                ]
+                ],
+                'seccion_info' => $seccionId ? Seccion::find($seccionId)->nombre : 'TODAS LAS SECCIONES', // NUEVO
             ];
 
             return $this->descargarPDF('no-devueltos', $datos);
@@ -369,7 +458,7 @@ class InformeController extends Controller
     }
 
     /**
-     * Descarga directa de PDF de libros perdidos (GET) - NUEVO
+     * Descarga directa de PDF de libros perdidos (GET) - ACTUALIZADO CON CONTROL DE ROLES
      */
     public function descargarPDFLibrosPerdidos(Request $request)
     {
@@ -383,25 +472,35 @@ class InformeController extends Controller
             $fechaInicio = Carbon::parse($validated['fecha_inicio'])->startOfDay();
             $fechaFin = Carbon::parse($validated['fecha_fin'])->endOfDay();
 
-            $ejemplaresPerdidos = Ejemplar::with(['libro.autor'])
+            // NUEVO: Obtener sección según rol del usuario
+            $seccionId = $this->getSeccionByRole($request);
+
+            $ejemplaresPerdidosQuery = Ejemplar::with(['libro.autor', 'libro.estanteria.seccion'])
                 ->where('estado', 'PERDIDO')
                 ->whereBetween('updated_at', [$fechaInicio, $fechaFin])
-                ->orderBy('updated_at', 'desc')
-                ->get()
+                ->orderBy('updated_at', 'desc');
+
+            // NUEVO: Aplicar filtro de sección según rol
+            $ejemplaresPerdidosQuery = $this->aplicarFiltroSeccionEjemplares($ejemplaresPerdidosQuery, $seccionId);
+
+            $ejemplaresPerdidos = $ejemplaresPerdidosQuery->get()
                 ->map(function ($ejemplar) {
                     $ejemplar->fecha_perdida = $ejemplar->updated_at->format('Y-m-d H:i:s');
                     $ejemplar->fecha_perdida_formateada = $ejemplar->updated_at->format('d/m/Y');
                     return $ejemplar;
                 });
 
-            // NUEVA CONSULTA: Pérdidas del año actual completo
+            // NUEVA CONSULTA: Pérdidas del año actual completo con filtro de sección
             $añoActual = Carbon::now()->year;
             $inicioAño = Carbon::create($añoActual, 1, 1)->startOfDay();
             $finAño = Carbon::create($añoActual, 12, 31)->endOfDay();
             
-            $perdidasAñoActual = Ejemplar::where('estado', 'PERDIDO')
-                ->whereBetween('updated_at', [$inicioAño, $finAño])
-                ->count();
+            $perdidasAñoActualQuery = Ejemplar::where('estado', 'PERDIDO')
+                ->whereBetween('updated_at', [$inicioAño, $finAño]);
+
+            // NUEVO: Aplicar filtro de sección según rol para estadística anual
+            $perdidasAñoActualQuery = $this->aplicarFiltroSeccionEjemplares($perdidasAñoActualQuery, $seccionId);
+            $perdidasAñoActual = $perdidasAñoActualQuery->count();
 
             $estadisticas = [
                 'total_perdidos' => $ejemplaresPerdidos->count(),
@@ -418,7 +517,8 @@ class InformeController extends Controller
                     'inicio' => $fechaInicio->format('d/m/Y'),
                     'fin' => $fechaFin->format('d/m/Y'),
                     'tipo' => $validated['periodo'] ?? 'personalizado'
-                ]
+                ],
+                'seccion_info' => $seccionId ? Seccion::find($seccionId)->nombre : 'TODAS LAS SECCIONES', // NUEVO
             ];
 
             return $this->descargarPDF('libros-perdidos', $datos);
@@ -428,6 +528,7 @@ class InformeController extends Controller
             return back()->with('error', 'Error al descargar el PDF: ' . $e->getMessage());
         }
     }
+
     /**
      * Obtener rangos de fechas predefinidos - CORREGIDO
      */

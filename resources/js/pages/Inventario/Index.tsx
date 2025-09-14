@@ -93,24 +93,35 @@ const Index: React.FC<InventarioProps> = ({
   libros,
   estadisticas,
   clases = [],
+  areas = [], // 🆕 NUEVO: array de áreas
   idiomas = [],
   estanterias = [],
+  all_secciones = [], // 🔄 CAMBIADO: de 'secciones' a 'all_secciones'
   secciones = [],
   grados = [],
   estados = {},
+  seccionId, // 🆕 NUEVO: ID de sección filtrada por rol
   filters: filtrosIniciales = {},
   flash,
   errors = {},
   pagination
 }) => {
-  console.log('Index props:', { libros, pagination, filters: filtrosIniciales });
+  console.log('Index props:', { 
+    libros, 
+    pagination, 
+    filters: filtrosIniciales,
+    areas, // 🆕 DEBUG: verificar áreas
+    all_secciones, // 🔄 DEBUG: verificar secciones
+    seccionId // 🆕 DEBUG: verificar sección filtrada
+  });
   
-  // Estados del componente
+  // Estados del componente - ACTUALIZADO CON ÁREA
   const [terminoBusqueda, setTerminoBusqueda] = useState(filtrosIniciales.search || '');
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [exportandoExcel, setExportandoExcel] = useState(false);
   const [filtrosSeleccionados, setFiltrosSeleccionados] = useState({
     clase: filtrosIniciales.clase || '',
+    area: filtrosIniciales.area || '', // 🆕 NUEVO: filtro por área
     idioma: filtrosIniciales.idioma || '',
     seccion: filtrosIniciales.seccion || '',
     grado: filtrosIniciales.grado || '',
@@ -137,7 +148,7 @@ const Index: React.FC<InventarioProps> = ({
     }
   }, [flash]);
 
-  // Funciones de manejo
+  // Funciones de manejo - ACTUALIZADO CON ÁREA
   const aplicarFiltros = useCallback((terminoActual: string, filtrosActuales: typeof filtrosSeleccionados) => {
     const params = new URLSearchParams();
     
@@ -174,6 +185,7 @@ const Index: React.FC<InventarioProps> = ({
     setTerminoBusqueda('');
     setFiltrosSeleccionados({
       clase: '',
+      area: '', // 🆕 NUEVO: limpiar filtro de área
       idioma: '',
       seccion: '',
       grado: '',
@@ -248,6 +260,9 @@ const Index: React.FC<InventarioProps> = ({
     };
   }, []);
 
+  // 🔄 PREPARAR DATOS PARA SECCIONES (usar nombres de secciones para el filtro)
+  const nombresSecciones = all_secciones.map(seccion => seccion.nombre);
+
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Inventario de Biblioteca" />
@@ -271,7 +286,8 @@ const Index: React.FC<InventarioProps> = ({
       <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
         <div className="max-w-7xl mx-auto">
           
-          {/* Encabezado con estadísticas y controles */}
+          
+          {/* Encabezado con estadísticas y controles - ACTUALIZADO */}
           <EncabezadoInventario
             totalLibros={estadisticas.total_libros}
             totalEjemplares={estadisticas.total_ejemplares}
@@ -289,9 +305,8 @@ const Index: React.FC<InventarioProps> = ({
             onLimpiarFiltros={limpiarFiltros}
             onExportarExcel={exportarExcel}
             clases={clases}
-            idiomas={idiomas}
-            secciones={secciones}
-            grados={grados}
+            areas={areas} // 🆕 NUEVO: pasar áreas
+            secciones={nombresSecciones} // 🔄 USAR nombres de secciones
             exportandoExcel={exportandoExcel}
           />
 
@@ -300,6 +315,7 @@ const Index: React.FC<InventarioProps> = ({
             libros={libros} 
             pagination={pagination}
           />
+
         </div>
       </div>
     </AppLayout>

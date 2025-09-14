@@ -665,7 +665,7 @@ const Index: React.FC<BuscadorProps> = ({ libros, secciones, filters }) => {
                       Estantería
                     </th>
                     <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                      Unds disponibles
+                      Uds. disponibles
                     </th>
                   </tr>
                 </thead>

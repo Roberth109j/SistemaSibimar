@@ -18,27 +18,12 @@ import {
 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-
-// Tipos específicos para informes
-interface RangoFecha {
-  inicio: string;
-  fin: string;
-}
-
-interface RangosFecha {
-  anual: RangoFecha;
-}
-
-interface InformesProps {
-  auth: any;
-  flash?: {
-    success?: string;
-    error?: string;
-  };
-}
-
-type TipoInforme = 'prestamos-realizados' | 'libros-no-devueltos' | 'libros-perdidos';
-type TipoPeriodo = 'personalizado' | 'anual';
+import { 
+  type RangosFecha, 
+  type InformesProps, 
+  type TipoInforme, 
+  type TipoPeriodo 
+} from './types';
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: 'Informes', href: '/informes' },
@@ -98,7 +83,11 @@ export default function Index({ auth, flash }: InformesProps) {
   const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodo>('anual');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
-  const [cargando, setCargando] = useState(false);
+  
+  // CORREGIDO: Estados separados para cada botón
+  const [cargandoVistaPrevia, setCargandoVistaPrevia] = useState(false);
+  const [cargandoPDF, setCargandoPDF] = useState(false);
+  
   const [rangosFecha, setRangosFecha] = useState<RangosFecha | null>(null);
   
   // Estado de notificaciones
@@ -136,12 +125,6 @@ export default function Index({ auth, flash }: InformesProps) {
     }
   }, [tipoPeriodo, rangosFecha]);
 
-  // Función para obtener el token CSRF
-  const getCSRFToken = () => {
-    const metaTag = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement;
-    return metaTag ? metaTag.getAttribute('content') : '';
-  };
-
   // Función para formatear la fecha en español
   const formatearFecha = (fecha: string) => {
     return new Date(fecha).toLocaleDateString('es-ES', {
@@ -160,7 +143,7 @@ export default function Index({ auth, flash }: InformesProps) {
     return nombres[tipo];
   };
 
-  // Generar vista previa - MÉTODO CORREGIDO
+  // CORREGIDO: Vista previa con estado separado
   const generarVistaPrevia = () => {
     if (!fechaInicio || !fechaFin) {
       setAlerts(prev => ({ ...prev, error: 'Debe seleccionar fechas de inicio y fin' }));
@@ -172,7 +155,7 @@ export default function Index({ auth, flash }: InformesProps) {
       return;
     }
 
-    setCargando(true);
+    setCargandoVistaPrevia(true); // Solo el botón de vista previa
 
     const datos = {
       fecha_inicio: fechaInicio,
@@ -183,7 +166,6 @@ export default function Index({ auth, flash }: InformesProps) {
 
     console.log('Vista previa - Datos enviados:', datos);
 
-    // Usar router.visit con método POST para mejor manejo de CSRF
     const url = tipoInforme === 'prestamos-realizados' 
       ? '/informes/prestamos-realizados'
       : tipoInforme === 'libros-no-devueltos'
@@ -199,14 +181,13 @@ export default function Index({ auth, flash }: InformesProps) {
         console.log('Iniciando petición POST para vista previa');
       },
       onSuccess: (page) => {
-        setCargando(false);
+        setCargandoVistaPrevia(false);
         console.log('Vista previa generada exitosamente', page);
       },
       onError: (errors) => {
-        setCargando(false);
+        setCargandoVistaPrevia(false);
         console.error('Error en vista previa:', errors);
         
-        // Manejar errores específicos
         const errorMessage = typeof errors === 'object' 
           ? Object.values(errors).flat().join(', ')
           : 'Error al generar la vista previa';
@@ -216,12 +197,12 @@ export default function Index({ auth, flash }: InformesProps) {
         }));
       },
       onFinish: () => {
-        setCargando(false);
+        setCargandoVistaPrevia(false);
       }
     });
   };
 
-  // Descargar PDF
+  // CORREGIDO: Descargar PDF con estado separado
   const descargarPDF = () => {
     if (!fechaInicio || !fechaFin) {
       setAlerts(prev => ({ ...prev, error: 'Debe seleccionar fechas de inicio y fin' }));
@@ -233,7 +214,7 @@ export default function Index({ auth, flash }: InformesProps) {
       return;
     }
 
-    setCargando(true);
+    setCargandoPDF(true); // Solo el botón de PDF
 
     const params = new URLSearchParams({
       fecha_inicio: fechaInicio,
@@ -251,13 +232,16 @@ export default function Index({ auth, flash }: InformesProps) {
     window.open(url, '_blank');
     
     setTimeout(() => {
-      setCargando(false);
+      setCargandoPDF(false);
       setAlerts(prev => ({ 
         ...prev, 
         success: 'PDF generado exitosamente. Verifique su carpeta de descargas.' 
       }));
     }, 2000);
   };
+
+  // CORREGIDO: Determinar si algún botón está cargando
+  const algunBotonCargando = cargandoVistaPrevia || cargandoPDF;
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -484,7 +468,6 @@ export default function Index({ auth, flash }: InformesProps) {
                         value={fechaInicio}
                         onChange={(e) => {
                           setFechaInicio(e.target.value);
-                          // Solo cambiar a personalizado si las fechas ya no coinciden con el período seleccionado
                           if (tipoPeriodo !== 'personalizado' && rangosFecha) {
                             const rango = rangosFecha[tipoPeriodo];
                             if (rango && (e.target.value !== rango.inicio || fechaFin !== rango.fin)) {
@@ -523,7 +506,6 @@ export default function Index({ auth, flash }: InformesProps) {
                         value={fechaFin || ''}
                         onChange={(e) => {
                           setFechaFin(e.target.value);
-                          // Solo cambiar a personalizado si las fechas ya no coinciden con el período seleccionado
                           if (tipoPeriodo !== 'personalizado' && rangosFecha) {
                             const rango = rangosFecha[tipoPeriodo];
                             if (rango && (fechaInicio !== rango.inicio || e.target.value !== rango.fin)) {
@@ -561,14 +543,14 @@ export default function Index({ auth, flash }: InformesProps) {
                 )}
               </div>
 
-              {/* Botones de Acción */}
+              {/* CORREGIDO: Botones de Acción con estados separados */}
               <div className="flex items-center justify-end space-x-4">
                 <button
                   onClick={generarVistaPrevia}
-                  disabled={cargando || !fechaInicio || !fechaFin}
+                  disabled={cargandoVistaPrevia || !fechaInicio || !fechaFin}
                   className="px-6 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center space-x-2 disabled:cursor-not-allowed"
                 >
-                  {cargando ? (
+                  {cargandoVistaPrevia ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       <span>Generando...</span>
@@ -583,10 +565,10 @@ export default function Index({ auth, flash }: InformesProps) {
 
                 <button
                   onClick={descargarPDF}
-                  disabled={cargando || !fechaInicio || !fechaFin}
+                  disabled={cargandoPDF || !fechaInicio || !fechaFin}
                   className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg font-medium transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none disabled:cursor-not-allowed flex items-center space-x-2"
                 >
-                  {cargando ? (
+                  {cargandoPDF ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       <span>Descargando...</span>

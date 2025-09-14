@@ -21,71 +21,11 @@ import {
 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-
-// Interfaces corregidas
-interface EstadisticasNoDevueltos {
-  total_no_devueltos: number;
-  vencidos: number;
-  promedio_dias_retraso: number;
-  por_grado: NoDevueltoPorGrado[];
-  por_severidad: NoDevueltoPorSeveridad;
-}
-
-interface NoDevueltoPorGrado {
-  grado: string;
-  cantidad: number;
-  vencidos: number;
-}
-
-interface NoDevueltoPorSeveridad {
-  critico: number;
-  alto: number;
-  medio: number;
-  bajo: number;
-}
-
-interface PrestamoDetalle {
-  id: number;
-  fecha_prestamo: string;
-  fecha_devolucion: string;
-  fecha_devuelto?: string;
-  estado: string;
-  observaciones?: string;
-  dias_retraso: number;
-  ejemplar: {
-    id?: number;
-    codigo?: string;
-    numEjemplar?: number;
-    libro: {
-      id?: number;
-      titulo: string;
-      isbn?: string;
-      autor: {
-        nombres: string;
-        apellidos: string;
-      };
-    };
-  };
-  lector: {
-    id?: number;
-    nombre: string;
-    codigo: string;
-    grado?: {
-      id?: number;
-      subGrado: string;
-    };
-  };
-}
-
-interface LibrosNoDevueltosProps {
-  prestamos_no_devueltos: PrestamoDetalle[];
-  estadisticas: EstadisticasNoDevueltos;
-  periodo: {
-    inicio: string;
-    fin: string;
-    tipo: string;
-  };
-}
+import { 
+  type LibrosNoDevueltosProps,
+  type EstadisticasNoDevueltos,
+  type PrestamoDetalle 
+} from './types';
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: 'Informes', href: '/informes' },

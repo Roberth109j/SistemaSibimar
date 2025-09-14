@@ -5,8 +5,13 @@ import { BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 // Interfaces
 interface Libro {
   id: number;
-  isbn: string;
+  codigo_unico: string;
+  isbn?: string;
   titulo: string;
+  contenido?: string;
+  area?: string;
+  clase?: string;
+  idioma?: string;
   autor?: {
     nombres: string;
     apellidos: string;
@@ -14,10 +19,17 @@ interface Libro {
   editorial?: {
     nombre: string;
   };
+  seccion?: {
+    id: number;
+    nombre: string;
+  };
+  estanteria?: {
+    id: number;
+    cod_estante: string;
+  };
   ejemplares_count: number;
   ejemplares_disponibles_count: number;
   ejemplares_prestados_count: number;
-  // ✅ NUEVOS CAMPOS SEPARADOS
   ejemplares_dados_baja_count: number;
   ejemplares_perdidos_count: number;
 }
@@ -48,12 +60,12 @@ interface BadgeEstadoProps {
   cantidad: number;
 }
 
-// Componente Badge Estado - ACTUALIZADO
+// Componente Badge Estado
 const BadgeEstado: React.FC<BadgeEstadoProps> = ({ tipo, cantidad }) => {
   const estilos = {
     disponibles: 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100',
     prestados: 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100',
-    dados_baja: 'bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-100 ',
+    dados_baja: 'bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-100',
     perdidos: 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100'
   };
 
@@ -61,6 +73,24 @@ const BadgeEstado: React.FC<BadgeEstadoProps> = ({ tipo, cantidad }) => {
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${estilos[tipo]}`}>
       {cantidad}
     </span>
+  );
+};
+
+// Componente simplificado para mostrar solo clase y área
+const InfoLibroAdicional: React.FC<{ libro: Libro }> = ({ libro }) => {
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {libro.clase && (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-100">
+          {libro.clase}
+        </span>
+      )}
+      {libro.area && (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100">
+          {libro.area}
+        </span>
+      )}
+    </div>
   );
 };
 
@@ -143,8 +173,11 @@ const TablaInventario: React.FC<TablaInventarioProps> = ({ libros, pagination })
             {libros.data.map((libro, index) => {
               // Calcular el número de fila considerando la paginación
               const numeroFila = (paginationData.current_page - 1) * paginationData.per_page + index + 1;
-              // ✅ CALCULAR TOTAL EN CIRCULACIÓN
+              // Calcular total en circulación
               const totalEnCirculacion = libro.ejemplares_disponibles_count + libro.ejemplares_prestados_count;
+              
+              // Obtener el código (prioridad a codigo_unico, fallback a isbn)
+              const codigoLibro = libro.codigo_unico || libro.isbn || 'N/A';
               
               return (
                 <tr key={libro.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -159,8 +192,10 @@ const TablaInventario: React.FC<TablaInventarioProps> = ({ libros, pagination })
                         {libro.titulo}
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
-                        ISBN: {libro.isbn}
+                        Código: {codigoLibro}
                       </div>
+                      {/* Solo mostrar clase y área */}
+                      <InfoLibroAdicional libro={libro} />
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
