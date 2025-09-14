@@ -217,7 +217,7 @@ public function index(Request $request): Response|RedirectResponse
         // Obtener todas las secciones para el formulario
         $allSecciones = \App\Models\Seccion::all();
         
-        return Inertia::render('Grado/CreatePage', [
+        return Inertia::render('Grado/Create', [
             'all_secciones' => $allSecciones,
             'seccionId' => null, // Los administradores pueden seleccionar cualquier sección
             'errors' => session('errors') ? session('errors')->getBag('default')->getMessages() : (object) [],
@@ -289,7 +289,7 @@ public function index(Request $request): Response|RedirectResponse
      */
     public function show(Grado $grado): Response
     {
-        return Inertia::render('Grado/ShowPage', [
+        return Inertia::render('Grado/Show', [
             'grado' => $grado->fresh()
         ]);
     }
@@ -306,7 +306,7 @@ public function index(Request $request): Response|RedirectResponse
         // Obtener todas las secciones para el formulario
         $allSecciones = \App\Models\Seccion::all();
         
-        return Inertia::render('Grado/EditPage', [
+        return Inertia::render('Grado/Edit', [
             'grado' => $grado,
             'all_secciones' => $allSecciones,
             'seccionId' => null, // Los administradores pueden seleccionar cualquier sección

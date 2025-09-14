@@ -119,11 +119,6 @@ class InventarioController extends Controller
         // Obtener datos para filtros
         $clases = [
             Libro::CLASE_LIBRO,
-            Libro::CLASE_CARTILLA,
-            Libro::CLASE_CUENTO,
-            Libro::CLASE_DICCIONARIO,
-            Libro::CLASE_ENCICLOPEDIA,
-            Libro::CLASE_NOVELA,
             Libro::CLASE_REVISTA,
         ];
         
