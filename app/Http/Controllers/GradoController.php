@@ -38,22 +38,10 @@ public function index(Request $request): Response|RedirectResponse
     $search = $request->get('search', '');
 
     // Query base - INCLUIR LA RELACIÓN CON SECCIÓN
-    $query = Grado::with('seccion'); // Esta es la línea clave que faltaba
+    $query = Grado::with('seccion');
     
-    // Filtrar por sección según el rol del usuario
-    $user = request()->user();
-    if ($user->hasRole('BibliotecarioPrimaria')) {
-        $seccion = \App\Models\Seccion::where('nombre', 'PRIMARIA')->first();
-        if ($seccion) {
-            $query->where('seccion_id', $seccion->id);
-        }
-    } elseif ($user->hasRole('BibliotecarioBachillerato')) {
-        $seccion = \App\Models\Seccion::where('nombre', 'BACHILLERATO')->first();
-        if ($seccion) {
-            $query->where('seccion_id', $seccion->id);
-        }
-    }
-    // Los administradores pueden ver todos los grados
+    // Solo los administradores pueden acceder a esta funcionalidad
+    // No se aplican filtros por sección ya que los administradores pueden ver todos los grados
 
     // Aplicar filtro de búsqueda si existe
     if (!empty($search)) {
@@ -194,16 +182,9 @@ public function index(Request $request): Response|RedirectResponse
     // Obtener todas las secciones para el filtro
     $allSecciones = \App\Models\Seccion::orderBy('nombre')->get();
     
-    // Determinar la sección predeterminada según el rol del usuario para el componente Create
+    // Solo los administradores pueden acceder a esta funcionalidad
+    // No se establece sección predeterminada ya que pueden gestionar todas las secciones
     $seccionId = null;
-    $user = request()->user();
-    if ($user->hasRole('BibliotecarioPrimaria')) {
-        $seccion = \App\Models\Seccion::where('nombre', 'PRIMARIA')->first();
-        $seccionId = $seccion ? $seccion->id : null;
-    } elseif ($user->hasRole('BibliotecarioBachillerato')) {
-        $seccion = \App\Models\Seccion::where('nombre', 'BACHILLERATO')->first();
-        $seccionId = $seccion ? $seccion->id : null;
-    }
 
     return Inertia::render('Grado/Index', [
         'grados' => $grados,
@@ -232,24 +213,13 @@ public function index(Request $request): Response|RedirectResponse
      */
     public function create(): Response
     {
-        // Obtener la sección del usuario según su rol
-        $user = request()->user();
-        $seccionId = null;
-        
-        if ($user->hasRole('BibliotecarioPrimaria')) {
-            $seccion = \App\Models\Seccion::where('nombre', 'PRIMARIA')->first();
-            $seccionId = $seccion ? $seccion->id : null;
-        } elseif ($user->hasRole('BibliotecarioBachillerato')) {
-            $seccion = \App\Models\Seccion::where('nombre', 'BACHILLERATO')->first();
-            $seccionId = $seccion ? $seccion->id : null;
-        }
-        
+        // Solo los administradores pueden acceder a esta funcionalidad
         // Obtener todas las secciones para el formulario
         $allSecciones = \App\Models\Seccion::all();
         
-        return Inertia::render('Grado/Create', [
+        return Inertia::render('Grado/CreatePage', [
             'all_secciones' => $allSecciones,
-            'seccionId' => $seccionId,
+            'seccionId' => null, // Los administradores pueden seleccionar cualquier sección
             'errors' => session('errors') ? session('errors')->getBag('default')->getMessages() : (object) [],
         ]);
     }
@@ -273,19 +243,8 @@ public function index(Request $request): Response|RedirectResponse
                 'seccion_id' => 'required|exists:secciones,id'
             ]);
             
-            // Validar que el usuario solo pueda actualizar grados en su sección asignada
-             $user = request()->user();
-             if ($user->hasRole('BibliotecarioPrimaria')) {
-                 $seccion = \App\Models\Seccion::where('nombre', 'PRIMARIA')->first();
-                 if ($seccion && $validated['seccion_id'] != $seccion->id) {
-                     return redirect()->back()->withErrors(['seccion_id' => 'Como bibliotecario de primaria, solo puede actualizar grados para la sección PRIMARIA.']);
-                 }
-             } elseif ($user->hasRole('BibliotecarioBachillerato')) {
-                 $seccion = \App\Models\Seccion::where('nombre', 'BACHILLERATO')->first();
-                 if ($seccion && $validated['seccion_id'] != $seccion->id) {
-                     return redirect()->back()->withErrors(['seccion_id' => 'Como bibliotecario de bachillerato, solo puede actualizar grados para la sección BACHILLERATO.']);
-                 }
-             }
+            // Solo los administradores pueden crear grados
+            // No se aplican restricciones por sección
 
             DB::beginTransaction();
             $grado = Grado::create($validated);
@@ -330,7 +289,7 @@ public function index(Request $request): Response|RedirectResponse
      */
     public function show(Grado $grado): Response
     {
-        return Inertia::render('Grado/Show', [
+        return Inertia::render('Grado/ShowPage', [
             'grado' => $grado->fresh()
         ]);
     }
@@ -343,25 +302,14 @@ public function index(Request $request): Response|RedirectResponse
         // Cargar la relación con sección
         $grado->load('seccion');
         
-        // Obtener la sección del usuario según su rol
-        $user = request()->user();
-        $seccionId = null;
-        
-        if ($user->hasRole('BibliotecarioPrimaria')) {
-            $seccion = \App\Models\Seccion::where('nombre', 'PRIMARIA')->first();
-            $seccionId = $seccion ? $seccion->id : null;
-        } elseif ($user->hasRole('BibliotecarioBachillerato')) {
-            $seccion = \App\Models\Seccion::where('nombre', 'BACHILLERATO')->first();
-            $seccionId = $seccion ? $seccion->id : null;
-        }
-        
+        // Solo los administradores pueden acceder a esta funcionalidad
         // Obtener todas las secciones para el formulario
         $allSecciones = \App\Models\Seccion::all();
         
-        return Inertia::render('Grado/Edit', [
+        return Inertia::render('Grado/EditPage', [
             'grado' => $grado,
             'all_secciones' => $allSecciones,
-            'seccionId' => $seccionId,
+            'seccionId' => null, // Los administradores pueden seleccionar cualquier sección
             'errors' => session('errors') ? session('errors')->getBag('default')->getMessages() : (object) [],
         ]);
     }
@@ -469,21 +417,8 @@ public function update(Request $request, Grado $grado): RedirectResponse
     public function destroy(Grado $grado): RedirectResponse
     {
         try {
-            // Validar que el usuario pueda eliminar este grado según su rol
-            $user = request()->user();
-            if ($user->hasRole('BibliotecarioPrimaria')) {
-                $seccion = \App\Models\Seccion::where('nombre', 'PRIMARIA')->first();
-                if ($seccion && $grado->seccion_id != $seccion->id) {
-                    return redirect()->route('grados.index')
-                        ->with('error', 'No tiene permisos para eliminar grados de esta sección.');
-                }
-            } elseif ($user->hasRole('BibliotecarioBachillerato')) {
-                $seccion = \App\Models\Seccion::where('nombre', 'BACHILLERATO')->first();
-                if ($seccion && $grado->seccion_id != $seccion->id) {
-                    return redirect()->route('grados.index')
-                        ->with('error', 'No tiene permisos para eliminar grados de esta sección.');
-                }
-            }
+            // Solo los administradores pueden eliminar grados
+            // No se aplican restricciones por sección
             
             $grado->delete();
             return redirect()->route('grados.index')

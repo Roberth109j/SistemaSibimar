@@ -22,7 +22,10 @@ return new class extends Migration
             // Relación con secciones (solo para bibliotecarios)
             $table->foreignId('seccion_id')->nullable()->constrained('secciones')->nullOnDelete();
 
-            $table->timestamps();
+            // Nuevos campos laborales
+            $table->date('fecha_inicio_labores'); // Obligatorio
+            $table->date('fecha_fin_labores')->nullable(); // Opcional
+            $table->boolean('estado_activo'); // Obligatorio
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

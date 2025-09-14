@@ -24,8 +24,9 @@ class UserSeeder extends Seeder
             'email_verified_at' => now(),
             'password' => Hash::make('admin123'),
             'seccion_id' => null,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'fecha_inicio_labores' => '2024-01-01',
+            'fecha_fin_labores' => null,
+            'estado_activo' => true,
         ]);
         
         // Crear usuario de primaria
@@ -35,8 +36,9 @@ class UserSeeder extends Seeder
             'email_verified_at' => now(),
             'password' => Hash::make('primaria'),
             'seccion_id' => $seccionPrimaria ? $seccionPrimaria->id : null,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'fecha_inicio_labores' => '2024-02-01',
+            'fecha_fin_labores' => null,
+            'estado_activo' => true,
         ]);
         
         // Crear usuario de bachillerato
@@ -46,8 +48,9 @@ class UserSeeder extends Seeder
             'email_verified_at' => now(),
             'password' => Hash::make('bachillerato'),
             'seccion_id' => $seccionBachillerato ? $seccionBachillerato->id : null,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'fecha_inicio_labores' => '2024-03-01',
+            'fecha_fin_labores' => '2025-12-31',
+            'estado_activo' => true,
         ]);
         
         // Asignar roles a los usuarios

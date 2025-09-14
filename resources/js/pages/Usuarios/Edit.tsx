@@ -36,7 +36,11 @@ export default function EditUsuario({
     email: usuario.email || '',
     password: '',
     password_confirmation: '',
-    roles: usuario.roles?.map((role: any) => role.name) || [] as string[]
+    roles: usuario.roles?.map((role: any) => role.name) || [] as string[],
+    seccion_id: usuario.seccion_id?.toString() || '',
+    fecha_inicio_labores: usuario.fecha_inicio_labores || '',
+    fecha_fin_labores: usuario.fecha_fin_labores || '',
+    estado_activo: usuario.estado_activo ?? true
   });
 
   // Función para limpiar y cerrar modal
@@ -51,12 +55,13 @@ export default function EditUsuario({
 
   // Función para manejar cambios en inputs básicos
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    const validFields: Array<keyof typeof data> = ['name', 'email', 'password', 'password_confirmation'];
+    const { name, value, type, checked = false } = e.target as HTMLInputElement;
+    const validFields: Array<keyof typeof data> = ['name', 'email', 'password', 'password_confirmation', 'seccion_id', 'fecha_inicio_labores', 'fecha_fin_labores'];
 
     if (validFields.includes(name as keyof typeof data)) {
       setData(name as keyof typeof data, value);
       console.log('Form data updated - Current state:', { ...data, [name]: value });
+
     } else {
       console.error('Invalid field name:', name);
     }
@@ -67,7 +72,19 @@ export default function EditUsuario({
     // Solo permitir un rol seleccionado
     const newRoles = [roleName];
     setData('roles', newRoles);
-    console.log('Role selected:', newRoles);
+    
+    // Sincronizar sección automáticamente según el rol
+    let seccionId = '';
+    if (roleName === 'BibliotecarioBachillerato') {
+      seccionId = '2'; // bachillerato
+    } else if (roleName === 'BibliotecarioPrimaria') {
+      seccionId = '1'; // primaria
+    } else if (roleName === 'Administrador') {
+      seccionId = ''; // NULL para administrador
+    }
+    
+    setData('seccion_id', seccionId);
+    console.log('Role selected:', newRoles, 'Section assigned:', seccionId);
   };
 
   // Función para manejar el checkbox de actualizar contraseña
@@ -97,6 +114,22 @@ export default function EditUsuario({
       placeholder: 'usuario@ejemplo.com',
       required: true,
       value: data.email,
+      onChange: handleChange
+    },
+    {
+      name: 'fecha_inicio_labores',
+      label: 'Fecha de Inicio de Labores',
+      type: 'date',
+      required: true,
+      value: data.fecha_inicio_labores,
+      onChange: handleChange
+    },
+    {
+      name: 'fecha_fin_labores',
+      label: 'Fecha de Fin de Labores',
+      type: 'date',
+      required: false,
+      value: data.fecha_fin_labores,
       onChange: handleChange
     }
   ];
@@ -223,9 +256,9 @@ export default function EditUsuario({
         description={`Modificar información de ${usuario.name}`}
         footer={modalFooter}
       >
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 min-h-[500px]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 max-h-[70vh] overflow-y-auto">
           {/* Columna izquierda - Formulario principal */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
               <div className="mb-6">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
@@ -253,69 +286,13 @@ export default function EditUsuario({
               />
             </div>
 
-            {/* Sección de contraseña */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-              <div className="mb-4">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
-                  Contraseña
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Opcional: actualizar contraseña del usuario
-                </p>
-              </div>
 
-              {/* Checkbox para actualizar contraseña */}
-              <div className="mb-4">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="updatePassword"
-                    checked={updatePassword}
-                    onChange={(e) => handleUpdatePasswordChange(e.target.checked)}
-                    className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 transition-all"
-                  />
-                  <label htmlFor="updatePassword" className="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Actualizar contraseña
-                  </label>
-                </div>
-              </div>
-
-              {/* Campos de contraseña - Solo si se marca el checkbox */}
-              {updatePassword ? (
-                <div className="space-y-4 max-h-[200px] overflow-y-auto">
-                  <Form
-                    initialData={data}
-                    fields={passwordFields}
-                    errors={formErrors}
-                    submitUrl={`/usuarios/${usuario.id}`}
-                    method="put"
-                    onCancel={handleCloseModal}
-                    onSuccess={handleSubmit}
-                    submitButtonText="Actualizar"
-                    isEditing={true}
-                    accentColor="blue"
-                    showButtons={false}
-                    id="edit-usuario-password-form"
-                    processing={processing}
-                  />
-                </div>
-              ) : (
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <div className="flex items-center">
-                    <User className="h-4 w-4 text-blue-500 mr-2" />
-                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                      La contraseña actual se mantendrá sin cambios
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Columna derecha - Sección de roles */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {roles.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 h-full">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
                 <div className="mb-6">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
                     Asignar Rol
@@ -391,6 +368,64 @@ export default function EditUsuario({
                 )}
               </div>
             )}
+
+            {/* Sección de contraseña */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+              <div className="mb-3">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
+                  Contraseña
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                  Opcional: actualizar contraseña del usuario
+                </p>
+              </div>
+
+              {/* Checkbox para actualizar contraseña */}
+              <div className="mb-3">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="updatePassword"
+                    checked={updatePassword}
+                    onChange={(e) => handleUpdatePasswordChange(e.target.checked)}
+                    className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 transition-all"
+                  />
+                  <label htmlFor="updatePassword" className="ml-2 sm:ml-3 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Actualizar contraseña
+                  </label>
+                </div>
+              </div>
+
+              {/* Campos de contraseña - Solo si se marca el checkbox */}
+              {updatePassword ? (
+                <div className="space-y-2 sm:space-y-3 max-h-[120px] sm:max-h-[150px] overflow-y-auto">
+                  <Form
+                    initialData={data}
+                    fields={passwordFields}
+                    errors={formErrors}
+                    submitUrl={`/usuarios/${usuario.id}`}
+                    method="put"
+                    onCancel={handleCloseModal}
+                    onSuccess={handleSubmit}
+                    submitButtonText="Actualizar"
+                    isEditing={true}
+                    accentColor="blue"
+                    showButtons={false}
+                    id="edit-usuario-password-form"
+                    processing={processing}
+                  />
+                </div>
+              ) : (
+                <div className="p-2 sm:p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-center">
+                    <User className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 mr-2 flex-shrink-0" />
+                    <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300 leading-tight">
+                      La contraseña actual se mantendrá sin cambios
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </UsuarioModal>

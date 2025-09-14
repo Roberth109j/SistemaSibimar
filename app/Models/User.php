@@ -14,6 +14,13 @@ class User extends Authenticatable
     use HasFactory, Notifiable,HasRoles;
 
     /**
+     * Indicates if the model should be timestamped.
+     *
+     * @var bool
+     */
+    public $timestamps = false;
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
@@ -23,6 +30,9 @@ class User extends Authenticatable
         'email',
         'password',
         'seccion_id',
+        'fecha_inicio_labores',
+        'fecha_fin_labores',
+        'estado_activo',
     ];
 
     /**
@@ -45,6 +55,9 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'fecha_inicio_labores' => 'date',
+            'fecha_fin_labores' => 'date',
+            'estado_activo' => 'boolean',
         ];
     }
     

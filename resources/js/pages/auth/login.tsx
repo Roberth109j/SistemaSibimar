@@ -18,9 +18,10 @@ type LoginForm = {
 interface LoginProps {
     status?: string;
     canResetPassword: boolean;
+    error?: string;
 }
 
-export default function Login({ status, canResetPassword }: LoginProps) {
+export default function Login({ status, canResetPassword, error }: LoginProps) {
     const { data, setData, post, processing, errors, reset } = useForm<Required<LoginForm>>({
         email: '',
         password: '',
@@ -220,6 +221,13 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             {status && (
                                 <div className="text-xs text-green-500 dark:text-green-400 text-center mt-1">
                                     {status}
+                                </div>
+                            )}
+                            
+                            {/* Mensaje de error de sesión */}
+                            {error && (
+                                <div className="text-xs text-red-500 dark:text-red-400 text-center mt-1 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                                    {error}
                                 </div>
                             )}
                         </form>

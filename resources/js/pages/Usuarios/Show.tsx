@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Mail, Calendar, Users, Shield } from 'lucide-react';
+import { User, Mail, Calendar, Users, Shield, Building, Clock, CheckCircle, XCircle } from 'lucide-react';
 import UsuarioModal from '@/components/UsuarioModal';
 import { type ShowProps } from './types';
 
@@ -55,22 +55,13 @@ const ShowUsuario: React.FC<ShowUsuarioProps> = ({
             </h3>
 
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                    ID
-                  </label>
-                  <div className="p-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    #{usuario.id}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                    Nombre
-                  </label>
-                  <div className="p-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    {usuario.name}
-                  </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 flex items-center">
+                  <Mail className="h-3 w-3 mr-1" />
+                  Nombre
+                </label>
+                <div className="p-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {usuario.name}
                 </div>
               </div>
 
@@ -81,6 +72,16 @@ const ShowUsuario: React.FC<ShowUsuarioProps> = ({
                 </label>
                 <div className="p-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded text-sm font-semibold text-gray-900 dark:text-gray-100">
                   {usuario.email}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 flex items-center">
+                  <Building className="h-3 w-3 mr-1" />
+                  Sección
+                </label>
+                <div className="p-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {usuario.seccion?.nombre || 'No asignada'}
                 </div>
               </div>
             </div>
@@ -131,23 +132,31 @@ const ShowUsuario: React.FC<ShowUsuarioProps> = ({
               <Calendar className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400" />
               Información de Registro
             </h3>
+          </div>
+
+          {/* Información Laboral */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center">
+              <Clock className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400" />
+              Información Laboral
+            </h3>
 
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  Fecha de Creación
+                  Fecha de Inicio de Labores
                 </label>
                 <div className="p-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  {formatDate(usuario.created_at)}
+                  {usuario.fecha_inicio_labores ? new Date(usuario.fecha_inicio_labores).toLocaleDateString('es-ES') : 'No especificada'}
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  Última Actualización
+                  Fecha de Fin de Labores
                 </label>
                 <div className="p-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  {formatDate(usuario.updated_at)}
+                  {usuario.fecha_fin_labores ? new Date(usuario.fecha_fin_labores).toLocaleDateString('es-ES') : 'No especificada'}
                 </div>
               </div>
             </div>
@@ -159,15 +168,33 @@ const ShowUsuario: React.FC<ShowUsuarioProps> = ({
               Estado de la Cuenta
             </h3>
 
-            <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded">
+            <div className={`p-3 border rounded ${
+              usuario.estado_activo 
+                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+            }`}>
               <div className="flex items-start">
-                <Shield className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 mr-2 flex-shrink-0" />
+                {usuario.estado_activo ? (
+                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 mr-2 flex-shrink-0" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 mr-2 flex-shrink-0" />
+                )}
                 <div>
-                  <h4 className="text-sm font-semibold text-green-800 dark:text-green-200">
-                    Cuenta Activa
+                  <h4 className={`text-sm font-semibold ${
+                    usuario.estado_activo 
+                      ? 'text-green-800 dark:text-green-200'
+                      : 'text-red-800 dark:text-red-200'
+                  }`}>
+                    {usuario.estado_activo ? 'Cuenta Activa' : 'Cuenta Inactiva'}
                   </h4>
-                  <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                    La cuenta está activa y operativa. El usuario puede acceder al sistema según los permisos asignados a sus roles.
+                  <p className={`text-xs mt-1 ${
+                    usuario.estado_activo 
+                      ? 'text-green-700 dark:text-green-300'
+                      : 'text-red-700 dark:text-red-300'
+                  }`}>
+                    {usuario.estado_activo 
+                      ? 'La cuenta está activa y operativa. El usuario puede acceder al sistema según los permisos asignados a sus roles.'
+                      : 'La cuenta está inactiva. El usuario no puede acceder al sistema.'}
                   </p>
                 </div>
               </div>

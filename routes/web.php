@@ -41,7 +41,7 @@ Route::get('/', function () {
 
 Route::get('/buscador', [BuscadorController::class, 'index'])->name('buscar');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Rutas específicas para el controlador de Autor
@@ -112,14 +112,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('api/categorias/{categoriaId}/subcategorias', [LibroController::class, 'getSubcategorias']);
     Route::get('api/subcategorias/{subcategoriaId}/temas', [LibroController::class, 'getTemas']);
 
-    // Rutas para grados
-    Route::get('grados', [GradoController::class, 'index'])->name('grados.index');
-    Route::get('grados/{grado}', [GradoController::class, 'show'])->name('grados.show');
-    
-    // Rutas protegidas por middleware de roles para grados (solo administrador o bibliotecarios)
-    Route::middleware('role:Administrador|BibliotecarioPrimaria|BibliotecarioBachillerato')->group(function () {
+    // Rutas para grados - Solo administradores
+    Route::middleware('role:Administrador')->group(function () {
+        Route::get('grados', [GradoController::class, 'index'])->name('grados.index');
         Route::get('grados/create', [GradoController::class, 'create'])->name('grados.create');
         Route::post('grados', [GradoController::class, 'store'])->name('grados.store');
+        Route::get('grados/{grado}', [GradoController::class, 'show'])->name('grados.show');
         Route::get('grados/{grado}/edit', [GradoController::class, 'edit'])->name('grados.edit');
         Route::put('grados/{grado}', [GradoController::class, 'update'])->name('grados.update');
         Route::patch('grados/{grado}', [GradoController::class, 'update'])->name('grados.patch');
@@ -201,6 +199,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('usuarios/{usuario}', [UsuarioController::class, 'update'])->name('usuarios.update');
         Route::patch('usuarios/{usuario}', [UsuarioController::class, 'update']);
         Route::delete('usuarios/{usuario}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
+        Route::patch('usuarios/{usuario}/toggle-estado', [UsuarioController::class, 'toggleEstado'])->name('usuarios.toggle-estado');
+        Route::get('usuarios/estadisticas', [UsuarioController::class, 'estadisticas'])->name('usuarios.estadisticas');
     });
 
     Route::prefix('api/inline-create')->middleware(['auth', 'verified'])->group(function () {
