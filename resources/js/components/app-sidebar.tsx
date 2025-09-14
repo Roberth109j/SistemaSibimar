@@ -147,9 +147,14 @@ export function AppSidebar() {
 
     // Memorizar los items filtrados para evitar recálculos
     const dashboardItem = mainNavItems.find(item => item.title === 'Dashboard')!;
-    const gestionItems = mainNavItems.filter(item =>
-        ['Autores', 'Estanterias', 'Editoriales', 'Grados'].includes(item.title)
-    );
+    const gestionItems = mainNavItems.filter(item => {
+        const allowedItems = ['Autores', 'Estanterias', 'Editoriales'];
+        // Solo mostrar Grados a administradores
+        if (isAdmin) {
+            allowedItems.push('Grados');
+        }
+        return allowedItems.includes(item.title);
+    });
     const librosItem = mainNavItems.find(item => item.title === 'Libros')!;
     const lectoresItem = mainNavItems.find(item => item.title === 'Lectores')!;
     const prestamosItems = mainNavItems.filter(item =>

@@ -102,6 +102,42 @@ const Index = ({
   const page = usePage();
   const [searchTerm, setSearchTerm] = useState(search);
   
+  // Verificar si el usuario es administrador
+  const isAdmin = auth.user?.roles?.some((role: any) => role.name === 'Administrador') || false;
+
+  // Si no es admin, mostrar mensaje de acceso denegado
+  if (!isAdmin) {
+    return (
+      <AppLayout
+        renderHeader={() => (
+          <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
+            Acceso Denegado
+          </h2>
+        )}
+        breadcrumbs={breadcrumbs}
+      >
+        <Head title="Acceso Denegado" />
+        <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
+          <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg dark:bg-gray-800">
+            <div className="p-6 text-center">
+              <div className="mx-auto mb-4 h-12 w-12 text-red-500">
+                <svg className="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+                Acceso Denegado
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                No tienes permisos para acceder a la gestión de grados. Solo los administradores pueden acceder a esta sección.
+              </p>
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+  
   // ✅ DETERMINAR SI EL PANEL DEBE ESTAR ABIERTO INICIALMENTE
   const hasActiveFilters = !!(filters.grado_filter || filters.estado || filters.seccion_filter);
   const [showFilters, setShowFilters] = useState(hasActiveFilters);

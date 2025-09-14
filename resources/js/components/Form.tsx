@@ -149,7 +149,7 @@ export default function Form({
       </div>
 
       <div className="space-y-6 relative z-10">
-        {fields.map((field) => (
+        {fields && fields.map((field) => (
           <div key={field.name} className="relative">
             <label 
               htmlFor={field.name} 

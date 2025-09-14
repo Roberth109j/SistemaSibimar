@@ -4,8 +4,9 @@ export type Usuario = {
   name: string;
   email: string;
   seccion_id?: number;
-  created_at?: string;
-  updated_at?: string;
+  fecha_inicio_labores?: string;
+  fecha_fin_labores?: string;
+  estado_activo: boolean;
   roles?: Role[];
   seccion?: Seccion;
 };
@@ -40,6 +41,10 @@ export type UsuarioFormData = {
   password?: string;
   password_confirmation?: string;
   roles?: string[];
+  seccion_id?: number;
+  fecha_inicio_labores?: string;
+  fecha_fin_labores?: string;
+  estado_activo?: boolean;
 };
 
 // Tipo para paginación
@@ -76,6 +81,12 @@ export type IndexProps = {
   sort_order?: string;
   search?: string;
   start_number?: number;
+  filters?: {
+    search?: string;
+    sort_field?: string;
+    sort_order?: string;
+    estado_filter?: string;
+  };
 };
 
 // Props para el componente Create
