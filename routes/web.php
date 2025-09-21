@@ -120,6 +120,9 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
         // Ruta para mostrar formulario de creación
         Route::get('usuarios/create', [UsuarioController::class, 'create'])->name('usuarios.create');
         
+        // Ruta para estadísticas (API) - DEBE IR ANTES DE LAS RUTAS CON PARÁMETROS
+        Route::get('usuarios/estadisticas', [UsuarioController::class, 'estadisticas'])->name('usuarios.estadisticas');
+        
         // Ruta para almacenar nuevo usuario
         Route::post('usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
         
@@ -138,9 +141,6 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
         
         // Ruta para cambiar estado activo/inactivo
         Route::patch('usuarios/{usuario}/toggle-estado', [UsuarioController::class, 'toggleEstado'])->name('usuarios.toggle-estado');
-        
-        // Ruta para estadísticas (API)
-        Route::get('usuarios/estadisticas', [UsuarioController::class, 'estadisticas'])->name('usuarios.estadisticas');
     });
 
     // Rutas para grados - Solo administradores

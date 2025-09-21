@@ -16,6 +16,7 @@ interface GeneralInfoSectionProps {
   areas: string[]; // Nuevo prop
   idiomas: string[];
   estanterias: any[];
+  isAdmin: boolean;
   onNext: () => void;
 }
 
@@ -28,6 +29,7 @@ export default function GeneralInfoSection({
   areas, // Nuevo prop
   idiomas,
   estanterias: initialEstanterias,
+  isAdmin,
   onNext
 }: GeneralInfoSectionProps) {
   
@@ -35,6 +37,7 @@ export default function GeneralInfoSection({
   const [autores, setAutores] = useState(initialAutores);
   const [editoriales, setEditoriales] = useState(initialEditoriales);
   const [estanterias, setEstanterias] = useState(initialEstanterias);
+  const [estanteriasFiltradas, setEstanteriasFiltradas] = useState(initialEstanterias);
   
   // Estado para manejar el tipo de código según la clase seleccionada
   const [codigoTipo, setCodigoTipo] = useState<'ISBN' | 'ISSN' | null>(null);
@@ -49,6 +52,34 @@ export default function GeneralInfoSection({
       setCodigoTipo(null);
     }
   }, [form.data.clase]);
+
+  // Efecto para inicializar la sección automáticamente para administradores
+  useEffect(() => {
+    if (isAdmin && secciones.length > 0 && !form.data.seccion_id) {
+      form.setData('seccion_id', secciones[0].id);
+    }
+  }, [isAdmin, secciones, form.data.seccion_id]);
+
+  // Efecto para filtrar estanterías según la sección seleccionada (solo para administradores)
+  useEffect(() => {
+    if (isAdmin && form.data.seccion_id) {
+      const estanteriasFiltradas = estanterias.filter(estanteria => 
+        estanteria.seccion_id === parseInt(form.data.seccion_id)
+      );
+      setEstanteriasFiltradas(estanteriasFiltradas);
+      
+      // Limpiar la estantería seleccionada si no pertenece a la nueva sección
+      if (form.data.estanteria_id) {
+        const estanteriaSeleccionada = estanterias.find(e => e.id === parseInt(form.data.estanteria_id));
+        if (estanteriaSeleccionada && estanteriaSeleccionada.seccion_id !== parseInt(form.data.seccion_id)) {
+          form.setData('estanteria_id', '');
+        }
+      }
+    } else {
+      // Para no administradores, mostrar todas las estanterías de su sección
+      setEstanteriasFiltradas(estanterias);
+    }
+  }, [isAdmin, form.data.seccion_id, estanterias, form.data.estanteria_id]);
 
   // Función para validar campos obligatorios de esta sección
   const validateSection = () => {
@@ -165,6 +196,12 @@ export default function GeneralInfoSection({
 
   const handleEstanteriaCreated = (newEstanteria: any) => {
     setEstanterias(prevEstanterias => [...prevEstanterias, newEstanteria]);
+    // También actualizar la lista filtrada si corresponde a la sección actual
+    if (isAdmin && form.data.seccion_id && newEstanteria.seccion_id === parseInt(form.data.seccion_id)) {
+      setEstanteriasFiltradas(prevFiltradas => [...prevFiltradas, newEstanteria]);
+    } else if (!isAdmin) {
+      setEstanteriasFiltradas(prevFiltradas => [...prevFiltradas, newEstanteria]);
+    }
     // Seleccionar automáticamente la nueva estantería
     form.setData('estanteria_id', newEstanteria.id.toString());
   };
@@ -306,16 +343,16 @@ export default function GeneralInfoSection({
             "col-span-1 md:col-span-1 xl:col-span-1"
           )}
           
-          {/* Sección - Automática según el rol del usuario */}
+          {/* Sección - Editable para administradores, automática para otros roles */}
           {renderFormField('seccion_id', 'Sección', true, 
             <select
               id="seccion_id"
               value={form.data.seccion_id}
               onChange={e => form.setData('seccion_id', e.target.value)}
-              className={disabledSelectClasses}
-              disabled={true}
+              className={isAdmin ? selectClasses : disabledSelectClasses}
+              disabled={!isAdmin}
             >
-              <option value="">Sección asignada automáticamente</option>
+              <option value="">{isAdmin ? 'Seleccione una sección' : 'Sección asignada automáticamente'}</option>
               {secciones.map(seccion => (
                 <option key={seccion.id} value={seccion.id}>
                   {seccion.nombre}
@@ -372,7 +409,7 @@ export default function GeneralInfoSection({
                 className={flexSelectClasses}
               >
                 <option value="">Seleccione una estantería (opcional)</option>
-                {estanterias.map(estanteria => (
+                {estanteriasFiltradas.map(estanteria => (
                   <option key={estanteria.id} value={estanteria.id}>
                     {estanteria.cod_estante}
                   </option>

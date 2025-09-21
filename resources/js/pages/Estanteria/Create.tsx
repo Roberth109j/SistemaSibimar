@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import Modal from '@/components/Modal';
@@ -18,8 +18,21 @@ export default function CreateEstanteria({ onSuccess, onError, errors = {}, all_
   const { data, setData, post, processing, reset, errors: formErrors, setError, clearErrors } = useForm({
     cod_estante: '',
     descripcion: '',
-    seccion_id: seccionId || ''
+    seccion_id: seccionId ? seccionId.toString() : (all_secciones.length > 0 ? all_secciones[0].id.toString() : '')
   });
+
+  // Sincronizar seccionId con el estado del formulario cuando cambie el prop
+  useEffect(() => {
+    console.log('useEffect triggered with seccionId:', seccionId);
+    if (seccionId !== null) {
+      setData('seccion_id', seccionId.toString());
+      console.log('Updated seccion_id to:', seccionId.toString());
+    } else if (all_secciones.length > 0 && !data.seccion_id) {
+      // Si no hay seccionId predeterminado pero hay secciones disponibles, seleccionar la primera
+      setData('seccion_id', all_secciones[0].id.toString());
+      console.log('No seccionId provided, defaulting to first section:', all_secciones[0].id.toString());
+    }
+  }, [seccionId, all_secciones, setData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
