@@ -152,15 +152,24 @@ class DashboardController extends Controller
         // Contar ejemplares marcados como reposición (independientemente del estado)
         $librosReposicion = Ejemplar::where('tipo_adquisicion', 'REPOSICION')->count();
 
+        // Preparar consultas para libros y ejemplares (filtrado por sección si aplica)
+        $librosQuery = Libro::query();
+        $ejemplaresQuery = Ejemplar::join('libros', 'ejemplares.libro_id', '=', 'libros.id');
+        
+        if ($seccionId) {
+            $librosQuery->where('seccion_id', $seccionId);
+            $ejemplaresQuery->where('libros.seccion_id', $seccionId);
+        }
+        
         // Obtener estadísticas generales del año actual
         $estadisticasGenerales = [
             'total_prestamos' => $prestamosQuery->count(),
             'prestamos_activos' => $prestamosActivosQuery->count(),
             'prestamos_vencidos' => $prestamosVencidosQuery->count(),
             'libros_reposicion' => $librosReposicion,
-            'total_libros' => Libro::count(), // Los libros no se filtran por sección
+            'total_libros' => $librosQuery->count(),
             'total_lectores' => $lectoresQuery->count(),
-            'total_ejemplares' => Ejemplar::count(), // Los ejemplares no se filtran por sección
+            'total_ejemplares' => $ejemplaresQuery->count(),
             'total_docentes' => $docentesQuery->count(),
             'total_estudiantes' => $estudiantesQuery->count(),
         ];

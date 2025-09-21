@@ -21,6 +21,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function Create({
+  auth,
   clases,
   areas, // Nuevo prop
   idiomas,
@@ -31,6 +32,8 @@ export default function Create({
   categoriasDewey = [],
   seccionId = null, // Sección predeterminada según el rol del usuario
 }: LibroPageProps) {
+  // Verificar si el usuario es administrador
+  const isAdmin = auth.user?.roles?.some((role: any) => role.name === 'Administrador') || false;
   const [activeSection, setActiveSection] = useState('general');
   
   // Estados para mantener los datos de clasificación entre secciones
@@ -235,6 +238,7 @@ export default function Create({
                   areas={areas} // Nuevo prop
                   idiomas={idiomas}
                   estanterias={estanterias}
+                  isAdmin={isAdmin}
                   onNext={() => setActiveSection('clasificacion')}
                 />
               )}

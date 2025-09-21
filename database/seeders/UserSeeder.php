@@ -49,7 +49,7 @@ class UserSeeder extends Seeder
             'password' => Hash::make('bachillerato'),
             'seccion_id' => $seccionBachillerato ? $seccionBachillerato->id : null,
             'fecha_inicio_labores' => '2024-03-01',
-            'fecha_fin_labores' => '2025-12-31',
+            'fecha_fin_labores' => null,
             'estado_activo' => true,
         ]);
         

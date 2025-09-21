@@ -25,6 +25,10 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
+            SeccionSeeder::class,
+        ]);
+
+        $this->call([
             UserSeeder::class,
         ]);
 
@@ -38,10 +42,6 @@ class DatabaseSeeder extends Seeder
         
         $this->call([
             TemaSeeder::class,
-        ]);
-
-        $this->call([
-            SeccionSeeder::class,
         ]);
 
 
