@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Search, CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, Edit, Eye, Trash2, UserPlus, ToggleLeft, ToggleRight, Filter } from 'lucide-react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { Search, CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Edit, Eye, UserPlus, Filter } from 'lucide-react';
 import AppLayout from '../../layouts/app-layout';
 import { type BreadcrumbItem, type IndexProps, type Usuario } from './types';
-import CreateUsuario from './Create';
-import EditUsuario from '@/pages/Usuarios/Edit';
-import ShowUsuario from './Show';
 
 // --- Interfaces TypeScript ---
 interface FilterOptions {
@@ -167,6 +164,46 @@ function AlertNotification({
         </button>
       </div>
     </div>
+  );
+}
+
+// --- Componente Toggle Switch Compacto ---
+interface ToggleSwitchProps {
+  isActive: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+}
+
+function ToggleSwitch({ 
+  isActive, 
+  onToggle, 
+  disabled = false, 
+  loading = false 
+}: ToggleSwitchProps) {
+  return (
+    <button
+      onClick={onToggle}
+      disabled={disabled || loading}
+      className={`
+        relative inline-flex items-center w-8 h-4 rounded-full
+        transition-all duration-200 ease-in-out focus:outline-none
+        ${disabled || loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+        ${isActive 
+          ? 'bg-blue-500 hover:bg-blue-600' 
+          : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
+        }
+      `}
+      title={isActive ? 'Desactivar usuario' : 'Activar usuario'}
+    >
+      <span
+        className={`
+          inline-block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out
+          ${isActive ? 'translate-x-4' : 'translate-x-0.5'}
+          ${loading ? 'animate-pulse' : ''}
+        `}
+      />
+    </button>
   );
 }
 
@@ -356,12 +393,7 @@ const Index = ({
 }: IndexProps) => {
   const page = usePage();
   const [showFilters, setShowFilters] = useState<boolean>(false);
-
-  // Estados para modales
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showShowModal, setShowShowModal] = useState(false);
-  const [selectedUsuario, setSelectedUsuario] = useState<Usuario | null>(null);
+  const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>({});
 
   // Usar hook personalizado para filtros
   const {
@@ -391,14 +423,7 @@ const Index = ({
   // Si no es admin, mostrar mensaje de acceso denegado
   if (!isAdmin) {
     return (
-      <AppLayout
-        renderHeader={() => (
-          <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-            Acceso Denegado
-          </h2>
-        )}
-        breadcrumbs={breadcrumbs}
-      >
+      <AppLayout breadcrumbs={breadcrumbs}>
         <Head title="Acceso Denegado" />
         <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
           <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg dark:bg-gray-800">
@@ -483,6 +508,9 @@ const Index = ({
 
   const handleToggleEstado = (usuario: Usuario) => {
     if (confirm(`¿Estás seguro de que deseas ${usuario.estado_activo ? 'desactivar' : 'activar'} al usuario "${usuario.name}"?`)) {
+      // Activar loading para este usuario específico
+      setLoadingStates(prev => ({ ...prev, [usuario.id]: true }));
+
       router.patch(`/usuarios/${usuario.id}/toggle-estado`, {}, {
         onSuccess: () => {
           setAlerts(prev => ({
@@ -497,89 +525,26 @@ const Index = ({
             error: 'Error al cambiar el estado del usuario',
             timestamp: Date.now()
           }));
-        }
-      });
-    }
-  };
-
-  const handleDelete = (usuario: Usuario) => {
-    if (confirm(`¿Estás seguro de que deseas eliminar al usuario "${usuario.name}"?`)) {
-      router.delete(`/usuarios/${usuario.id}`, {
-        onSuccess: () => {
-          setAlerts(prev => ({
-            ...prev,
-            success: 'Usuario eliminado exitosamente',
-            timestamp: Date.now()
-          }));
         },
-        onError: () => {
-          setAlerts(prev => ({
-            ...prev,
-            error: 'Error al eliminar el usuario',
-            timestamp: Date.now()
-          }));
+        onFinish: () => {
+          // Desactivar loading
+          setLoadingStates(prev => ({ ...prev, [usuario.id]: false }));
         }
       });
     }
   };
 
+  // Navigation handlers - Navegación en lugar de modales
   const handleCreate = () => {
-    setSelectedUsuario(null);
-    setShowCreateModal(true);
-  };
-
-  const handleCreateSuccess = (message: string) => {
-    setAlerts(prev => ({
-      ...prev,
-      success: message,
-      timestamp: Date.now()
-    }));
-    setShowCreateModal(false);
-    router.reload();
-  };
-
-  const handleCreateError = (message: string) => {
-    setAlerts(prev => ({
-      ...prev,
-      error: message,
-      timestamp: Date.now()
-    }));
-  };
-
-  const handleEditSuccess = () => {
-    setAlerts(prev => ({
-      ...prev,
-      success: 'Usuario actualizado exitosamente',
-      timestamp: Date.now()
-    }));
-    setShowEditModal(false);
-    setSelectedUsuario(null);
-    router.reload();
-  };
-
-  const handleEditError = () => {
-    setAlerts(prev => ({
-      ...prev,
-      error: 'Error al actualizar el usuario',
-      timestamp: Date.now()
-    }));
+    router.visit('/usuarios/create');
   };
 
   const handleEdit = (usuario: Usuario) => {
-    setSelectedUsuario(usuario);
-    setShowEditModal(true);
+    router.visit(`/usuarios/${usuario.id}/edit`);
   };
 
   const handleShow = (usuario: Usuario) => {
-    setSelectedUsuario(usuario);
-    setShowShowModal(true);
-  };
-
-  const closeModals = () => {
-    setShowCreateModal(false);
-    setShowEditModal(false);
-    setShowShowModal(false);
-    setSelectedUsuario(null);
+    router.visit(`/usuarios/${usuario.id}`);
   };
 
   const usuariosData = Array.isArray(usuarios) ? usuarios : usuarios.data || [];
@@ -593,303 +558,287 @@ const Index = ({
     switch (roleName) {
       case 'Administrador':
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-      case 'primaria':
+      case 'BibliotecarioPrimaria':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-      case 'bachillerato':
+      case 'BibliotecarioBachillerato':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
     }
   };
 
-  const content = (
-    <div className="py-4 px-3 sm:py-6 sm:px-4 bg-slate-50 dark:bg-black min-h-screen">
-      {renderAlerts()}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
-        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
-      </div>
-      <div className="max-w-full mx-auto relative z-10">
-        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Administración de Usuarios
-          </h1>
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Buscar usuarios..."
-                className="w-full sm:w-64 lg:w-72 pl-9 py-2 pr-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700
-                           text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                           shadow-sm transition-all duration-200 text-sm"
-                value={searchTerm}
-                onChange={(e) => handleSearch(e.target.value)}
-              />
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-            </div>
-
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition shadow-sm border border-gray-300 dark:border-gray-700 text-sm"
-            >
-              <Filter className="w-4 h-4" />
-              <span className="hidden sm:inline">Filtros</span>
-            </button>
-
-            <button
-              onClick={handleCreate}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white
-                px-3 py-2 rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg
-                transform hover:-translate-y-0.5 text-sm"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Crear Usuario</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Panel de filtros */}
-        {showFilters && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md border border-gray-100 dark:border-gray-700 mb-4">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-3">
-              <h3 className="text-base font-semibold text-gray-800 dark:text-white">Filtros avanzados</h3>
-              <button
-                onClick={resetFilters}
-                className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 self-start sm:self-auto"
-              >
-                Restablecer filtros
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Estado</label>
-                <select
-                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-sm"
-                  value={selectedFilters.estado_filter}
-                  onChange={(e) => handleFilterChange('estado_filter', e.target.value)}
-                >
-                  <option value="">Todos los estados</option>
-                  <option value="activo">Activos</option>
-                  <option value="inactivo">Inactivos</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Información de resultados */}
-        {typeof totalUsuarios === 'number' && totalUsuarios > 0 && (
-          <div className="mb-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-            Mostrando {fromRecord || 1} a {toRecord || usuariosData.length} de {totalUsuarios} resultados
-          </div>
-        )}
-
-        {/* Tabla de usuarios */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full table-auto">
-              <colgroup>
-                <col className="min-w-[140px]" />
-                <col className="min-w-[180px]" />
-                <col className="min-w-[100px]" />
-                <col className="min-w-[90px]" />
-                <col className="min-w-[120px]" />
-                <col className="min-w-[100px]" />
-                <col className="min-w-[100px]" />
-                <col className="min-w-[100px]" />
-              </colgroup>
-              <thead>
-                <tr className="bg-gray-50 dark:bg-gray-700">
-                  <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    <button
-                      onClick={handleSort}
-                      className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-100"
-                    >
-                      <span>Nombre</span>
-                      {sort_order === 'asc' ? (
-                        <ChevronUp className="h-3 w-3" />
-                      ) : (
-                        <ChevronDown className="h-3 w-3" />
-                      )}
-                    </button>
-                  </th>
-                  <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
-                  <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">Sección</th>
-                  <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
-                  <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">Roles</th>
-                  <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">F. Inicio</th>
-                  <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">F. Fin</th>
-                  <th className="px-2 sm:px-3 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                {usuariosData.length > 0 ? (
-                  usuariosData.map((usuario, index) => (
-                    <tr key={usuario.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="px-2 sm:px-3 py-2 text-gray-700 dark:text-gray-300 font-medium text-xs sm:text-sm">
-                        <div className="flex flex-col">
-                          <span className="font-medium truncate">{usuario.name}</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400 sm:hidden truncate">
-                            {usuario.seccion?.nombre || 'Sin asignar'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
-                        <div className="flex flex-col">
-                          <div className="truncate max-w-[140px] sm:max-w-[180px]" title={usuario.email}>
-                            {usuario.email}
-                          </div>
-                          <div className="md:hidden mt-1">
-                            <div className="flex flex-wrap gap-1">
-                              {usuario.roles && usuario.roles.length > 0 ? (
-                                usuario.roles.slice(0, 1).map((role: { id: number; name: string }) => (
-                                  <span
-                                    key={role.id}
-                                    className={`inline-flex items-center px-1 py-0.5 rounded text-xs font-medium ${getRoleBadgeColor(role.name)}`}
-                                  >
-                                    {role.name}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="text-xs text-gray-500 dark:text-gray-400">Sin roles</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 text-gray-700 dark:text-gray-300 text-xs sm:text-sm hidden sm:table-cell">
-                        <div className="truncate" title={usuario.seccion?.nombre || 'Sin asignar'}>
-                          {usuario.seccion?.nombre || 'Sin asignar'}
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                        <div className="flex items-center space-x-1 sm:space-x-2">
-                          <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium ${usuario.estado_activo
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                            }`}>
-                            {usuario.estado_activo ? 'Activo' : 'Inactivo'}
-                          </span>
-                          <button
-                            onClick={() => handleToggleEstado(usuario)}
-                            className={`p-0.5 sm:p-1 rounded-md transition-colors ${usuario.estado_activo
-                                ? 'text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300'
-                                : 'text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300'
-                              }`}
-                            title={usuario.estado_activo ? 'Desactivar usuario' : 'Activar usuario'}
-                          >
-                            {usuario.estado_activo ? <ToggleRight className="h-3 w-3 sm:h-4 sm:w-4" /> : <ToggleLeft className="h-3 w-3 sm:h-4 sm:w-4" />}
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell">
-                        <div className="flex flex-wrap gap-1">
-                          {usuario.roles && usuario.roles.length > 0 ? (
-                            usuario.roles.slice(0, 2).map((role: { id: number; name: string }) => (
-                              <span
-                                key={role.id}
-                                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(role.name)}`}
-                              >
-                                {role.name}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Sin roles</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
-                        <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
-                          {usuario.fecha_inicio_labores ? new Date(usuario.fecha_inicio_labores).toLocaleDateString('es-ES') : 'N/A'}
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
-                        <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
-                          {usuario.fecha_fin_labores ? new Date(usuario.fecha_fin_labores).toLocaleDateString('es-ES') : 'N/A'}
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                        <div className="flex justify-center space-x-1">
-                          <button
-                            onClick={() => handleShow(usuario)}
-                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 
-                                      transition-colors p-1 bg-blue-50 dark:bg-blue-900/30 rounded hover:bg-blue-100 dark:hover:bg-blue-800/40"
-                            title="Ver detalles"
-                          >
-                            <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
-                          </button>
-
-                          <button
-                            onClick={() => handleEdit(usuario)}
-                            className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 
-                                      transition-colors p-1 bg-amber-50 dark:bg-amber-900/30 rounded hover:bg-amber-100 dark:hover:bg-amber-800/40"
-                            title="Editar usuario"
-                          >
-                            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                          </button>
-
-
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-gray-500 dark:text-gray-400 text-sm">
-                      {searchTerm ? 'No se encontraron usuarios que coincidan con la búsqueda.' : 'No hay usuarios registrados.'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Paginación usando el componente mejorado */}
-        <PaginationComponent usuarios={usuarios} filters={{ search: searchTerm, estado_filter: selectedFilters.estado_filter }} sort_order={sort_order} />
-      </div>
-    </div>
-  );
-
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Administración de Usuarios" />
-      {content}
+      
+      <div className="py-4 px-3 sm:py-6 sm:px-4 bg-slate-50 dark:bg-black min-h-screen">
+        {renderAlerts()}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
+          <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
+        </div>
+        <div className="max-w-full mx-auto relative z-10">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Administración de Usuarios
+            </h1>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Buscar usuarios..."
+                  className="w-full sm:w-64 lg:w-72 pl-9 py-2 pr-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700
+                             text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                             shadow-sm transition-all duration-200 text-sm"
+                  value={searchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                />
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              </div>
 
-      {/* Modales */}
-      <CreateUsuario
-        auth={auth}
-        secciones={secciones}
-        roles={roles}
-        errors={errors}
-        onSuccess={handleCreateSuccess}
-        onError={handleCreateError}
-        open={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-      />
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition shadow-sm border border-gray-300 dark:border-gray-700 text-sm"
+              >
+                <Filter className="w-4 h-4" />
+                <span className="hidden sm:inline">Filtros</span>
+              </button>
 
-      {showEditModal && selectedUsuario && (
-        <EditUsuario
-          auth={auth}
-          usuario={selectedUsuario}
-          secciones={secciones}
-          roles={roles}
-          errors={errors}
-          onSuccess={handleEditSuccess}
-          onError={handleEditError}
-          open={showEditModal}
-          onClose={closeModals}
-        />
-      )}
+              <button
+                onClick={handleCreate}
+                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white
+                  px-3 py-2 rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg
+                  transform hover:-translate-y-0.5 text-sm"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Crear Usuario</span>
+              </button>
+            </div>
+          </div>
 
-      {showShowModal && selectedUsuario && (
-        <ShowUsuario
-          auth={auth}
-          usuario={selectedUsuario}
-          onClose={closeModals}
-        />
-      )}
+          {/* Panel de filtros */}
+          {showFilters && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md border border-gray-100 dark:border-gray-700 mb-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-3">
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Filtros avanzados</h3>
+                <button
+                  onClick={resetFilters}
+                  className="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 self-start sm:self-auto"
+                >
+                  Restablecer filtros
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Estado</label>
+                  <select
+                    className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-sm"
+                    value={selectedFilters.estado_filter}
+                    onChange={(e) => handleFilterChange('estado_filter', e.target.value)}
+                  >
+                    <option value="">Todos los estados</option>
+                    <option value="activo">Activos</option>
+                    <option value="inactivo">Inactivos</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Información de resultados */}
+          {typeof totalUsuarios === 'number' && totalUsuarios > 0 && (
+            <div className="mb-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+              Mostrando {fromRecord || 1} a {toRecord || usuariosData.length} de {totalUsuarios} resultados
+            </div>
+          )}
+
+          {/* Tabla de usuarios */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full table-auto">
+                <colgroup>
+                  <col className="min-w-[140px]" />
+                  <col className="min-w-[180px]" />
+                  <col className="min-w-[100px]" />
+                  <col className="min-w-[120px]" />
+                  <col className="min-w-[120px]" />
+                  <col className="min-w-[100px]" />
+                  <col className="min-w-[100px]" />
+                  <col className="min-w-[100px]" />
+                </colgroup>
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-gray-700">
+                    <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      <button
+                        onClick={handleSort}
+                        className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-100"
+                      >
+                        <span>Nombre</span>
+                        {sort_order === 'asc' ? (
+                          <ChevronUp className="h-3 w-3" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3" />
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
+                    <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">Sección</th>
+                    <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
+                    <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">Roles</th>
+                    <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">F. Inicio</th>
+                    <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">F. Fin</th>
+                    <th className="px-2 sm:px-3 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                  {usuariosData.length > 0 ? (
+                    usuariosData.map((usuario, index) => (
+                      <tr key={usuario.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td className="px-2 sm:px-3 py-2 text-gray-700 dark:text-gray-300 font-medium text-xs sm:text-sm">
+                          <div className="flex flex-col">
+                            <span className="font-medium truncate">{usuario.name}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 sm:hidden truncate">
+                              {usuario.seccion?.nombre || 'Sin asignar'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
+                          <div className="flex flex-col">
+                            <div className="truncate max-w-[140px] sm:max-w-[180px]" title={usuario.email}>
+                              {usuario.email}
+                            </div>
+                            <div className="md:hidden mt-1">
+                              <div className="flex flex-wrap gap-1">
+                                {usuario.roles && usuario.roles.length > 0 ? (
+                                  usuario.roles.slice(0, 1).map((role: { id: number; name: string }) => (
+                                    <span
+                                      key={role.id}
+                                      className={`inline-flex items-center px-1 py-0.5 rounded text-xs font-medium ${getRoleBadgeColor(role.name)}`}
+                                    >
+                                      {role.name}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">Sin roles</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 text-gray-700 dark:text-gray-300 text-xs sm:text-sm hidden sm:table-cell">
+                          <div className="truncate" title={usuario.seccion?.nombre || 'Sin asignar'}>
+                            {usuario.seccion?.nombre || 'Sin asignar'}
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${usuario.estado_activo
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                : 'bg-gray-100 text-gray-700 dark:bg-gray-800/50 dark:text-gray-300'
+                              }`}>
+                              <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${usuario.estado_activo ? 'bg-blue-500' : 'bg-gray-500'}`}></div>
+                              {usuario.estado_activo ? 'Activo' : 'Inactivo'}
+                            </span>
+                            <ToggleSwitch
+                              isActive={usuario.estado_activo}
+                              onToggle={() => handleToggleEstado(usuario)}
+                              loading={loadingStates[usuario.id] || false}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell">
+                          <div className="flex flex-wrap gap-1">
+                            {usuario.roles && usuario.roles.length > 0 ? (
+                              usuario.roles.slice(0, 2).map((role: { id: number; name: string }) => (
+                                <span
+                                  key={role.id}
+                                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm ${getRoleBadgeColor(role.name)}`}
+                                >
+                                  {role.name}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Sin roles</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
+                          <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
+                            {usuario.fecha_inicio_labores ? new Date(usuario.fecha_inicio_labores).toLocaleDateString('es-ES') : 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
+                          <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
+                            {usuario.fecha_fin_labores ? new Date(usuario.fecha_fin_labores).toLocaleDateString('es-ES') : 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                          <div className="flex justify-center space-x-1">
+                            <button
+                              onClick={() => handleShow(usuario)}
+                              className="group relative text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 
+                                        transition-all duration-200 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 
+                                        dark:hover:bg-blue-800/40 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                              title="Ver detalles"
+                            >
+                              <Eye className="w-4 h-4" />
+                              <div className="absolute -inset-0.5 bg-blue-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity -z-10"></div>
+                            </button>
+
+                            <button
+                              onClick={() => handleEdit(usuario)}
+                              className="group relative text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 
+                                        transition-all duration-200 p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg hover:bg-amber-100 
+                                        dark:hover:bg-amber-800/40 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                              title="Editar usuario"
+                            >
+                              <Edit className="w-4 h-4" />
+                              <div className="absolute -inset-0.5 bg-amber-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity -z-10"></div>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 text-sm">
+                        <div className="flex flex-col items-center space-y-3">
+                          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-gray-100">
+                              {searchTerm ? 'No se encontraron usuarios' : 'No hay usuarios registrados'}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              {searchTerm ? 'Prueba con diferentes términos de búsqueda' : 'Comienza creando tu primer usuario'}
+                            </p>
+                          </div>
+                          {!searchTerm && (
+                            <button
+                              onClick={handleCreate}
+                              className="mt-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
+                            >
+                              <UserPlus className="w-4 h-4" />
+                              Crear primer usuario
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Paginación usando el componente mejorado */}
+          <PaginationComponent usuarios={usuarios} filters={{ search: searchTerm, estado_filter: selectedFilters.estado_filter }} sort_order={sort_order} />
+        </div>
+      </div>
     </AppLayout>
   );
 };

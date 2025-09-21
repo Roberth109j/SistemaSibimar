@@ -112,6 +112,37 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
     Route::get('api/categorias/{categoriaId}/subcategorias', [LibroController::class, 'getSubcategorias']);
     Route::get('api/subcategorias/{subcategoriaId}/temas', [LibroController::class, 'getTemas']);
 
+    // ===== RUTAS PARA USUARIOS - SOLO ADMINISTRADORES =====
+    Route::middleware('role:Administrador')->group(function () {
+        // Ruta principal (index) - Listado de usuarios
+        Route::get('usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
+        
+        // Ruta para mostrar formulario de creación
+        Route::get('usuarios/create', [UsuarioController::class, 'create'])->name('usuarios.create');
+        
+        // Ruta para almacenar nuevo usuario
+        Route::post('usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
+        
+        // Ruta para mostrar detalles de un usuario específico
+        Route::get('usuarios/{usuario}', [UsuarioController::class, 'show'])->name('usuarios.show');
+        
+        // Ruta para mostrar formulario de edición
+        Route::get('usuarios/{usuario}/edit', [UsuarioController::class, 'edit'])->name('usuarios.edit');
+        
+        // Rutas para actualizar usuario
+        Route::put('usuarios/{usuario}', [UsuarioController::class, 'update'])->name('usuarios.update');
+        Route::patch('usuarios/{usuario}', [UsuarioController::class, 'update']);
+        
+        // Ruta para eliminar usuario
+        Route::delete('usuarios/{usuario}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
+        
+        // Ruta para cambiar estado activo/inactivo
+        Route::patch('usuarios/{usuario}/toggle-estado', [UsuarioController::class, 'toggleEstado'])->name('usuarios.toggle-estado');
+        
+        // Ruta para estadísticas (API)
+        Route::get('usuarios/estadisticas', [UsuarioController::class, 'estadisticas'])->name('usuarios.estadisticas');
+    });
+
     // Rutas para grados - Solo administradores
     Route::middleware('role:Administrador')->group(function () {
         Route::get('grados', [GradoController::class, 'index'])->name('grados.index');

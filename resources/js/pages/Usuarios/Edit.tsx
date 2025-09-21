@@ -1,37 +1,33 @@
 import React, { useState } from 'react';
+import { Head, router } from '@inertiajs/react';
 import { useForm } from '@inertiajs/react';
-import { User } from 'lucide-react';
-import UsuarioModal from '@/components/UsuarioModal';
-import Form, { FormField } from '@/components/Form';
-import { type EditProps, type UsuarioFormData } from './types';
+import { Save, User, Mail, Lock, Calendar, Shield, ArrowLeft, CheckCircle, X } from 'lucide-react';
+import AppLayout from '../../layouts/app-layout';
+import { type BreadcrumbItem, type Usuario } from './types';
 
-type EditModalProps = {
+type EditUsuarioPageProps = {
   auth: any;
-  usuario: any;
+  usuario: Usuario;
   secciones?: any[];
   roles?: any[];
-  onSuccess: (message: string) => void;
-  onError: (message: string) => void;
   errors?: Record<string, string>;
-  open?: boolean;
-  onClose?: () => void;
 };
 
-export default function EditUsuario({
+export default function Edit({
   auth,
   usuario,
   secciones = [],
   roles = [],
-  onSuccess,
-  onError,
-  errors = {},
-  open = false,
-  onClose
-}: EditModalProps) {
-  const isOpen = open;
+  errors = {}
+}: EditUsuarioPageProps) {
   const [updatePassword, setUpdatePassword] = useState(false);
 
-  const { data, setData, put, processing, reset, errors: formErrors, setError, clearErrors } = useForm({
+  const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Usuarios', href: '/usuarios' },
+    { title: 'Editar Usuario', href: `/usuarios/${usuario.id}/edit` },
+  ];
+
+  const { data, setData, put, processing, errors: formErrors, setError, clearErrors } = useForm({
     name: usuario.name || '',
     email: usuario.email || '',
     password: '',
@@ -43,48 +39,32 @@ export default function EditUsuario({
     estado_activo: usuario.estado_activo ?? true
   });
 
-  // Función para limpiar y cerrar modal
-  const handleCloseModal = () => {
-    reset(); // Limpiar los datos del formulario
-    clearErrors(); // Limpiar errores
-    setUpdatePassword(false); // Reset password checkbox
-    if (onClose) {
-      onClose();
-    }
-  };
-
   // Función para manejar cambios en inputs básicos
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type, checked = false } = e.target as HTMLInputElement;
+    const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['name', 'email', 'password', 'password_confirmation', 'seccion_id', 'fecha_inicio_labores', 'fecha_fin_labores'];
 
     if (validFields.includes(name as keyof typeof data)) {
       setData(name as keyof typeof data, value);
-      console.log('Form data updated - Current state:', { ...data, [name]: value });
-
-    } else {
-      console.error('Invalid field name:', name);
     }
   };
 
-  // Función mejorada para manejar cambios en roles (radio buttons - selección única)
+  // Función para manejar cambios en roles
   const handleRoleChange = (roleName: string) => {
-    // Solo permitir un rol seleccionado
     const newRoles = [roleName];
     setData('roles', newRoles);
     
     // Sincronizar sección automáticamente según el rol
     let seccionId = '';
     if (roleName === 'BibliotecarioBachillerato') {
-      seccionId = '2'; // bachillerato
+      seccionId = '2';
     } else if (roleName === 'BibliotecarioPrimaria') {
-      seccionId = '1'; // primaria
+      seccionId = '1';
     } else if (roleName === 'Administrador') {
-      seccionId = ''; // NULL para administrador
+      seccionId = '';
     }
     
     setData('seccion_id', seccionId);
-    console.log('Role selected:', newRoles, 'Section assigned:', seccionId);
   };
 
   // Función para manejar el checkbox de actualizar contraseña
@@ -96,67 +76,8 @@ export default function EditUsuario({
     }
   };
 
-  // Definir los campos del formulario - solo campos básicos
-  const usuarioFields: FormField[] = [
-    {
-      name: 'name',
-      label: 'Nombre Completo',
-      type: 'text',
-      placeholder: 'Ingrese el nombre completo',
-      required: true,
-      value: data.name,
-      onChange: handleChange
-    },
-    {
-      name: 'email',
-      label: 'Correo Electrónico',
-      type: 'email',
-      placeholder: 'usuario@ejemplo.com',
-      required: true,
-      value: data.email,
-      onChange: handleChange
-    },
-    {
-      name: 'fecha_inicio_labores',
-      label: 'Fecha de Inicio de Labores',
-      type: 'date',
-      required: true,
-      value: data.fecha_inicio_labores,
-      onChange: handleChange
-    },
-    {
-      name: 'fecha_fin_labores',
-      label: 'Fecha de Fin de Labores',
-      type: 'date',
-      required: false,
-      value: data.fecha_fin_labores,
-      onChange: handleChange
-    }
-  ];
-
-  // Campos de contraseña por separado
-  const passwordFields: FormField[] = [
-    {
-      name: 'password',
-      label: 'Nueva Contraseña',
-      type: 'password',
-      placeholder: 'Mínimo 8 caracteres',
-      required: updatePassword,
-      value: data.password,
-      onChange: handleChange
-    },
-    {
-      name: 'password_confirmation',
-      label: 'Confirmar Nueva Contraseña',
-      type: 'password',
-      placeholder: 'Repita la nueva contraseña',
-      required: updatePassword,
-      value: data.password_confirmation,
-      onChange: handleChange
-    }
-  ];
-
-  const handleSubmit = () => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     clearErrors();
 
     // Preparar datos para enviar
@@ -170,265 +91,354 @@ export default function EditUsuario({
       })
     };
 
-    console.log('Submitting form with data:', dataToSend);
-
     put(`/usuarios/${usuario.id}`, {
       preserveScroll: true,
-      onSuccess: (page: any) => {
-        console.log('Success response:', page);
-        const successMessage = page.props.flash?.success || 'Usuario actualizado exitosamente';
-        onSuccess(successMessage);
-        reset();
-        clearErrors();
-        setUpdatePassword(false);
-        handleCloseModal();
+      onSuccess: () => {
+        // Agregar delay para que el usuario pueda ver la notificación
+        setTimeout(() => {
+          router.visit('/usuarios');
+        }, 2500); // 2.5 segundos de delay
       },
       onError: (errors: Record<string, string>) => {
-        console.log('Error response:', errors);
-
-        // Verificar si hay errores específicos de duplicado
-        if (errors.duplicate || errors.usuario_exists) {
-          const duplicateMessage = errors.duplicate || errors.usuario_exists || 'Este usuario ya existe en el sistema';
-          // Limpiar formulario y cerrar modal incluso con error de duplicado
-          setTimeout(() => {
-            reset();
-            clearErrors();
-            setUpdatePassword(false);
-            handleCloseModal();
-            onError(duplicateMessage);
-          }, 100);
-          return;
-        }
-
-        // Verificar si hay errores de validación de campos
-        const hasFieldErrors = Object.keys(errors).some(key => ['name', 'email', 'password', 'password_confirmation', 'roles'].includes(key));
-        if (hasFieldErrors) {
-          Object.keys(errors).forEach((key) => {
-            if (['name', 'email', 'password', 'password_confirmation'].includes(key)) {
-              setError(key as keyof typeof data, errors[key]);
-            }
-          });
-        } else {
-          // Error genérico
-          const errorMessage = errors.error || 'Ha ocurrido un error al actualizar el usuario';
-          onError(errorMessage);
-        }
-      },
-      onFinish: () => {
-        console.log('Request finished');
+        Object.keys(errors).forEach((key) => {
+          if (['name', 'email', 'password', 'password_confirmation'].includes(key)) {
+            setError(key as keyof typeof data, errors[key]);
+          }
+        });
       }
     });
   };
 
-  const modalFooter = (
-    <>
-      <button
-        type="button"
-        onClick={handleCloseModal}
-        className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
-          bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 
-          border border-gray-300 dark:border-gray-600
-          hover:bg-gray-50 dark:hover:bg-gray-600
-          focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200"
-      >
-        Cancelar
-      </button>
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={processing}
-        className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
-          bg-blue-500 hover:bg-blue-600 text-white
-          focus:outline-none focus:ring-2 focus:ring-blue-500
-          disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-      >
-        {processing ? 'Actualizando...' : 'Actualizar'}
-      </button>
-    </>
+  const handleCancel = () => {
+    router.visit('/usuarios');
+  };
+
+  // Clases CSS reutilizables para consistencia
+  const inputClasses = "block w-full px-3 py-2 text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
+
+  // Función helper para renderizar campos del formulario con consistencia
+  const renderFormField = (id: string, label: string, required: boolean = false, children: React.ReactNode) => (
+    <div>
+      <label htmlFor={id} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      {children}
+      {formErrors[id as keyof typeof formErrors] && (
+        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{formErrors[id as keyof typeof formErrors]}</p>
+      )}
+    </div>
   );
 
   return (
-    <>
-      <UsuarioModal
-        open={isOpen}
-        onClose={handleCloseModal}
-        title="Editar Usuario"
-        description={`Modificar información de ${usuario.name}`}
-        footer={modalFooter}
-      >
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 max-h-[70vh] overflow-y-auto">
-          {/* Columna izquierda - Formulario principal */}
-          <div className="space-y-4 sm:space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-              <div className="mb-6">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
-                  Información Personal
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Datos básicos del usuario
-                </p>
-              </div>
-
-              <Form
-                initialData={data}
-                fields={usuarioFields}
-                errors={formErrors}
-                submitUrl={`/usuarios/${usuario.id}`}
-                method="put"
-                onCancel={handleCloseModal}
-                onSuccess={handleSubmit}
-                submitButtonText="Actualizar"
-                isEditing={true}
-                accentColor="blue"
-                showButtons={false}
-                id="edit-usuario-form"
-                processing={processing}
-              />
+    <AppLayout breadcrumbs={breadcrumbs}>
+      <Head title={`Editar Usuario - ${usuario.name}`} />
+      
+      <div className="py-6 px-4 sm:px-6 lg:px-8 bg-slate-50 dark:bg-gray-900 min-h-screen">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-4 mb-4">
+              <button
+                onClick={handleCancel}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 
+                          hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Volver a Usuarios
+              </button>
             </div>
-
-
+            
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center">
+                  <User className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    Editar Usuario
+                  </h1>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                    Modificar información de {usuario.name}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Columna derecha - Sección de roles */}
-          <div className="space-y-4 sm:space-y-6">
-            {roles.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
-                    Asignar Rol
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Seleccione un rol para el usuario
+          {/* Formulario con layout en columnas verticales */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            
+            {/* Grid de 3 columnas para las secciones */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Información Personal */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg mb-6">
+                  <h2 className="text-base font-semibold text-blue-800 dark:text-blue-300 mb-1 flex items-center">
+                    <User className="w-4 h-4 mr-2" />
+                    Información Personal
+                  </h2>
+                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                    Datos básicos del usuario
                   </p>
                 </div>
 
-                <div className="space-y-3 max-h-[350px] overflow-y-auto">
-                  {roles.map((role) => (
-                    <label
-                      key={role.id}
-                      className="relative flex items-center p-4 rounded-lg border border-gray-200 dark:border-gray-600 
-                               hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-300 dark:hover:border-blue-500
-                               transition-all duration-200 cursor-pointer group"
-                    >
+                <div className="space-y-6">
+                  {renderFormField('name', 'Nombre Completo', true,
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={data.name}
+                      onChange={handleChange}
+                      placeholder="Ingrese el nombre completo"
+                      className={inputClasses}
+                    />
+                  )}
+
+                  {renderFormField('email', 'Correo Electrónico', true,
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={data.email}
+                      onChange={handleChange}
+                      placeholder="usuario@ejemplo.com"
+                      className={inputClasses}
+                    />
+                  )}
+
+                  {renderFormField('fecha_inicio_labores', 'Fecha de Inicio', true,
+                    <input
+                      type="date"
+                      id="fecha_inicio_labores"
+                      name="fecha_inicio_labores"
+                      value={data.fecha_inicio_labores}
+                      onChange={handleChange}
+                      className={inputClasses}
+                    />
+                  )}
+
+                  {renderFormField('fecha_fin_labores', 'Fecha de Fin (Opcional)', false,
+                    <input
+                      type="date"
+                      id="fecha_fin_labores"
+                      name="fecha_fin_labores"
+                      value={data.fecha_fin_labores}
+                      onChange={handleChange}
+                      className={inputClasses}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Contraseña */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div className="bg-purple-50 dark:bg-purple-900/30 p-4 rounded-lg mb-6">
+                  <h2 className="text-base font-semibold text-purple-800 dark:text-purple-300 mb-1 flex items-center">
+                    <Lock className="w-4 h-4 mr-2" />
+                    Contraseña
+                  </h2>
+                  <p className="text-xs text-purple-600 dark:text-purple-400">
+                    Opcional: actualizar contraseña
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Checkbox para actualizar contraseña */}
+                  <div>
+                    <label className="flex items-center">
                       <input
-                        type="radio"
-                        name="userRole"
-                        value={role.name}
-                        checked={(data.roles || []).includes(role.name)}
-                        onChange={() => handleRoleChange(role.name)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600
-                                 dark:bg-gray-700 transition-colors duration-200"
+                        type="checkbox"
+                        id="updatePassword"
+                        checked={updatePassword}
+                        onChange={(e) => handleUpdatePasswordChange(e.target.checked)}
+                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
                       />
-                      <div className="ml-4 flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
-                            {role.name}
-                          </span>
-                          {(data.roles || []).includes(role.name) && (
-                            <div className="flex items-center">
-                              <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                              <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                                Seleccionado
-                              </span>
+                      <span className="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Actualizar contraseña
+                      </span>
+                    </label>
+                  </div>
+
+                  {updatePassword ? (
+                    <>
+                      {renderFormField('password', 'Nueva Contraseña', true,
+                        <input
+                          type="password"
+                          id="password"
+                          name="password"
+                          value={data.password}
+                          onChange={handleChange}
+                          placeholder="Mínimo 8 caracteres"
+                          className={inputClasses}
+                        />
+                      )}
+
+                      {renderFormField('password_confirmation', 'Confirmar Nueva Contraseña', true,
+                        <input
+                          type="password"
+                          id="password_confirmation"
+                          name="password_confirmation"
+                          value={data.password_confirmation}
+                          onChange={handleChange}
+                          placeholder="Repita la nueva contraseña"
+                          className={inputClasses}
+                        />
+                      )}
+
+                      {/* Indicador de seguridad */}
+                      <div className="bg-gradient-to-r from-gray-50 to-indigo-50 dark:from-gray-900/20 dark:to-indigo-900/20 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0">
+                            <div className="flex items-center justify-center w-6 h-6 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                              <Lock className="w-3 h-3 text-gray-600 dark:text-gray-400" />
                             </div>
+                          </div>
+                          <div className="ml-3">
+                            <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">
+                              Requisitos de Seguridad
+                            </h4>
+                            <div className="text-gray-700 dark:text-gray-300 space-y-1">
+                              <div className="space-y-2 text-xs">
+                                <div className="flex items-center gap-2">
+                                  <span className={`w-1.5 h-1.5 rounded-full ${data.password.length >= 8 ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                                  <span className={data.password.length >= 8 ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}>
+                                    Mínimo 8 caracteres
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`w-1.5 h-1.5 rounded-full ${data.password === data.password_confirmation && data.password ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                                  <span className={data.password === data.password_confirmation && data.password ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}>
+                                    Las contraseñas coinciden
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                      <div className="flex items-center">
+                        <User className="h-4 w-4 text-blue-500 mr-2 flex-shrink-0" />
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          La contraseña actual se mantendrá sin cambios
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Asignar Rol */}
+              {roles.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg mb-6">
+                    <h2 className="text-base font-semibold text-green-800 dark:text-green-300 mb-1 flex items-center">
+                      <Shield className="w-4 h-4 mr-2" />
+                      Asignar Rol
+                    </h2>
+                    <p className="text-xs text-green-600 dark:text-green-400">
+                      Seleccione un rol
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {roles.map((role) => (
+                      <label
+                        key={role.id}
+                        className={`relative flex items-start p-4 rounded-lg border cursor-pointer transition-all duration-200
+                                  ${(data.roles || []).includes(role.name)
+                            ? 'border-green-300 dark:border-green-500 bg-green-50 dark:bg-green-900/30'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'
+                          }`}
+                      >
+                        <input
+                          type="radio"
+                          name="userRole"
+                          value={role.name}
+                          checked={(data.roles || []).includes(role.name)}
+                          onChange={() => handleRoleChange(role.name)}
+                          className="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 dark:border-gray-600"
+                        />
+                        <div className="ml-3 flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
+                              {role.name}
+                            </span>
+                            {(data.roles || []).includes(role.name) && (
+                              <CheckCircle className="w-4 h-4 text-green-500 ml-2" />
+                            )}
+                          </div>
+                          {role.description && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {role.description}
+                            </p>
                           )}
                         </div>
-                        {role.description && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {role.description}
+                      </label>
+                    ))}
+
+                    {/* Mensaje de validación si no se selecciona rol */}
+                    {!data.roles || data.roles.length === 0 ? (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                        <div className="flex items-start">
+                          <div className="w-4 h-4 text-blue-500 mr-2 flex-shrink-0 mt-0.5">⚡</div>
+                          <p className="text-sm text-blue-600 dark:text-blue-400">
+                            Debe seleccionar un rol para el usuario
                           </p>
-                        )}
+                        </div>
                       </div>
-                    </label>
-                  ))}
-                </div>
+                    ) : null}
 
-                {/* Mostrar error si existe */}
-                {formErrors.roles && (
-                  <div className="mt-4 flex items-center p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500 mr-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    <p className="text-sm text-red-600 dark:text-red-400">{formErrors.roles}</p>
-                  </div>
-                )}
-
-                {/* Indicador de selección */}
-                {(data.roles || []).length === 0 && (
-                  <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                    <div className="flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                        Debe seleccionar un rol para el usuario
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Sección de contraseña */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-              <div className="mb-3">
-                <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
-                  Contraseña
-                </h3>
-                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                  Opcional: actualizar contraseña del usuario
-                </p>
-              </div>
-
-              {/* Checkbox para actualizar contraseña */}
-              <div className="mb-3">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="updatePassword"
-                    checked={updatePassword}
-                    onChange={(e) => handleUpdatePasswordChange(e.target.checked)}
-                    className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 transition-all"
-                  />
-                  <label htmlFor="updatePassword" className="ml-2 sm:ml-3 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Actualizar contraseña
-                  </label>
-                </div>
-              </div>
-
-              {/* Campos de contraseña - Solo si se marca el checkbox */}
-              {updatePassword ? (
-                <div className="space-y-2 sm:space-y-3 max-h-[120px] sm:max-h-[150px] overflow-y-auto">
-                  <Form
-                    initialData={data}
-                    fields={passwordFields}
-                    errors={formErrors}
-                    submitUrl={`/usuarios/${usuario.id}`}
-                    method="put"
-                    onCancel={handleCloseModal}
-                    onSuccess={handleSubmit}
-                    submitButtonText="Actualizar"
-                    isEditing={true}
-                    accentColor="blue"
-                    showButtons={false}
-                    id="edit-usuario-password-form"
-                    processing={processing}
-                  />
-                </div>
-              ) : (
-                <div className="p-2 sm:p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <div className="flex items-center">
-                    <User className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 mr-2 flex-shrink-0" />
-                    <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300 leading-tight">
-                      La contraseña actual se mantendrá sin cambios
-                    </p>
+                    {/* Validación de errores del servidor */}
+                    {formErrors.roles && (
+                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                        <div className="flex items-start">
+                          <div className="w-4 h-4 text-red-500 mr-2 flex-shrink-0 mt-0.5">⚠️</div>
+                          <p className="text-sm text-red-600 dark:text-red-400">{formErrors.roles}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
             </div>
-          </div>
+
+            {/* Footer con botones */}
+            <div className="flex justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="px-4 py-2 border border-gray-300 text-gray-700 dark:border-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm"
+              >
+                <X className="w-4 h-4" />
+                Cancelar
+              </button>
+              
+              <button
+                type="submit"
+                disabled={processing}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processing ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Actualizando...
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center">
+                    <Save className="w-4 h-4 mr-2" />
+                    Actualizar Usuario
+                  </div>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
-      </UsuarioModal>
-    </>
+      </div>
+    </AppLayout>
   );
 }

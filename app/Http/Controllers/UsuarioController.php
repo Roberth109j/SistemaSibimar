@@ -98,6 +98,30 @@ class UsuarioController extends Controller
     }
 
     /**
+     * Muestra el formulario para crear un nuevo usuario.
+     */
+    public function create(Request $request): Response|RedirectResponse
+    {
+        // Verificar que el usuario sea administrador
+        if (!$request->user()->hasRole('Administrador')) {
+            return redirect()->route('dashboard')
+                ->with('error', 'No tienes permisos para acceder a esta página.');
+        }
+
+        // Obtener datos necesarios para el formulario
+        $secciones = Seccion::orderBy('nombre')->get();
+        $roles = Role::orderBy('name')->get();
+
+        return Inertia::render('Usuarios/Create', [
+            'auth' => [
+                'user' => $request->user()->load('roles')
+            ],
+            'secciones' => $secciones,
+            'roles' => $roles,
+        ]);
+    }
+
+    /**
      * Almacena un nuevo usuario en la base de datos.
      */
     public function store(Request $request): RedirectResponse
@@ -196,7 +220,35 @@ class UsuarioController extends Controller
         }
 
         return Inertia::render('Usuarios/Show', [
+            'auth' => [
+                'user' => request()->user()->load('roles')
+            ],
             'usuario' => $usuario->load(['roles', 'seccion'])
+        ]);
+    }
+
+    /**
+     * Muestra el formulario para editar un usuario existente.
+     */
+    public function edit(User $usuario): Response|RedirectResponse
+    {
+        // Verificar que el usuario sea administrador
+        if (!request()->user()->hasRole('Administrador')) {
+            return redirect()->route('dashboard')
+                ->with('error', 'No tienes permisos para acceder a esta página.');
+        }
+
+        // Obtener datos necesarios para el formulario
+        $secciones = Seccion::orderBy('nombre')->get();
+        $roles = Role::orderBy('name')->get();
+
+        return Inertia::render('Usuarios/Edit', [
+            'auth' => [
+                'user' => request()->user()->load('roles')
+            ],
+            'usuario' => $usuario->load(['roles', 'seccion']),
+            'secciones' => $secciones,
+            'roles' => $roles,
         ]);
     }
 
