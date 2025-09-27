@@ -1,5 +1,5 @@
 import { X, CheckCircle, Book, User, Calendar, Clock, FileText, Loader2, Users, BookOpen } from 'lucide-react';
-import { type Libro, type Ejemplar, type PrestamoForm, type Lector } from '../types';
+import { type Libro, type Ejemplar, type PrestamoForm, type Lector, obtenerTipoCodigo, obtenerCodigoPrincipal } from '../types';
 
 interface ResumenPrestamoProps {
   libro: Libro;
@@ -9,7 +9,7 @@ interface ResumenPrestamoProps {
   onConfirmar: () => void;
   onCancelar: () => void;
   cargando: boolean;
-  // NUEVAS PROPS OPCIONALES para préstamos masivos
+  // PROPS OPCIONALES para préstamos masivos
   tipoPrestamo?: 'individual' | 'masivo';
   ejemplaresSeleccionados?: Ejemplar[];
 }
@@ -28,6 +28,10 @@ export function ResumenPrestamo({
   // Para préstamos masivos, usar los ejemplares seleccionados; para individual, usar el ejemplar único
   const ejemplares = tipoPrestamo === 'masivo' ? ejemplaresSeleccionados : [ejemplar];
   const esPrestamoMasivo = tipoPrestamo === 'masivo' && ejemplares.length > 1;
+
+  // Obtener información del código del libro
+  const tipoCodigo = obtenerTipoCodigo(libro);
+  const codigoPrincipal = obtenerCodigoPrincipal(libro);
 
   // Formatear fecha para mostrar
   const formatearFecha = (fecha: string): string => {
@@ -102,12 +106,21 @@ export function ResumenPrestamo({
             <div className="flex items-start gap-2.5">
               <Book className="w-4 h-4 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-600 dark:text-gray-300">Libro</p>
+                <p className="text-xs text-gray-600 dark:text-gray-300">Material</p>
                 <p className="font-medium text-gray-900 dark:text-white text-sm break-words">{libro.titulo}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 break-words">
-                  ISBN: {libro.isbn}
-                  {libro.autor && ` • Autor: ${libro.autor.nombres} ${libro.autor.apellidos}`}
-                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 break-words">
+                    {tipoCodigo}: {codigoPrincipal}
+                  </p>
+                  <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium">
+                    {libro.clase}
+                  </span>
+                  {libro.autor && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 break-words">
+                      Autor: {libro.autor.nombres} {libro.autor.apellidos}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -241,9 +254,14 @@ export function ResumenPrestamo({
               <strong>Importante:</strong> {
                 esPrestamoMasivo 
                   ? `Se crearán ${ejemplares.length} préstamos individuales con las mismas fechas. Todos los ejemplares cambiarán su estado a "PRESTADO".`
-                  : 'El estudiante debe devolver el libro en la fecha indicada. Se aplicarán sanciones por retrasos en la devolución.'
+                  : 'El estudiante debe devolver el material en la fecha indicada. Se aplicarán sanciones por retrasos en la devolución.'
               }
             </p>
+            {libro.clase === 'REVISTA' && (
+              <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                <strong>Nota:</strong> Este material es una revista (ISSN). Verifique las condiciones especiales de préstamo para publicaciones periódicas.
+              </p>
+            )}
           </div>
         </div>
 

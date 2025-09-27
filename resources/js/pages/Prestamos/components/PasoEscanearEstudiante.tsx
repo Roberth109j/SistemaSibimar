@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, UserCheck, Calendar, Clock, AlertCircle, Info, BookOpen, Loader2, FileText, Users } from 'lucide-react';
-import { type Libro, type Ejemplar, type PrestamoForm, type Lector } from '../types';
+import { type Libro, type Ejemplar, type PrestamoForm, type Lector, obtenerTipoCodigo, obtenerCodigoPrincipal } from '../types';
 
 interface PasoEscanearEstudianteProps {
   libro: Libro;
@@ -10,7 +10,7 @@ interface PasoEscanearEstudianteProps {
   onEscanear: (lector: Lector) => void;
   onVolver: () => void;
   error?: string;
-  // NUEVAS PROPS OPCIONALES para préstamos masivos
+  // PROPS OPCIONALES para préstamos masivos
   tipoPrestamo?: 'individual' | 'masivo';
   ejemplaresSeleccionados?: Ejemplar[];
 }
@@ -40,6 +40,10 @@ export function PasoEscanearEstudiante({
 
   // Para préstamos masivos, usar los ejemplares seleccionados; para individual, usar el ejemplar único
   const ejemplares = tipoPrestamo === 'masivo' ? ejemplaresSeleccionados : [ejemplar];
+
+  // Obtener información del código del libro
+  const tipoCodigo = obtenerTipoCodigo(libro);
+  const codigoPrincipal = obtenerCodigoPrincipal(libro);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -205,13 +209,19 @@ export function PasoEscanearEstudiante({
             </div>
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-white">{libro.titulo}</p>
-              {tipoPrestamo === 'masivo' ? (
-                <p className="text-xs text-blue-600 dark:text-blue-400">
-                  {ejemplares.length} ejemplares: #{ejemplares.map(e => e.numEjemplar).join(', #')}
-                </p>
-              ) : (
-                <p className="text-xs text-blue-600 dark:text-blue-400">Ejemplar #{ejemplar.numEjemplar}</p>
-              )}
+              <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
+                <span>{tipoCodigo}: {codigoPrincipal}</span>
+                <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+                  {libro.clase}
+                </span>
+                {tipoPrestamo === 'masivo' ? (
+                  <span>
+                    {ejemplares.length} ejemplares: #{ejemplares.map(e => e.numEjemplar).join(', #')}
+                  </span>
+                ) : (
+                  <span>Ejemplar #{ejemplar.numEjemplar}</span>
+                )}
+              </div>
             </div>
           </div>
         </div>

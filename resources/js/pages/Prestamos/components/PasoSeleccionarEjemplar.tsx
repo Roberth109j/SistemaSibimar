@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, CheckCircle, ChevronDown, Square, CheckSquare, Users, Hash } from 'lucide-react';
-import { type Libro, type Ejemplar } from '../types';
+import { type Libro, type Ejemplar, obtenerTipoCodigo, obtenerCodigoPrincipal } from '../types';
 
 interface PasoSeleccionarEjemplarProps {
   libro: Libro;
@@ -8,7 +8,7 @@ interface PasoSeleccionarEjemplarProps {
   onSeleccionar: (ejemplar: Ejemplar | Ejemplar[]) => void;
   onVolver: () => void;
   ejemplarSeleccionado: Ejemplar | null;
-  // NUEVAS PROPS para préstamos masivos
+  // PROPS para préstamos masivos
   tipoPrestamo?: 'individual' | 'masivo';
   ejemplaresSeleccionados?: Ejemplar[];
 }
@@ -26,14 +26,18 @@ export function PasoSeleccionarEjemplar({
   const ejemplaresDisponibles = ejemplares.filter(ejemplar => ejemplar.estado === 'DISPONIBLE');
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
   
-  // NUEVO: Estado local para préstamos masivos
+  // Estado local para préstamos masivos
   const [ejemplaresSeleccionadosLocal, setEjemplaresSeleccionadosLocal] = useState<Ejemplar[]>(ejemplaresSeleccionados);
   
-  // NUEVO: Estado para la cantidad a prestar
+  // Estado para la cantidad a prestar
   const [cantidadAPrestar, setCantidadAPrestar] = useState<string>('');
   const [modoSeleccion, setModoSeleccion] = useState<'manual' | 'cantidad'>('manual');
 
-  // NUEVO: Función para manejar selección individual en préstamo masivo
+  // Obtener información del código del libro
+  const tipoCodigo = obtenerTipoCodigo(libro);
+  const codigoPrincipal = obtenerCodigoPrincipal(libro);
+
+  // Función para manejar selección individual en préstamo masivo
   const handleToggleEjemplarMasivo = (ejemplar: Ejemplar) => {
     setEjemplaresSeleccionadosLocal(prev => {
       const yaSeleccionado = prev.some(e => e.id === ejemplar.id);
@@ -45,27 +49,17 @@ export function PasoSeleccionarEjemplar({
     });
   };
 
-  // NUEVO: Seleccionar todos los ejemplares
+  // Seleccionar todos los ejemplares
   const handleSeleccionarTodos = () => {
     setEjemplaresSeleccionadosLocal(ejemplaresDisponibles);
   };
 
-  // NUEVO: Deseleccionar todos los ejemplares
+  // Deseleccionar todos los ejemplares
   const handleDeseleccionarTodos = () => {
     setEjemplaresSeleccionadosLocal([]);
   };
 
-  // NUEVO: Seleccionar por cantidad
-  const handleSeleccionarPorCantidad = () => {
-    const cantidad = parseInt(cantidadAPrestar);
-    if (cantidad > 0 && cantidad <= ejemplaresDisponibles.length) {
-      // Seleccionar los primeros N ejemplares disponibles
-      const ejemplaresASeleccionar = ejemplaresDisponibles.slice(0, cantidad);
-      setEjemplaresSeleccionadosLocal(ejemplaresASeleccionar);
-    }
-  };
-
-  // NUEVO: Manejar cambio en el campo de cantidad
+  // Manejar cambio en el campo de cantidad
   const handleCantidadChange = (value: string) => {
     setCantidadAPrestar(value);
     // Si el valor es válido, seleccionar automáticamente
@@ -78,12 +72,12 @@ export function PasoSeleccionarEjemplar({
     }
   };
 
-  // NUEVO: Verificar si un ejemplar está seleccionado
+  // Verificar si un ejemplar está seleccionado
   const estaSeleccionado = (ejemplar: Ejemplar): boolean => {
     return ejemplaresSeleccionadosLocal.some(e => e.id === ejemplar.id);
   };
 
-  // NUEVO: Continuar con préstamo masivo
+  // Continuar con préstamo masivo
   const handleContinuarMasivo = () => {
     if (ejemplaresSeleccionadosLocal.length > 0) {
       onSeleccionar(ejemplaresSeleccionadosLocal);
@@ -107,7 +101,10 @@ export function PasoSeleccionarEjemplar({
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{libro.titulo}</h3>
             <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-600 dark:text-gray-300">
-              <span>ISBN: {libro.isbn}</span>
+              <span>{tipoCodigo}: {codigoPrincipal}</span>
+              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+                {libro.clase}
+              </span>
               {libro.autor && (
                 <span>Autor: {libro.autor.nombres} {libro.autor.apellidos}</span>
               )}
@@ -166,7 +163,7 @@ export function PasoSeleccionarEjemplar({
             </div>
           </div>
 
-          {/* NUEVO: Campo de cantidad (cuando modo es 'cantidad') */}
+          {/* Campo de cantidad (cuando modo es 'cantidad') */}
           {modoSeleccion === 'cantidad' && (
             <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
               <div className="flex items-center gap-3">
@@ -351,7 +348,10 @@ export function PasoSeleccionarEjemplar({
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{libro.titulo}</h3>
           <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-600 dark:text-gray-300">
-            <span>ISBN: {libro.isbn}</span>
+            <span>{tipoCodigo}: {codigoPrincipal}</span>
+            <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+              {libro.clase}
+            </span>
             {libro.autor && (
               <span>Autor: {libro.autor.nombres} {libro.autor.apellidos}</span>
             )}
