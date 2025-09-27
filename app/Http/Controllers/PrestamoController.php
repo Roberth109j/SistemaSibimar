@@ -22,8 +22,12 @@ class PrestamoController extends Controller
     {
         $fechaActual = Carbon::now();
 
+        // **MEJORADO: Solo actualizar préstamos de ejemplares que NO estén perdidos**
         $prestamosVencidos = Prestamo::where('estado', 'ACTIVO')
             ->where('fecha_devolucion', '<', $fechaActual)
+            ->whereHas('ejemplar', function($query) {
+                $query->where('estado', '!=', 'PERDIDO'); // **Excluir ejemplares perdidos**
+            })
             ->get();
 
         foreach ($prestamosVencidos as $prestamo) {
@@ -119,7 +123,7 @@ class PrestamoController extends Controller
 
     /**
      * Crear un nuevo préstamo
-     * **MEJORADO: Con mejor validación y manejo de estados**
+     * **CORREGIDO: Las observaciones ahora se guardan en el ejemplar**
      */
     public function store(Request $request)
     {
@@ -181,7 +185,7 @@ class PrestamoController extends Controller
         try {
             DB::beginTransaction();
 
-            // Crear el préstamo con estado ACTIVO
+            // **CORREGIDO: Crear el préstamo SIN observaciones (van al ejemplar)**
             $prestamo = Prestamo::create([
                 'ejemplar_id' => $ejemplar->id,
                 'lector_id' => $lector->id,
@@ -189,12 +193,13 @@ class PrestamoController extends Controller
                 'fecha_devolucion' => $request->input('fecha_devolucion'),
                 'fecha_devuelto' => null,
                 'estado' => 'ACTIVO',
-                'observaciones' => $request->input('observaciones', '')
+                'observaciones' => '' // **Las observaciones del préstamo quedan vacías**
             ]);
 
-            // Actualizar estado del ejemplar a PRESTADO
+            // **CORREGIDO: Actualizar estado del ejemplar Y guardar observaciones en el ejemplar**
             $ejemplar->update([
-                'estado' => 'PRESTADO'
+                'estado' => 'PRESTADO',
+                'observaciones' => $request->input('observaciones', '') // **Observaciones van al ejemplar**
             ]);
 
             DB::commit();
@@ -206,7 +211,8 @@ class PrestamoController extends Controller
                 'lector_id' => $lector->id,
                 'lector_nombre' => $lector->nombre,
                 'fecha_prestamo' => $prestamo->fecha_prestamo,
-                'fecha_devolucion' => $prestamo->fecha_devolucion
+                'fecha_devolucion' => $prestamo->fecha_devolucion,
+                'observaciones_ejemplar' => $ejemplar->observaciones // **Log de observaciones**
             ]);
 
             return redirect()->route('prestamos.index')->with('success', 
@@ -240,18 +246,45 @@ class PrestamoController extends Controller
     }
 
     /**
-     * **NUEVO MÉTODO: Procesar devolución de préstamo**
+     * Mostrar el formulario para editar un préstamo
      */
-    public function devolver(Request $request, Prestamo $prestamo)
+    public function edit(Prestamo $prestamo)
     {
+        // Solo permitir editar préstamos ACTIVOS
         if ($prestamo->estado !== 'ACTIVO') {
-            return back()->with('error', 'Este préstamo ya no está activo.');
+            return redirect()->route('prestamos.index')
+                ->with('error', 'Solo se pueden editar préstamos activos.');
+        }
+
+        $prestamo->load(['ejemplar.libro', 'lector.grado']);
+
+        return Inertia::render('Prestamos/Edit', [
+            'prestamo' => $prestamo
+        ]);
+    }
+
+    /**
+     * Actualizar un préstamo existente
+     * **CORREGIDO: Las observaciones se actualizan en el ejemplar**
+     */
+    public function update(Request $request, Prestamo $prestamo)
+    {
+        // Solo permitir actualizar préstamos ACTIVOS
+        if ($prestamo->estado !== 'ACTIVO') {
+            return back()->with('error', 'Solo se pueden actualizar préstamos activos.');
         }
 
         $validator = Validator::make($request->all(), [
-            'observaciones_devolucion' => 'nullable|string|max:500'
+            'fecha_prestamo' => 'required|date',
+            'fecha_devolucion' => 'required|date|after:fecha_prestamo',
+            'observaciones' => 'nullable|string|max:500'
         ], [
-            'observaciones_devolucion.max' => 'Las observaciones de devolución no pueden exceder 500 caracteres.'
+            'fecha_prestamo.required' => 'La fecha de préstamo es obligatoria.',
+            'fecha_prestamo.date' => 'La fecha de préstamo debe ser una fecha válida.',
+            'fecha_devolucion.required' => 'La fecha de devolución es obligatoria.',
+            'fecha_devolucion.date' => 'La fecha de devolución debe ser una fecha válida.',
+            'fecha_devolucion.after' => 'La fecha de devolución debe ser posterior a la fecha de préstamo.',
+            'observaciones.max' => 'Las observaciones no pueden exceder 500 caracteres.'
         ]);
 
         if ($validator->fails()) {
@@ -261,56 +294,59 @@ class PrestamoController extends Controller
         try {
             DB::beginTransaction();
 
-            // Marcar préstamo como devuelto
+            // **CORREGIDO: Actualizar solo fechas en el préstamo**
             $prestamo->update([
-                'estado' => 'DEVUELTO',
-                'fecha_devuelto' => Carbon::now(),
-                'observaciones_devolucion' => $request->input('observaciones_devolucion', '')
+                'fecha_prestamo' => $request->input('fecha_prestamo'),
+                'fecha_devolucion' => $request->input('fecha_devolucion')
+                // **NO actualizar observaciones en el préstamo**
             ]);
 
-            // Cambiar estado del ejemplar a DISPONIBLE
+            // **CORREGIDO: Actualizar observaciones en el ejemplar**
             $prestamo->ejemplar->update([
-                'estado' => 'DISPONIBLE'
+                'observaciones' => $request->input('observaciones', '')
             ]);
 
             DB::commit();
 
-            Log::info('✅ Préstamo devuelto exitosamente:', [
+            Log::info('✅ Préstamo actualizado exitosamente:', [
                 'prestamo_id' => $prestamo->id,
-                'ejemplar_id' => $prestamo->ejemplar_id,
-                'lector_id' => $prestamo->lector_id,
-                'fecha_devuelto' => $prestamo->fecha_devuelto
+                'fecha_prestamo' => $prestamo->fecha_prestamo,
+                'fecha_devolucion' => $prestamo->fecha_devolucion,
+                'observaciones_ejemplar' => $prestamo->ejemplar->fresh()->observaciones
             ]);
 
             return redirect()->route('prestamos.index')->with('success', 
-                'Devolución procesada exitosamente. Ejemplar #' . $prestamo->ejemplar->numEjemplar . ' nuevamente disponible.'
+                'Préstamo actualizado exitosamente.'
             );
 
         } catch (\Exception $e) {
             DB::rollBack();
             
-            Log::error('❌ Error al procesar devolución:', [
+            Log::error('❌ Error al actualizar préstamo:', [
                 'error_message' => $e->getMessage(),
                 'prestamo_id' => $prestamo->id
             ]);
             
-            return back()->with('error', 'Error al procesar la devolución: ' . $e->getMessage());
+            return back()->with('error', 'Error al actualizar el préstamo: ' . $e->getMessage());
         }
     }
 
     /**
-     * **NUEVO MÉTODO: Marcar préstamo como vencido manualmente**
+     * **CORREGIDO: Cancelar un préstamo activo - Observaciones en ejemplar**
+     * Útil para casos donde se registró mal o se necesita anular
      */
-    public function marcarVencido(Request $request, Prestamo $prestamo)
+    public function cancelar(Request $request, Prestamo $prestamo)
     {
+        // Solo permitir cancelar préstamos ACTIVOS
         if ($prestamo->estado !== 'ACTIVO') {
-            return back()->with('error', 'Este préstamo ya no está activo.');
+            return back()->with('error', 'Solo se pueden cancelar préstamos activos.');
         }
 
         $validator = Validator::make($request->all(), [
-            'motivo' => 'nullable|string|max:500'
+            'motivo_cancelacion' => 'required|string|max:500'
         ], [
-            'motivo.max' => 'El motivo no puede exceder 500 caracteres.'
+            'motivo_cancelacion.required' => 'El motivo de cancelación es obligatorio.',
+            'motivo_cancelacion.max' => 'El motivo no puede exceder 500 caracteres.'
         ]);
 
         if ($validator->fails()) {
@@ -318,31 +354,42 @@ class PrestamoController extends Controller
         }
 
         try {
-            $motivo = $request->input('motivo', 'Marcado como vencido manualmente');
+            DB::beginTransaction();
 
+            // **CORREGIDO: Actualizar el préstamo como cancelado con observaciones específicas**
             $prestamo->update([
-                'estado' => 'VENCIDO',
-                'observaciones_devolucion' => $motivo
+                'estado' => 'CANCELADO',
+                'observaciones_devolucion' => $request->input('motivo_cancelacion')
             ]);
 
-            Log::info('⚠️ Préstamo marcado como vencido manualmente:', [
+            // **CORREGIDO: Devolver el ejemplar al estado DISPONIBLE y actualizar observaciones**
+            $prestamo->ejemplar->update([
+                'estado' => 'DISPONIBLE',
+                'observaciones' => 'Préstamo cancelado: ' . $request->input('motivo_cancelacion')
+            ]);
+
+            DB::commit();
+
+            Log::info('🚫 Préstamo cancelado exitosamente:', [
                 'prestamo_id' => $prestamo->id,
-                'motivo' => $motivo,
+                'motivo' => $request->input('motivo_cancelacion'),
                 'ejemplar_id' => $prestamo->ejemplar_id,
                 'lector_id' => $prestamo->lector_id
             ]);
 
             return redirect()->route('prestamos.index')->with('success', 
-                'Préstamo marcado como vencido. El ejemplar #' . $prestamo->ejemplar->numEjemplar . ' mantiene su estado actual.'
+                'Préstamo cancelado exitosamente. El ejemplar #' . $prestamo->ejemplar->numEjemplar . ' está nuevamente disponible.'
             );
 
         } catch (\Exception $e) {
-            Log::error('❌ Error al marcar préstamo como vencido:', [
+            DB::rollBack();
+            
+            Log::error('❌ Error al cancelar préstamo:', [
                 'error_message' => $e->getMessage(),
                 'prestamo_id' => $prestamo->id
             ]);
             
-            return back()->with('error', 'Error al marcar el préstamo como vencido: ' . $e->getMessage());
+            return back()->with('error', 'Error al cancelar el préstamo: ' . $e->getMessage());
         }
     }
 }
