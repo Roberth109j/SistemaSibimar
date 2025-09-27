@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, UserCheck, Calendar, Clock, AlertCircle, Info, BookOpen, Loader2, FileText } from 'lucide-react';
+import { ArrowLeft, UserCheck, Calendar, Clock, AlertCircle, Info, BookOpen, Loader2, FileText, Users } from 'lucide-react';
 import { type Libro, type Ejemplar, type PrestamoForm, type Lector } from '../types';
 
 interface PasoEscanearEstudianteProps {
@@ -7,9 +7,12 @@ interface PasoEscanearEstudianteProps {
   ejemplar: Ejemplar;
   formularioPrestamo: PrestamoForm;
   onActualizarFormulario: (form: PrestamoForm) => void;
-  onEscanear: (lector: Lector) => void; // CAMBIO: Ahora recibe un objeto Lector completo
+  onEscanear: (lector: Lector) => void;
   onVolver: () => void;
   error?: string;
+  // NUEVAS PROPS OPCIONALES para préstamos masivos
+  tipoPrestamo?: 'individual' | 'masivo';
+  ejemplaresSeleccionados?: Ejemplar[];
 }
 
 const OPCIONES_DEVOLUCION = [
@@ -26,12 +29,17 @@ export function PasoEscanearEstudiante({
   onActualizarFormulario,
   onEscanear, 
   onVolver,
-  error 
+  error,
+  tipoPrestamo = 'individual',
+  ejemplaresSeleccionados = []
 }: PasoEscanearEstudianteProps) {
   const [codigoEstudiante, setCodigoEstudiante] = useState('');
   const [verificandoEstudiante, setVerificandoEstudiante] = useState<boolean>(false);
   const [estudianteError, setEstudianteError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Para préstamos masivos, usar los ejemplares seleccionados; para individual, usar el ejemplar único
+  const ejemplares = tipoPrestamo === 'masivo' ? ejemplaresSeleccionados : [ejemplar];
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -53,7 +61,7 @@ export function PasoEscanearEstudiante({
     return /^[A-Za-z0-9]{3,}$/.test(codigo.trim());
   };
 
-  // CAMBIO: Función actualizada para verificar estudiante y obtener información completa
+  // Función actualizada para verificar estudiante
   const verificarEstudiante = (codigo: string) => {
     if (!codigo.trim()) return;
     
@@ -83,7 +91,7 @@ export function PasoEscanearEstudiante({
     .then(data => {
       setVerificandoEstudiante(false);
       
-      // CAMBIO: Si la respuesta es exitosa, pasar el objeto lector completo
+      // Si la respuesta es exitosa, pasar el objeto lector completo
       if (data.success === true && data.lector) {
         // Pasar el objeto lector completo que incluye id, nombre, codigo, etc.
         onEscanear(data.lector);
@@ -184,14 +192,26 @@ export function PasoEscanearEstudiante({
         </button>
         
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Datos del Préstamo</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Datos del Préstamo {tipoPrestamo === 'masivo' ? 'Masivo' : ''}
+          </h3>
           <div className="flex items-center gap-2 mt-2">
             <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              {tipoPrestamo === 'masivo' ? (
+                <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              ) : (
+                <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              )}
             </div>
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-white">{libro.titulo}</p>
-              <p className="text-xs text-gray-600 dark:text-gray-300">Ejemplar #{ejemplar.numEjemplar}</p>
+              {tipoPrestamo === 'masivo' ? (
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  {ejemplares.length} ejemplares: #{ejemplares.map(e => e.numEjemplar).join(', #')}
+                </p>
+              ) : (
+                <p className="text-xs text-blue-600 dark:text-blue-400">Ejemplar #{ejemplar.numEjemplar}</p>
+              )}
             </div>
           </div>
         </div>
@@ -250,7 +270,7 @@ export function PasoEscanearEstudiante({
               <button
                 type="submit"
                 disabled={!codigoEstudiante.trim() || verificandoEstudiante}
-                className="w-full py-2.5 px-4 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-500 dark:to-green-600 text-white rounded-lg text-sm font-medium hover:from-green-700 hover:to-green-800 dark:hover:from-green-600 dark:hover:to-green-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-600 dark:hover:to-blue-700 text-white rounded-lg text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
               >
                 {verificandoEstudiante ? (
                   <>
@@ -258,18 +278,30 @@ export function PasoEscanearEstudiante({
                     <span>Verificando...</span>
                   </>
                 ) : (
-                  'Continuar con el préstamo'
+                  <>
+                    {tipoPrestamo === 'masivo' ? (
+                      <Users className="w-4 h-4" />
+                    ) : (
+                      <UserCheck className="w-4 h-4" />
+                    )}
+                    <span>Continuar con el préstamo{tipoPrestamo === 'masivo' ? ' masivo' : ''}</span>
+                  </>
                 )}
               </button>
             </form>
 
             {/* Información adicional */}
-            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-lg">
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800/50 border rounded-lg">
               <div className="flex items-start gap-2">
                 <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                 <div className="text-xs text-blue-800 dark:text-blue-300">
                   <p className="font-medium mb-1">Importante:</p>
-                  <p>Use la pistola para escanear el código. Luego ajuste las fechas y haga clic en "Continuar" para proceder.</p>
+                  <p>
+                    {tipoPrestamo === 'masivo' 
+                      ? `Se crearán ${ejemplares.length} préstamos individuales con las mismas fechas. Use la pistola para escanear el código del estudiante.`
+                      : 'Use la pistola para escanear el código. Luego ajuste las fechas y haga clic en "Continuar" para proceder.'
+                    }
+                  </p>
                 </div>
               </div>
             </div>
@@ -303,7 +335,7 @@ export function PasoEscanearEstudiante({
                   fecha_devolucion: e.target.value
                 })}
                 min={formularioPrestamo.fecha_prestamo}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm dark:bg-gray-700 dark:text-white"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-sm dark:bg-gray-700 dark:text-white focus:ring-blue-500"
               />
               
               {/* Opciones rápidas */}
@@ -326,7 +358,7 @@ export function PasoEscanearEstudiante({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Observaciones del estado del ejemplar
+                Observaciones del estado del ejemplar{tipoPrestamo === 'masivo' ? ' (aplicadas a todos)' : ''}
               </label>
               <textarea
                 value={formularioPrestamo.observaciones}
@@ -335,9 +367,17 @@ export function PasoEscanearEstudiante({
                   observaciones: e.target.value
                 })}
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm dark:bg-gray-700 dark:text-white"
-                placeholder="Registre el estado actual del ejemplar o agregue nuevas observaciones..."
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none text-sm dark:bg-gray-700 dark:text-white focus:ring-blue-500"
+                placeholder={tipoPrestamo === 'masivo' 
+                  ? 'Observaciones que se aplicarán a todos los préstamos...'
+                  : 'Registre el estado actual del ejemplar o agregue nuevas observaciones...'
+                }
               />
+              {tipoPrestamo === 'masivo' && (
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Estas observaciones se aplicarán a todos los {ejemplares.length} préstamos
+                </p>
+              )}
             </div>
           </div>
         </div>

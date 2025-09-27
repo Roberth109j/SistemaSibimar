@@ -21,6 +21,7 @@ use App\Http\Controllers\ExcelTestController;
 use App\Http\Controllers\InlineCreateController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\BuscadorController;
+use App\Http\Controllers\PrestamoMasivoController;
 
 
 // Ruta para refrescar el token CSRF
@@ -182,6 +183,9 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
     
     // Ruta para buscar lector por código (AJAX) - Para PRÉSTAMOS
     Route::get('/prestamos/buscar-lector', [PrestamoController::class, 'buscarLector'])->name('prestamos.buscar-lector');
+
+    // ===== 🆕 NUEVA RUTA PARA PRÉSTAMOS MASIVOS =====
+    Route::post('/prestamos/masivo', [PrestamoMasivoController::class, 'store'])->name('prestamos.masivo.store');
 
     // RUTAS PARA DEVOLUCIONES (NUEVO CONTROLLER) =====
     Route::prefix('devoluciones')->name('devoluciones.')->group(function () {
