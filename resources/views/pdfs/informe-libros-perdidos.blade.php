@@ -29,6 +29,12 @@
             margin-bottom: 2px;
             font-size: 9px;
         }
+        .institucion {
+            font-size: 11px;
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 3px;
+        }
         .stats-table {
             width: 100%;
             border-collapse: collapse;
@@ -117,11 +123,15 @@
             font-style: italic;
             font-size: 9px;
         }
+        .page-break {
+            page-break-before: always;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="title">INFORME DE LIBROS PERDIDOS</div>
+        <div class="institucion">Colegio Liceo de la Merced Maridiaz Franciscanas</div>
         <div class="subtitle">Periodo: {{ $periodo['inicio'] }} - {{ $periodo['fin'] }}</div>
         <div class="subtitle">Generado el: {{ date('d/m/Y H:i') }}</div>
     </div>
@@ -154,9 +164,9 @@
         </tr>
     </table>
 
-    <!-- Detalle de Libros Perdidos -->
+    <!-- Detalle de Libros Perdidos - TODOS LOS REGISTROS -->
     <div class="section">
-        <div class="section-title">Detalle de Ejemplares Perdidos ({{ count($ejemplares_perdidos) }} registros)</div>
+        <div class="section-title">Detalle Completo de Ejemplares Perdidos ({{ count($ejemplares_perdidos) }} registros)</div>
         
         @if(count($ejemplares_perdidos) > 0)
         <table>
@@ -171,7 +181,6 @@
             </thead>
             <tbody>
                 @foreach($ejemplares_perdidos as $index => $ejemplar)
-                    @if($index < 30)
                     <tr>
                         <td class="text-truncate">{{ $ejemplar->libro->titulo }}</td>
                         <td class="text-truncate">{{ $ejemplar->libro->autor->nombres }} {{ $ejemplar->libro->autor->apellidos }}</td>
@@ -179,15 +188,23 @@
                         <td>{{ $ejemplar->fecha_perdida_formateada }}</td>
                         <td style="word-wrap: break-word; white-space: normal; max-width: 100px;">{{ $ejemplar->observaciones ?: 'Sin observaciones' }}</td>
                     </tr>
+                    @if(($index + 1) % 30 == 0 && $index < count($ejemplares_perdidos) - 1)
+                    </tbody>
+        </table>
+        <div class="page-break"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Titulo</th>
+                    <th>Autor</th>
+                    <th class="text-center">Ejemplar</th>
+                    <th>Fecha Perdida</th>
+                    <th>Observaciones</th>
+                </tr>
+            </thead>
+            <tbody>
                     @endif
                 @endforeach
-                @if(count($ejemplares_perdidos) > 30)
-                <tr>
-                    <td colspan="5" class="text-center" style="font-style: italic; color: #6b7280;">
-                        ... y {{ count($ejemplares_perdidos) - 30 }} ejemplares mas
-                    </td>
-                </tr>
-                @endif
             </tbody>
         </table>
         @else
@@ -225,7 +242,8 @@
     @endif
 
     <div class="footer">
-        Sistema de Gestion Bibliotecaria - Informe generado automaticamente
+        Sistema de Gestion Bibliotecaria - Informe generado automaticamente<br>
+        Total de registros mostrados: {{ count($ejemplares_perdidos) }}
     </div>
 </body>
 </html>

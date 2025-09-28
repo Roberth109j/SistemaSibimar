@@ -29,6 +29,12 @@
             margin-bottom: 2px;
             font-size: 9px;
         }
+        .institucion {
+            font-size: 11px;
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 3px;
+        }
         .alert-box {
             background-color: #fef2f2;
             border: 1px solid #fecaca;
@@ -129,17 +135,22 @@
             padding-top: 5px;
         }
         .text-center { text-align: center; }
-        .text-truncate {
-            max-width: 80px;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
+        /* AJUSTE SOLO PARA NOMBRES COMPLETOS */
+        .nombre-completo {
+            word-wrap: break-word;
+            white-space: normal;
+            max-width: none;
+            overflow: visible;
+        }
+        .page-break {
+            page-break-before: always;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="title">INFORME DE LIBROS VENCIDOS NO DEVUELTOS</div>
+        <div class="institucion">Colegio Liceo de la Merced Maridiaz Franciscanas</div>
         <div class="subtitle">Periodo: {{ $periodo['inicio'] }} - {{ $periodo['fin'] }}</div>
         <div class="subtitle">Generado el: {{ date('d/m/Y H:i') }}</div>
     </div>
@@ -152,7 +163,7 @@
     </div>
     @endif
 
-    <!-- Estadisticas Generales - CORREGIDAS -->
+    <!-- Estadisticas Generales -->
     <table class="stats-table">
         <tr>
             <td class="stats-cell">
@@ -222,9 +233,9 @@
     </div>
     @endif
 
-    <!-- Detalle de Libros Vencidos No Devueltos - SIN SÍMBOLO # EN NÚMERO DE EJEMPLAR -->
+    <!-- Detalle de Libros Vencidos No Devueltos - SOLO NOMBRES COMPLETOS -->
     <div class="section">
-        <div class="section-title">Detalle de Libros Vencidos No Devueltos ({{ count($prestamos_no_devueltos) }} registros)</div>
+        <div class="section-title">Detalle Completo de Libros Vencidos No Devueltos ({{ count($prestamos_no_devueltos) }} registros)</div>
         <table>
             <thead>
                 <tr>
@@ -241,9 +252,7 @@
             </thead>
             <tbody>
                 @foreach($prestamos_no_devueltos as $index => $prestamo)
-                    @if($index < 25)
                     @php
-                        // CORRECCIÓN CRÍTICA: Asegurar que días_retraso sea siempre positivo
                         $diasRetraso = abs((int) floor($prestamo->dias_retraso ?? 0));
                         
                         $severidadClase = '';
@@ -263,10 +272,10 @@
                         }
                     @endphp
                     <tr>
-                        <td class="text-truncate">{{ $prestamo->lector->nombre ?? 'N/A' }}</td>
+                        <td class="nombre-completo">{{ $prestamo->lector->nombre ?? 'N/A' }}</td>
                         <td>{{ $prestamo->lector->codigo ?? 'N/A' }}</td>
                         <td>{{ $prestamo->lector->grado->subGrado ?? 'N/A' }}</td>
-                        <td class="text-truncate">{{ $prestamo->ejemplar->libro->titulo ?? 'N/A' }}</td>
+                        <td class="nombre-completo">{{ $prestamo->ejemplar->libro->titulo ?? 'N/A' }}</td>
                         <td class="text-center">{{ $prestamo->ejemplar->numEjemplar ?? 'N/A' }}</td>
                         <td>{{ \Carbon\Carbon::parse($prestamo->fecha_prestamo)->format('d/m/Y') }}</td>
                         <td>{{ \Carbon\Carbon::parse($prestamo->fecha_devolucion)->format('d/m/Y') }}</td>
@@ -279,15 +288,27 @@
                             <span class="{{ $severidadClase }}">{{ $severidadTexto }}</span>
                         </td>
                     </tr>
+                    @if(($index + 1) % 25 == 0 && $index < count($prestamos_no_devueltos) - 1)
+                    </tbody>
+        </table>
+        <div class="page-break"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Estudiante</th>
+                    <th>Codigo</th>
+                    <th>Grado</th>
+                    <th>Libro</th>
+                    <th>Ejemplar</th>
+                    <th>F. Prestamo</th>
+                    <th>F. Vencimiento</th>
+                    <th>Dias Retraso</th>
+                    <th>Severidad</th>
+                </tr>
+            </thead>
+            <tbody>
                     @endif
                 @endforeach
-                @if(count($prestamos_no_devueltos) > 25)
-                <tr>
-                    <td colspan="9" class="text-center" style="font-style: italic; color: #6b7280;">
-                        ... y {{ count($prestamos_no_devueltos) - 25 }} prestamos vencidos mas
-                    </td>
-                </tr>
-                @endif
             </tbody>
         </table>
     </div>
@@ -315,7 +336,8 @@
     </div>
 
     <div class="footer">
-        Sistema de Gestion Bibliotecaria - Informe de Control y Seguimiento de Libros Vencidos
+        Sistema de Gestion Bibliotecaria - Informe de Control y Seguimiento de Libros Vencidos<br>
+        Total de registros mostrados: {{ count($prestamos_no_devueltos) }}
     </div>
 </body>
 </html>
