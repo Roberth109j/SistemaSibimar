@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Head } from '@inertiajs/react';
-import { Book, Search, X, CheckCircle, ArrowLeft, Calendar, User, Package, AlertCircle, Clock } from 'lucide-react';
+import { Book, Search, X, CheckCircle, ArrowLeft, Calendar, User, Package, AlertCircle, Clock, Trash2, RotateCcw, MessageSquare, ChevronDown, ChevronUp, Filter, Eye, EyeOff } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
-import ConfirmacionModal from './ConfirmacionModal';
+import ConfirmacionModalMultiple from './ConfirmacionModal';
 import {
   Prestamo,
   LectorInfo,
@@ -14,7 +14,12 @@ import {
   DevolucionResponse,
   EstadoPrestamo,
   DURACION_ALERTAS,
-  BreadcrumbItem
+  BreadcrumbItem,
+  LIMITES_DEVOLUCION_MULTIPLE,
+  paginarPrestamos,
+  filtrarPrestamos,
+  FiltrosPrestamos,
+  calcularEstadisticasDevolucion
 } from './types';
 
 // Breadcrumbs para la página de devoluciones
@@ -25,7 +30,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 // Función auxiliar para formatear fechas correctamente sin cambios de zona horaria
 const formatearFechaSinZonaHoraria = (fechaString: string): string => {
-  // Parsear la fecha como está, sin conversión de zona horaria
   const [año, mes, dia] = fechaString.split('-').map(Number);
   const fecha = new Date(año, mes - 1, dia);
   
@@ -38,15 +42,12 @@ const formatearFechaSinZonaHoraria = (fechaString: string): string => {
 
 // Función auxiliar para calcular días de diferencia sin problemas de zona horaria
 const calcularDiferenciaDias = (fechaString: string): number => {
-  // Obtener fecha actual en formato local (sin hora)
   const hoy = new Date();
   const fechaHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
   
-  // Parsear fecha objetivo sin hora
   const [año, mes, dia] = fechaString.split('-').map(Number);
   const fechaObjetivo = new Date(año, mes - 1, dia);
   
-  // Calcular diferencia en milisegundos y convertir a días
   const diferenciaMilisegundos = fechaObjetivo.getTime() - fechaHoy.getTime();
   return Math.floor(diferenciaMilisegundos / (1000 * 60 * 60 * 24));
 };
@@ -130,10 +131,27 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
   const [lectorInfo, setLectorInfo] = useState<LectorInfo | null>(null);
   const [cargando, setCargando] = useState<boolean>(false);
   const [modalAbierto, setModalAbierto] = useState<boolean>(false);
-  const [prestamoSeleccionado, setPrestamoSeleccionado] = useState<Prestamo | null>(null);
+  
+  // MEJORADO: Estados para devolución múltiple SIN LÍMITES
+  const [prestamosSeleccionados, setPrestamosSeleccionados] = useState<Set<number>>(new Set());
   const [fechaDevuelto, setFechaDevuelto] = useState<string>('');
-  const [observaciones, setObservaciones] = useState<string>('');
+  const [observacionesGlobales, setObservacionesGlobales] = useState<string>('');
+  const [observacionesIndividuales, setObservacionesIndividuales] = useState<Map<number, string>>(new Map());
   const [procesandoDevolucion, setProcesandoDevolucion] = useState<boolean>(false);
+
+  // NUEVOS: Estados para observaciones opcionales
+  const [prestamosConObservacionesExpandidas, setPrestamosConObservacionesExpandidas] = useState<Set<number>>(new Set());
+  const [mostrarObservacionesGlobales, setMostrarObservacionesGlobales] = useState<boolean>(false);
+
+  // NUEVOS: Estados para paginación y filtros
+  const [paginaActual, setPaginaActual] = useState<number>(1);
+  const [filtros, setFiltros] = useState<FiltrosPrestamos>({
+    soloVencidos: false,
+    soloActivos: false,
+    conObservaciones: false,
+    busquedaTexto: ''
+  });
+  const [mostrarFiltros, setMostrarFiltros] = useState<boolean>(false);
 
   // Estado para alertas
   const [alerts, setAlerts] = useState<AlertState>({
@@ -154,6 +172,17 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
     setCodigoLector('');
     setPrestamos([]);
     setLectorInfo(null);
+    setPrestamosSeleccionados(new Set());
+    setObservacionesIndividuales(new Map());
+    setPrestamosConObservacionesExpandidas(new Set());
+    setMostrarObservacionesGlobales(false);
+    setPaginaActual(1);
+    setFiltros({
+      soloVencidos: false,
+      soloActivos: false,
+      conObservaciones: false,
+      busquedaTexto: ''
+    });
   }, []);
 
   const buscarPrestamos = useCallback(async (): Promise<void> => {
@@ -164,24 +193,45 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
 
     setCargando(true);
     try {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') 
+        || document.querySelector('input[name="_token"]')?.getAttribute('value') 
+        || '';
+
       const response = await fetch('/devoluciones/buscar-prestamos', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+          'X-Requested-With': 'XMLHttpRequest',
         },
+        credentials: 'same-origin',
         body: JSON.stringify({ codigo: codigoLector.trim() })
       });
+
+      if (!response.ok) {
+        if (response.status === 419) {
+          mostrarAlerta('error', 'Sesión expirada. Recargue la página e intente nuevamente.');
+          return;
+        }
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
 
       const data: BuscarPrestamosResponse = await response.json();
       
       if (data.success) {
         setLectorInfo(data.lector || null);
         setPrestamos(data.prestamos || []);
+        setPrestamosSeleccionados(new Set()); // Limpiar selecciones previas
+        setObservacionesIndividuales(new Map()); // Limpiar observaciones previas
+        setPrestamosConObservacionesExpandidas(new Set()); // Limpiar expansiones
+        setPaginaActual(1); // Resetear paginación
+        
         if ((data.prestamos?.length || 0) === 0) {
           mostrarAlerta('success', 'Lector encontrado. No tiene préstamos pendientes.');
         } else {
-          mostrarAlerta('success', `Se encontraron ${data.prestamos?.length || 0} préstamo(s) pendiente(s)`);
+          const cantidad = data.prestamos?.length || 0;
+          mostrarAlerta('success', `Se encontraron ${cantidad} préstamo(s) pendiente(s). ${cantidad > 50 ? 'Use los filtros para navegar más fácilmente.' : ''}`);
         }
       } else {
         mostrarAlerta('error', data.message || 'No se encontró el lector o error al buscar préstamos');
@@ -189,6 +239,7 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
         setLectorInfo(null);
       }
     } catch (error) {
+      console.error('Error en buscarPrestamos:', error);
       mostrarAlerta('error', 'Error de conexión. Intente nuevamente.');
       setPrestamos([]);
       setLectorInfo(null);
@@ -197,74 +248,183 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
     }
   }, [codigoLector, mostrarAlerta]);
 
-  const abrirModal = useCallback((prestamo: Prestamo): void => {
-    setPrestamoSeleccionado(prestamo);
-    // Usar la función auxiliar para obtener fecha actual
-    setFechaDevuelto(obtenerFechaActualLocal());
-    setObservaciones('');
-    setModalAbierto(true);
+  // MEJORADO: Manejar selección individual de préstamos
+  const toggleSeleccionPrestamo = useCallback((prestamoId: number): void => {
+    setPrestamosSeleccionados(prev => {
+      const nuevaSeleccion = new Set(prev);
+      if (nuevaSeleccion.has(prestamoId)) {
+        nuevaSeleccion.delete(prestamoId);
+        // Limpiar observaciones individuales si se deselecciona
+        setObservacionesIndividuales(prevObs => {
+          const nuevasObs = new Map(prevObs);
+          nuevasObs.delete(prestamoId);
+          return nuevasObs;
+        });
+        // Cerrar expansión de observaciones si se deselecciona
+        setPrestamosConObservacionesExpandidas(prevExp => {
+          const nuevasExp = new Set(prevExp);
+          nuevasExp.delete(prestamoId);
+          return nuevasExp;
+        });
+      } else {
+        nuevaSeleccion.add(prestamoId);
+      }
+      return nuevaSeleccion;
+    });
   }, []);
+
+  // MEJORADO: Seleccionar/Deseleccionar todos (filtrados)
+  const toggleSeleccionTodos = useCallback((): void => {
+    const prestamosFiltrados = filtrarPrestamos(prestamos, filtros);
+    const prestamosVisibles = paginaActual === 1 
+      ? prestamosFiltrados 
+      : prestamosFiltrados; // Seleccionar todos los filtrados, no solo los de la página actual
+    
+    if (prestamosSeleccionados.size === prestamosVisibles.length) {
+      // Deseleccionar todos
+      setPrestamosSeleccionados(new Set());
+      setObservacionesIndividuales(new Map());
+      setPrestamosConObservacionesExpandidas(new Set());
+    } else {
+      // Seleccionar todos los filtrados
+      setPrestamosSeleccionados(new Set(prestamosVisibles.map(p => p.id)));
+    }
+  }, [prestamos, prestamosSeleccionados.size, filtros, paginaActual]);
+
+  // NUEVO: Toggle observaciones individuales
+  const toggleObservacionesIndividuales = useCallback((prestamoId: number): void => {
+    setPrestamosConObservacionesExpandidas(prev => {
+      const nuevasExp = new Set(prev);
+      if (nuevasExp.has(prestamoId)) {
+        nuevasExp.delete(prestamoId);
+        // También limpiar la observación si se colapsa
+        setObservacionesIndividuales(prevObs => {
+          const nuevasObs = new Map(prevObs);
+          nuevasObs.delete(prestamoId);
+          return nuevasObs;
+        });
+      } else {
+        nuevasExp.add(prestamoId);
+      }
+      return nuevasExp;
+    });
+  }, []);
+
+  // MEJORADO: Abrir modal para devolución múltiple
+  const abrirModalMultiple = useCallback((): void => {
+    if (prestamosSeleccionados.size === 0) {
+      mostrarAlerta('error', 'Debe seleccionar al menos un préstamo para devolver');
+      return;
+    }
+    setFechaDevuelto(obtenerFechaActualLocal());
+    setModalAbierto(true);
+  }, [prestamosSeleccionados.size, mostrarAlerta]);
 
   const cerrarModal = useCallback((): void => {
     setModalAbierto(false);
-    setPrestamoSeleccionado(null);
   }, []);
 
-  const confirmarDevolucion = useCallback(async (): Promise<void> => {
-    if (!prestamoSeleccionado || !fechaDevuelto) {
-      mostrarAlerta('error', 'Debe seleccionar una fecha de devolución');
+  // MEJORADO: Confirmar devolución múltiple
+  const confirmarDevolucionMultiple = useCallback(async (): Promise<void> => {
+    if (prestamosSeleccionados.size === 0 || !fechaDevuelto) {
+      mostrarAlerta('error', 'Debe seleccionar préstamos y una fecha de devolución');
       return;
     }
 
     setProcesandoDevolucion(true);
     try {
-      const response = await fetch(`/devoluciones/${prestamoSeleccionado.id}/devolver`, {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') 
+        || document.querySelector('input[name="_token"]')?.getAttribute('value') 
+        || '';
+
+      // Preparar datos para devolución múltiple con manejo mejorado de observaciones
+      const prestamosParaDevolver = Array.from(prestamosSeleccionados).map(prestamoId => {
+        const observacionIndividual = observacionesIndividuales.get(prestamoId);
+        return {
+          id: prestamoId,
+          observaciones: observacionIndividual && observacionIndividual.trim() 
+            ? observacionIndividual.trim() 
+            : null
+        };
+      });
+
+      const response = await fetch('/devoluciones/devolver-multiple', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+          'X-Requested-With': 'XMLHttpRequest',
         },
+        credentials: 'same-origin',
         body: JSON.stringify({
+          prestamos: prestamosParaDevolver,
           fecha_devuelto: fechaDevuelto,
-          observaciones: observaciones
+          observaciones_globales: observacionesGlobales.trim() || null
         })
       });
 
-      const data: DevolucionResponse = await response.json();
+      if (!response.ok) {
+        if (response.status === 419) {
+          mostrarAlerta('error', 'Sesión expirada. Recargue la página e intente nuevamente.');
+          return;
+        }
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+
+      const data = await response.json();
 
       if (data.success) {
-        setPrestamos(prev => prev.filter(p => p.id !== prestamoSeleccionado.id));
-        mostrarAlerta('success', `Préstamo del ejemplar #${prestamoSeleccionado.ejemplar.numEjemplar} devuelto exitosamente`);
+        // Remover préstamos devueltos de la lista
+        setPrestamos(prev => prev.filter(p => !prestamosSeleccionados.has(p.id)));
+        setPrestamosSeleccionados(new Set());
+        setObservacionesIndividuales(new Map());
+        setPrestamosConObservacionesExpandidas(new Set());
+        setMostrarObservacionesGlobales(false);
+        
+        const cantidadDevueltos = data.prestamos_devueltos || prestamosParaDevolver.length;
+        mostrarAlerta('success', `${cantidadDevueltos} préstamo(s) devuelto(s) exitosamente`);
         setModalAbierto(false);
-        setPrestamoSeleccionado(null);
       } else {
-        mostrarAlerta('error', data.message || 'Error al procesar la devolución');
+        mostrarAlerta('error', data.message || 'Error al procesar las devoluciones');
       }
     } catch (error) {
-      mostrarAlerta('error', 'Error de conexión al procesar la devolución');
+      console.error('Error en confirmarDevolucionMultiple:', error);
+      mostrarAlerta('error', 'Error de conexión al procesar las devoluciones');
     } finally {
       setProcesandoDevolucion(false);
     }
-  }, [prestamoSeleccionado, fechaDevuelto, observaciones, mostrarAlerta]);
+  }, [prestamosSeleccionados, fechaDevuelto, observacionesGlobales, observacionesIndividuales, mostrarAlerta]);
 
   const getEstadoBadge = useCallback((estado: string): string => {
     switch (estado.toUpperCase() as EstadoPrestamo) {
       case 'VENCIDO':
         return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
       case 'ACTIVO':
-      case 'PENDIENTE':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800';
-      case 'PROXIMO_VENCER':
-        return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800';
+      case 'DEVUELTO':
+        return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600';
     }
   }, []);
 
-  // Función corregida para calcular días de vencimiento
   const calcularDiasVencimiento = useCallback((fechaDevolucion: string): number => {
     return calcularDiferenciaDias(fechaDevolucion);
   }, []);
+
+  // NUEVOS: Memos para prestamos filtrados y paginados
+  const prestamosFiltrados = useMemo(() => {
+    return filtrarPrestamos(prestamos, filtros);
+  }, [prestamos, filtros]);
+
+  const { prestamosEnPagina, paginacion } = useMemo(() => {
+    return paginarPrestamos(prestamosFiltrados, paginaActual);
+  }, [prestamosFiltrados, paginaActual]);
+
+  const estadisticas = useMemo(() => {
+    return calcularEstadisticasDevolucion(prestamos, prestamosSeleccionados, observacionesIndividuales);
+  }, [prestamos, prestamosSeleccionados, observacionesIndividuales]);
 
   const renderAlerts = useCallback(() => {
     return (
@@ -305,7 +465,6 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
       <Head title="Devolución de Préstamos" />
       
       <div className="py-8 px-6 bg-slate-50 dark:bg-black min-h-screen">
-        {/* Renderizar alertas */}
         {renderAlerts()}
 
         {/* Efectos de fondo decorativos */}
@@ -323,7 +482,7 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                  Devolucion de material bibliográfico  
+                  Devolución de material bibliográfico  
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400">
                   Ingrese el código del lector para encontrar sus préstamos
@@ -404,23 +563,224 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
             </div>
           )}
 
-          {/* Lista de préstamos */}
+          {/* NUEVO: Filtros y búsqueda para lotes grandes */}
+          {prestamos.length > 0 && (
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex flex-col space-y-4">
+                {/* Primera fila: Controles de selección y filtros */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="selectAll"
+                        checked={prestamosSeleccionados.size === prestamosFiltrados.length && prestamosFiltrados.length > 0}
+                        onChange={toggleSeleccionTodos}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded 
+                                   focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 
+                                   focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                      />
+                      <label htmlFor="selectAll" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Seleccionar todos ({prestamosFiltrados.length})
+                      </label>
+                    </div>
+                    
+                    {prestamosSeleccionados.size > 0 && (
+                      <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="font-medium">
+                          {prestamosSeleccionados.size} seleccionado(s)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setMostrarFiltros(!mostrarFiltros)}
+                      className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 
+                                 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-lg flex items-center gap-2 
+                                 transition-all duration-200 text-sm font-medium"
+                    >
+                      <Filter className="w-4 h-4" />
+                      <span>Filtros</span>
+                      {mostrarFiltros ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+
+                    {prestamosSeleccionados.size > 0 && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setPrestamosSeleccionados(new Set());
+                            setObservacionesIndividuales(new Map());
+                            setPrestamosConObservacionesExpandidas(new Set());
+                          }}
+                          className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 
+                                     text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg flex items-center gap-2 
+                                     transition-all duration-200 text-sm font-medium"
+                          title="Limpiar selección"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                          <span>Limpiar</span>
+                        </button>
+                        
+                        <button
+                          onClick={abrirModalMultiple}
+                          className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 
+                                     text-white px-6 py-2 rounded-lg flex items-center gap-2 transition-all duration-300 
+                                     shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-semibold text-sm"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          <span>Devolver ({prestamosSeleccionados.size})</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Estadísticas rápidas */}
+                {prestamos.length > 10 && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                      <div className="font-medium text-blue-800 dark:text-blue-300">Total</div>
+                      <div className="text-xl font-bold text-blue-900 dark:text-blue-100">{estadisticas.totalPrestamos}</div>
+                    </div>
+                    <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
+                      <div className="font-medium text-red-800 dark:text-red-300">Vencidos</div>
+                      <div className="text-xl font-bold text-red-900 dark:text-red-100">{estadisticas.prestamosVencidos}</div>
+                    </div>
+                    <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+                      <div className="font-medium text-green-800 dark:text-green-300">Activos</div>
+                      <div className="text-xl font-bold text-green-900 dark:text-green-100">{estadisticas.prestamosActivos}</div>
+                    </div>
+                    <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
+                      <div className="font-medium text-purple-800 dark:text-purple-300">Seleccionados</div>
+                      <div className="text-xl font-bold text-purple-900 dark:text-purple-100">{estadisticas.prestamosSeleccionados}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Panel de filtros expandible */}
+                {mostrarFiltros && (
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {/* Búsqueda de texto */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Buscar libro
+                        </label>
+                        <input
+                          type="text"
+                          value={filtros.busquedaTexto}
+                          onChange={(e) => setFiltros(prev => ({ ...prev, busquedaTexto: e.target.value }))}
+                          placeholder="Título, código o #ejemplar"
+                          className="w-full text-xs p-2 border border-gray-300 dark:border-gray-600 rounded 
+                                     bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                                     focus:ring-1 focus:ring-blue-500 focus:border-blue-500
+                                     placeholder-gray-400 dark:placeholder-gray-500"
+                        />
+                      </div>
+
+                      {/* Filtros de estado */}
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Estado</label>
+                        <div className="flex gap-2">
+                          <label className="flex items-center text-xs">
+                            <input
+                              type="checkbox"
+                              checked={filtros.soloVencidos}
+                              onChange={(e) => setFiltros(prev => ({ ...prev, soloVencidos: e.target.checked }))}
+                              className="w-3 h-3 text-red-600 mr-1"
+                            />
+                            Solo vencidos
+                          </label>
+                          <label className="flex items-center text-xs">
+                            <input
+                              type="checkbox"
+                              checked={filtros.soloActivos}
+                              onChange={(e) => setFiltros(prev => ({ ...prev, soloActivos: e.target.checked }))}
+                              className="w-3 h-3 text-green-600 mr-1"
+                            />
+                            Solo activos
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Botón limpiar filtros */}
+                      <div className="flex items-end">
+                        <button
+                          onClick={() => {
+                            setFiltros({
+                              soloVencidos: false,
+                              soloActivos: false,
+                              conObservaciones: false,
+                              busquedaTexto: ''
+                            });
+                            setPaginaActual(1);
+                          }}
+                          className="text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 
+                                     text-gray-700 dark:text-gray-300 px-3 py-2 rounded transition-all duration-200"
+                        >
+                          Limpiar filtros
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Lista de préstamos con paginación */}
           {prestamos.length > 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="p-6 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Book className="w-5 h-5" />
-                  Préstamos Pendientes ({prestamos.length})
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Book className="w-5 h-5" />
+                    Préstamos Pendientes 
+                    <span className="text-sm font-normal text-gray-600 dark:text-gray-400">
+                      ({prestamosFiltrados.length} de {prestamos.length})
+                    </span>
+                  </h3>
+                  
+                  {paginacion.mostrarPaginacion && (
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Página {paginacion.paginaActual} de {paginacion.totalPaginas}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {prestamos.map((prestamo) => {
+                {prestamosEnPagina.map((prestamo) => {
                   const diasVencimiento = calcularDiasVencimiento(prestamo.fecha_devolucion);
+                  const isSelected = prestamosSeleccionados.has(prestamo.id);
+                  const observacionesExpanded = prestamosConObservacionesExpandidas.has(prestamo.id);
                   
                   return (
-                    <div key={prestamo.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div 
+                      key={prestamo.id} 
+                      className={`p-6 transition-all duration-200 ${
+                        isSelected 
+                          ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500' 
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-4">
+                        {/* Checkbox para selección */}
+                        <div className="flex items-center pt-1">
+                          <input
+                            type="checkbox"
+                            id={`prestamo-${prestamo.id}`}
+                            checked={isSelected}
+                            onChange={() => toggleSeleccionPrestamo(prestamo.id)}
+                            className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded 
+                                       focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 
+                                       focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                          />
+                        </div>
+
                         <div className="flex-1">
                           <div className="flex items-start space-x-4">
                             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -432,7 +792,7 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
                               </h4>
                               {prestamo.ejemplar.libro.autor && (
                                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                  Por: {prestamo.ejemplar.libro.autor}
+                                  Por: {prestamo.ejemplar.libro.autor.apellidos}, {prestamo.ejemplar.libro.autor.nombres}
                                 </p>
                               )}
                               
@@ -446,8 +806,8 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
                                 </div>
                                 
                                 <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
-                                  <span className="font-medium">ISBN:</span>
-                                  <span>{prestamo.ejemplar.libro.isbn}</span>
+                                  <span className="font-medium">Código:</span>
+                                  <span>{prestamo.ejemplar.libro.codigo_unico}</span>
                                 </div>
                                 
                                 <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
@@ -475,32 +835,107 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
                                 </div>
                               </div>
 
-                              <div className="mt-3">
+                              <div className="flex items-center gap-3 mt-3">
                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getEstadoBadge(prestamo.estado)}`}>
                                   {prestamo.estado === 'VENCIDO' && <AlertCircle className="w-3 h-3 mr-1" />}
                                   {prestamo.estado}
                                 </span>
+
+                                {/* NUEVO: Botón opcional para observaciones individuales */}
+                                {isSelected && (
+                                  <button
+                                    onClick={() => toggleObservacionesIndividuales(prestamo.id)}
+                                    className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 ${
+                                      observacionesExpanded
+                                        ? 'bg-green-100 text-green-800 border border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700'
+                                        : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600'
+                                    }`}
+                                    title={observacionesExpanded ? 'Ocultar observaciones específicas' : 'Agregar observaciones específicas'}
+                                  >
+                                    <MessageSquare className="w-3 h-3 mr-1" />
+                                    {observacionesExpanded ? 'Ocultar obs.' : 'Agregar obs.'}
+                                    {observacionesExpanded ? <EyeOff className="w-3 h-3 ml-1" /> : <Eye className="w-3 h-3 ml-1" />}
+                                  </button>
+                                )}
                               </div>
+
+                              {/* Campo de observaciones específicas OPCIONAL y COLAPSABLE */}
+                              {isSelected && observacionesExpanded && (
+                                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                                  <label className="block text-xs font-medium text-blue-800 dark:text-blue-300 mb-1">
+                                    Observaciones específicas para el ejemplar #{prestamo.ejemplar.numEjemplar}:
+                                  </label>
+                                  <textarea
+                                    value={observacionesIndividuales.get(prestamo.id) || ''}
+                                    onChange={(e) => {
+                                      setObservacionesIndividuales(prev => {
+                                        const nuevas = new Map(prev);
+                                        if (e.target.value.trim()) {
+                                          nuevas.set(prestamo.id, e.target.value);
+                                        } else {
+                                          nuevas.delete(prestamo.id);
+                                        }
+                                        return nuevas;
+                                      });
+                                    }}
+                                    placeholder="Estado específico, daños, notas importantes..."
+                                    className="w-full text-xs p-2 border border-blue-300 dark:border-blue-600 rounded 
+                                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                                               focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                    rows={2}
+                                    maxLength={LIMITES_DEVOLUCION_MULTIPLE.MAX_OBSERVACIONES_INDIVIDUALES}
+                                  />
+                                  <div className="flex justify-between items-center text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                    <span>Estas observaciones prevalecen sobre las globales</span>
+                                    <span>{(observacionesIndividuales.get(prestamo.id) || '').length}/{LIMITES_DEVOLUCION_MULTIPLE.MAX_OBSERVACIONES_INDIVIDUALES}</span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
-                        </div>
-                        
-                        <div className="flex-shrink-0">
-                          <button
-                            onClick={() => abrirModal(prestamo)}
-                            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 
-                                     text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-all duration-300 
-                                     shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-semibold"
-                          >
-                            <CheckCircle className="w-5 h-5" />
-                            <span>Devolver</span>
-                          </button>
                         </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
+
+              {/* Paginación */}
+              {paginacion.mostrarPaginacion && (
+                <div className="p-6 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Mostrando {((paginacion.paginaActual - 1) * paginacion.itemsPorPagina) + 1} - {Math.min(paginacion.paginaActual * paginacion.itemsPorPagina, paginacion.totalItems)} de {paginacion.totalItems} préstamos
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setPaginaActual(prev => Math.max(1, prev - 1))}
+                        disabled={paginacion.paginaActual === 1}
+                        className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 
+                                   px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 
+                                   disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      >
+                        Anterior
+                      </button>
+                      
+                      <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
+                        {paginacion.paginaActual} / {paginacion.totalPaginas}
+                      </span>
+                      
+                      <button
+                        onClick={() => setPaginaActual(prev => Math.min(paginacion.totalPaginas, prev + 1))}
+                        disabled={paginacion.paginaActual === paginacion.totalPaginas}
+                        className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 
+                                   px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 
+                                   disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -514,7 +949,7 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
                 Buscar Préstamos Pendientes
               </h3>
               <p className="text-gray-500 dark:text-gray-400 mb-6">
-                Ingrese el código del lector para encontrar sus préstamos activos y procesar devoluciones.
+                Ingrese el código del lector para encontrar sus préstamos activos y procesar devoluciones múltiples ilimitadas.
               </p>
             </div>
           )}
@@ -534,7 +969,7 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
             </div>
           )}
 
-          {/* Información adicional */}
+          {/* Información adicional mejorada */}
           <div className="mt-8 p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 
                           rounded-xl border border-green-200 dark:border-green-800">
             <div className="flex items-start space-x-3">
@@ -545,12 +980,13 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
               </div>
               <div>
                 <p className="text-sm text-green-800 dark:text-green-300 font-medium mb-1">
-                  Proceso de Devolución
+                  Sistema de Devolución Múltiple Mejorado
                 </p>
                 <p className="text-sm text-green-700 dark:text-green-400">
-                  Busque al lector por su código para visualizar todos sus préstamos pendientes. 
-                  Puede procesar múltiples devoluciones y agregar observaciones sobre el estado de los libros.
-                  Los préstamos vencidos se destacan en rojo para una identificación rápida.
+                  <strong>Nuevo:</strong> Procese cantidades ilimitadas de préstamos simultáneamente. 
+                  Use filtros para manejar lotes grandes. Las observaciones específicas son opcionales - use el botón "Agregar obs." cuando necesite notas particulares para ejemplares específicos. 
+                  Las observaciones globales se aplican a todos los ejemplares seleccionados que no tengan observaciones individuales.
+                  Ideal para docentes con múltiples préstamos.
                 </p>
               </div>
             </div>
@@ -558,17 +994,25 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
         </div>
       </div>
 
-      {/* Modal de devolución */}
-      <ConfirmacionModal
+      {/* Modal de devolución múltiple */}
+      <ConfirmacionModalMultiple
         isOpen={modalAbierto}
         onClose={cerrarModal}
-        prestamoSeleccionado={prestamoSeleccionado}
+        prestamosSeleccionados={Array.from(prestamosSeleccionados).map(id => 
+          prestamos.find(p => p.id === id)!
+        )}
         fechaDevuelto={fechaDevuelto}
         setFechaDevuelto={setFechaDevuelto}
-        observaciones={observaciones}
-        setObservaciones={setObservaciones}
+        observacionesGlobales={observacionesGlobales}
+        setObservacionesGlobales={setObservacionesGlobales}
+        observacionesIndividuales={observacionesIndividuales}
+        setObservacionesIndividuales={setObservacionesIndividuales}
         procesandoDevolucion={procesandoDevolucion}
-        onConfirmar={confirmarDevolucion}
+        onConfirmar={confirmarDevolucionMultiple}
+        prestamosConObservacionesExpandidas={prestamosConObservacionesExpandidas}
+        setPrestamosConObservacionesExpandidas={setPrestamosConObservacionesExpandidas}
+        mostrarObservacionesGlobales={mostrarObservacionesGlobales}
+        setMostrarObservacionesGlobales={setMostrarObservacionesGlobales}
       />
     </AppLayout>
   );

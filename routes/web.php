@@ -187,11 +187,15 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
     // ===== 🆕 NUEVA RUTA PARA PRÉSTAMOS MASIVOS =====
     Route::post('/prestamos/masivo', [PrestamoMasivoController::class, 'store'])->name('prestamos.masivo.store');
 
-    // RUTAS PARA DEVOLUCIONES (NUEVO CONTROLLER) =====
+
+    // RUTAS PARA DEVOLUCIONES
     Route::prefix('devoluciones')->name('devoluciones.')->group(function () {
-        Route::get('/', [DevolucionController::class, 'index'])->name('devoluciones.index');
+        Route::get('/', [DevolucionController::class, 'index'])->name('index');
         Route::post('/buscar-prestamos', [DevolucionController::class, 'buscarPrestamos'])->name('buscar-prestamos');
         Route::patch('/{id}/devolver', [DevolucionController::class, 'devolver'])->name('devolver');
+        
+        // NUEVA: Ruta para devolución múltiple
+        Route::patch('/devolver-multiple', [DevolucionController::class, 'devolverMultiple'])->name('devolver-multiple');
     });
 
     // Rutas para Reportes
