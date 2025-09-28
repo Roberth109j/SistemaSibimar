@@ -29,6 +29,12 @@
             margin-bottom: 2px;
             font-size: 9px;
         }
+        .institucion {
+            font-size: 11px;
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 3px;
+        }
         .stats-table {
             width: 100%;
             border-collapse: collapse;
@@ -95,17 +101,22 @@
             padding-top: 5px;
         }
         .text-center { text-align: center; }
-        .text-truncate {
-            max-width: 80px;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
+        /* AJUSTE SOLO PARA NOMBRES COMPLETOS */
+        .nombre-completo {
+            word-wrap: break-word;
+            white-space: normal;
+            max-width: none;
+            overflow: visible;
+        }
+        .page-break {
+            page-break-before: always;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="title">INFORME DE PRESTAMOS REALIZADOS</div>
+        <div class="institucion">Colegio Liceo de la Merced Maridiaz Franciscanas</div>
         <div class="subtitle">Periodo: {{ $periodo['inicio'] }} - {{ $periodo['fin'] }}</div>
         <div class="subtitle">Generado el: {{ date('d/m/Y H:i') }}</div>
     </div>
@@ -147,8 +158,8 @@
             <tbody>
                 @foreach($estadisticas['libros_mas_prestados']->take(10) as $libro)
                 <tr>
-                    <td class="text-truncate">{{ $libro['titulo'] }}</td>
-                    <td class="text-truncate">{{ $libro['autor'] }}</td>
+                    <td class="nombre-completo">{{ $libro['titulo'] }}</td>
+                    <td class="nombre-completo">{{ $libro['autor'] }}</td>
                     <td class="text-center">{{ $libro['cantidad'] }}</td>
                 </tr>
                 @endforeach
@@ -157,9 +168,9 @@
     </div>
     @endif
 
-    <!-- Detalle de Prestamos - SIN SÍMBOLO # EN NÚMERO DE EJEMPLAR -->
+    <!-- Detalle de Prestamos - SOLO NOMBRES COMPLETOS -->
     <div class="section">
-        <div class="section-title">Detalle de Prestamos ({{ count($prestamos) }} registros)</div>
+        <div class="section-title">Detalle Completo de Prestamos ({{ count($prestamos) }} registros)</div>
         <table>
             <thead>
                 <tr>
@@ -174,12 +185,16 @@
             </thead>
             <tbody>
                 @foreach($prestamos as $index => $prestamo)
-                    @if($index < 30)
                     <tr>
                         <td>{{ \Carbon\Carbon::parse($prestamo->fecha_prestamo)->format('d/m/Y') }}</td>
-                        <td class="text-truncate">{{ $prestamo->lector->nombre ?? 'N/A' }}</td>
+                        <td class="nombre-completo">
+                            {{ $prestamo->lector->nombre ?? 'N/A' }}
+                            @if($prestamo->lector->codigo)
+                            <br><span style="font-size: 6px; color: #666;">{{ $prestamo->lector->codigo }}</span>
+                            @endif
+                        </td>
                         <td>{{ $prestamo->lector->grado->subGrado ?? 'N/A' }}</td>
-                        <td class="text-truncate">{{ $prestamo->ejemplar->libro->titulo ?? 'N/A' }}</td>
+                        <td class="nombre-completo">{{ $prestamo->ejemplar->libro->titulo ?? 'N/A' }}</td>
                         <td class="text-center">{{ $prestamo->ejemplar->numEjemplar ?? 'N/A' }}</td>
                         <td>
                             <span class="badge badge-{{ strtolower($prestamo->estado) }}">
@@ -193,21 +208,32 @@
                             }}
                         </td>
                     </tr>
+                    @if(($index + 1) % 30 == 0 && $index < count($prestamos) - 1)
+                    </tbody>
+        </table>
+        <div class="page-break"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Lector</th>
+                    <th>Grado</th>
+                    <th>Libro</th>
+                    <th class="text-center">Ejemplar</th>
+                    <th>Estado</th>
+                    <th>F. Devolucion</th>
+                </tr>
+            </thead>
+            <tbody>
                     @endif
                 @endforeach
-                @if(count($prestamos) > 30)
-                <tr>
-                    <td colspan="7" class="text-center" style="font-style: italic; color: #6b7280;">
-                        ... y {{ count($prestamos) - 30 }} prestamos mas
-                    </td>
-                </tr>
-                @endif
             </tbody>
         </table>
     </div>
 
     <div class="footer">
-        Sistema de Gestion Bibliotecaria - Informe generado automaticamente
+        Sistema de Gestion Bibliotecaria - Informe generado automaticamente<br>
+        Total de registros mostrados: {{ count($prestamos) }}
     </div>
 </body>
 </html>
