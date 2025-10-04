@@ -17,7 +17,7 @@ const breadcrumbs: BreadcrumbItem[] = [
   },
 ];
 
-// Definir tipos localmente si no existen
+// Definir tipos localmente actualizados para manejar ISBN/ISSN
 interface Prestamo {
   id: number;
   ejemplar: {
@@ -26,7 +26,9 @@ interface Prestamo {
     numEjemplar: number;
     libro: {
       titulo: string;
-      isbn: string;
+      codigo_unico: string; // Cambio principal: de 'isbn' a 'codigo_unico'
+      isbn?: string; // Mantener para compatibilidad
+      clase: 'LIBRO' | 'REVISTA'; // Para determinar si es ISBN o ISSN
     };
   };
   lector: {
@@ -178,6 +180,21 @@ export default function HistorialPrestamos({
 
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
+  // Función auxiliar para obtener el label correcto del código
+  const getCodigoLabel = (clase: 'LIBRO' | 'REVISTA'): string => {
+    if (clase === 'LIBRO') {
+      return 'ISBN';
+    } else if (clase === 'REVISTA') {
+      return 'ISSN';
+    }
+    return 'Código';
+  };
+
+  // Función auxiliar para obtener el código único del libro con fallback
+  const getCodigoUnico = (libro: Prestamo['ejemplar']['libro']): string => {
+    return libro.codigo_unico || libro.isbn || 'N/A';
+  };
+
   // Actualizar filtros cuando cambia el año actual desde el backend
   useEffect(() => {
     setSelectedFilters(prev => ({
@@ -304,7 +321,7 @@ export default function HistorialPrestamos({
                 Historial de Préstamos
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Registro histórico de préstamos - Año {anoActual}
+                Registro histórico de préstamos de libros y revistas - Año {anoActual}
               </p>
             </div>
 
@@ -331,7 +348,7 @@ export default function HistorialPrestamos({
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Buscar por código, nombre, subgrado o título del libro..."
+                  placeholder="Buscar por código, nombre, subgrado o título del material..."
                   className="w-full sm:w-80 pl-10 py-2.5 pr-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 
                             text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                             shadow-sm transition-all duration-200"
@@ -462,7 +479,7 @@ export default function HistorialPrestamos({
             </div>
           )}
 
-          {/* Tabla con subgrado añadido */}
+          {/* Tabla actualizada con mejor manejo de códigos */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
             <div className="overflow-hidden">
               <table className="w-full table-fixed">
@@ -472,7 +489,7 @@ export default function HistorialPrestamos({
                       Lector
                     </th>
                     <th className="w-1/5 px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
-                      Libro
+                      Material
                     </th>
                     <th className="w-20 px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-600">
                       Ejemplar
@@ -523,7 +540,8 @@ export default function HistorialPrestamos({
                                 {prestamo.ejemplar?.libro?.titulo}
                               </div>
                               <div className="text-sm text-gray-600 dark:text-gray-400 break-words">
-                                ISBN: {prestamo.ejemplar?.libro?.isbn}
+                                {/* Mostrar el label correcto según la clase */}
+                                {getCodigoLabel(prestamo.ejemplar?.libro?.clase)}: {getCodigoUnico(prestamo.ejemplar?.libro)}
                               </div>
                             </div>
                           </div>

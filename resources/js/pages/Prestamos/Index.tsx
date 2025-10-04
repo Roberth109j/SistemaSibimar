@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import { CheckCircle, AlertCircle, X, AlertTriangle } from 'lucide-react';
+import { CheckCircle, AlertCircle, X, AlertTriangle, User, Users } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { 
@@ -33,9 +33,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 // Función para obtener la fecha actual
 const obtenerFechaActual = (): string => {
-  // Crear fecha con la zona horaria de Bogotá
   const hoy = new Date();
-  // Formatear como YYYY-MM-DD asegurando que sea la fecha correcta en Colombia
   const año = hoy.getFullYear();
   const mes = String(hoy.getMonth() + 1).padStart(2, '0');
   const dia = String(hoy.getDate()).padStart(2, '0');
@@ -44,7 +42,6 @@ const obtenerFechaActual = (): string => {
 
 // Función para calcular fecha de devolución por defecto (2 días hábiles)
 const calcularFechaDevolucionDefault = (fechaPrestamo: string): string => {
-  // Parsear fecha de préstamo y crear una nueva fecha a medianoche para evitar problemas de zona horaria
   const [año, mes, dia] = fechaPrestamo.split('-').map(Number);
   const fecha = new Date(año, mes - 1, dia, 0, 0, 0);
   
@@ -56,7 +53,6 @@ const calcularFechaDevolucionDefault = (fechaPrestamo: string): string => {
     }
   }
   
-  // Formatear la fecha de resultado como YYYY-MM-DD
   const añoResultado = fecha.getFullYear();
   const mesResultado = String(fecha.getMonth() + 1).padStart(2, '0');
   const diaResultado = String(fecha.getDate()).padStart(2, '0');
@@ -71,13 +67,18 @@ export default function Index({
 }: PrestamoPageProps) {
   const { errors = {} } = usePage().props;
   
+  // NUEVO: Estado para tipo de préstamo
+  const [tipoPrestamo, setTipoPrestamo] = useState<'individual' | 'masivo' | null>(null);
+  
   // Estado del wizard
   const [pasoActual, setPasoActual] = useState<1 | 2 | 3 | 4>(1);
   const [libroSeleccionado, setLibroSeleccionado] = useState<Libro | null>(
     libroInicial && 'id' in libroInicial ? libroInicial : null
   );
-  const [ejemplarSeleccionado, setEjemplarSeleccionado] = useState<Ejemplar | null>(null);
-  // CAMBIO: En lugar de codigoEstudiante, usar lectorSeleccionado
+  
+  // MODIFICADO: Ahora puede ser un array para préstamos masivos
+  const [ejemplaresSeleccionados, setEjemplaresSeleccionados] = useState<Ejemplar[]>([]);
+  
   const [lectorSeleccionado, setLectorSeleccionado] = useState<Lector | null>(null);
   const [ejemplaresDisponibles, setEjemplaresDisponibles] = useState<Ejemplar[]>(
     Array.isArray(ejemplaresIniciales) ? ejemplaresIniciales : []
@@ -134,16 +135,22 @@ export default function Index({
     return () => clearTimeout(timer);
   }, [flash]);
 
-  // Actualizar fecha de devolución cuando se selecciona el ejemplar
+  // Actualizar fecha de devolución cuando se seleccionan ejemplares
   useEffect(() => {
-    if (ejemplarSeleccionado) {
+    if (ejemplaresSeleccionados.length > 0) {
       const fechaDefault = calcularFechaDevolucionDefault(formularioPrestamo.fecha_prestamo);
       setFormularioPrestamo(prev => ({
         ...prev,
         fecha_devolucion: fechaDefault
       }));
     }
-  }, [ejemplarSeleccionado, formularioPrestamo.fecha_prestamo]);
+  }, [ejemplaresSeleccionados, formularioPrestamo.fecha_prestamo]);
+
+  // NUEVO: Seleccionar tipo de préstamo
+  const handleSeleccionarTipo = (tipo: 'individual' | 'masivo') => {
+    setTipoPrestamo(tipo);
+    setPasoActual(1);
+  };
 
   // Buscar libro
   const handleBuscarLibro = (codigoLibro: string) => {
@@ -159,7 +166,7 @@ export default function Index({
           const libro = page.props.libro;
           const ejemplares = page.props.ejemplares || [];
           
-          if (libro) {  // Verificar que sea un objeto Libro válido
+          if (libro) {
             setLibroSeleccionado(libro as Libro);
             setEjemplaresDisponibles(Array.isArray(ejemplares) ? ejemplares : []);
             setPasoActual(2);
@@ -184,73 +191,84 @@ export default function Index({
     );
   };
 
-  // Seleccionar ejemplar
-  const handleSeleccionarEjemplar = (ejemplar: Ejemplar) => {
-    setEjemplarSeleccionado(ejemplar);
-    setPasoActual(3);
+  // MODIFICADO: Seleccionar ejemplares (individual o múltiples)
+  const handleSeleccionarEjemplares = (ejemplares: Ejemplar | Ejemplar[]) => {
+    const ejemplaresArray = Array.isArray(ejemplares) ? ejemplares : [ejemplares];
+    setEjemplaresSeleccionados(ejemplaresArray);
+    if (ejemplaresArray.length > 0) {
+      setPasoActual(3);
+    }
   };
 
-  // CAMBIO: Escanear código de estudiante - ahora recibe el objeto lector completo
+  // Escanear código de estudiante
   const handleEscanearEstudiante = (lector: Lector) => {
     setLectorSeleccionado(lector);
     setMostrarResumen(true);
   };
 
-  // CAMBIO: Confirmar préstamo - actualizado para usar lectorSeleccionado
+  // MODIFICADO: Confirmar préstamo (individual o masivo)
   const handleConfirmarPrestamo = () => {
-    if (!ejemplarSeleccionado || !lectorSeleccionado) return;
+    if (ejemplaresSeleccionados.length === 0 || !lectorSeleccionado) return;
 
     setCargando(true);
-    router.post(
-      '/prestamos',
-      {
-        ejemplar_id: ejemplarSeleccionado.id,
-        codigo_lector: lectorSeleccionado.codigo, // Usar el código del lector seleccionado
-        fecha_prestamo: formularioPrestamo.fecha_prestamo,
-        fecha_devolucion: formularioPrestamo.fecha_devolucion,
-        estado: formularioPrestamo.estado,
-        observaciones: formularioPrestamo.observaciones,
+    
+    // Decidir qué controlador usar según la cantidad de ejemplares
+    const esPrestamoMasivo = tipoPrestamo === 'masivo' && ejemplaresSeleccionados.length > 1;
+    const url = esPrestamoMasivo ? '/prestamos/masivo' : '/prestamos';
+    
+    const datos = esPrestamoMasivo ? {
+      ejemplar_ids: ejemplaresSeleccionados.map(ejemplar => ejemplar.id),
+      codigo_lector: lectorSeleccionado.codigo,
+      fecha_prestamo: formularioPrestamo.fecha_prestamo,
+      fecha_devolucion: formularioPrestamo.fecha_devolucion,
+      estado: formularioPrestamo.estado
+    } : {
+      ejemplar_id: ejemplaresSeleccionados[0].id,
+      codigo_lector: lectorSeleccionado.codigo,
+      fecha_prestamo: formularioPrestamo.fecha_prestamo,
+      fecha_devolucion: formularioPrestamo.fecha_devolucion,
+      estado: formularioPrestamo.estado,
+      observaciones: formularioPrestamo.observaciones
+    };
+
+    router.post(url, datos, {
+      onSuccess: () => {
+        setNotificacion({
+          show: true,
+          type: 'success',
+          message: esPrestamoMasivo 
+            ? '¡Préstamos masivos registrados exitosamente!'
+            : '¡Préstamo registrado exitosamente!'
+        });
+        
+        setTimeout(() => {
+          handleReiniciar();
+        }, 2000);
       },
-      {
-        onSuccess: () => {
+      onError: (errors) => {
+        setCargando(false);
+        
+        if (errors.codigo_lector) {
+          setMostrarResumen(false);
+        } else {
+          const errorMessage = errors.ejemplar_id || errors.ejemplar_ids || 'Error al procesar el préstamo';
           setNotificacion({
             show: true,
-            type: 'success',
-            message: '¡Préstamo registrado exitosamente!'
+            type: 'error',
+            message: errorMessage
           });
-          
-          // Reiniciar después de un breve delay
-          setTimeout(() => {
-            handleReiniciar();
-          }, 2000);
-        },
-        onError: (errors) => {
-          setCargando(false);
-          
-          // Si hay error de código de lector, volver al paso 3 para mostrar el error
-          if (errors.codigo_lector) {
-            setMostrarResumen(false);
-            // El error se mostrará automáticamente en el componente PasoEscanearEstudiante
-          } else {
-            // Para otros errores, mostrar notificación general
-            const errorMessage = errors.ejemplar_id || 'Error al procesar el préstamo';
-            setNotificacion({
-              show: true,
-              type: 'error',
-              message: errorMessage
-            });
-          }
         }
       }
-    );
+    });
   };
 
-  // CAMBIO: Reiniciar formulario - actualizado para limpiar lectorSeleccionado
+  // Reiniciar formulario
   const handleReiniciar = () => {
+    setTipoPrestamo(null);
     setPasoActual(1);
     setLibroSeleccionado(null);
-    setEjemplarSeleccionado(null);
-    setLectorSeleccionado(null); // CAMBIO: Limpiar lectorSeleccionado
+    setEjemplaresSeleccionados([]);
+    setLectorSeleccionado(null);
     setEjemplaresDisponibles([]);
     setMostrarResumen(false);
     setCargando(false);
@@ -269,15 +287,145 @@ export default function Index({
     }
   };
 
-  // CAMBIO: Puede avanzar al siguiente paso - actualizado para verificar lectorSeleccionado
+  // Puede avanzar al siguiente paso
   const puedeAvanzar = (): boolean => {
     switch (pasoActual) {
       case 1: return !!libroSeleccionado;
-      case 2: return !!ejemplarSeleccionado;
-      case 3: return !!lectorSeleccionado; // CAMBIO: Verificar lectorSeleccionado
+      case 2: return ejemplaresSeleccionados.length > 0;
+      case 3: return !!lectorSeleccionado;
       default: return false;
     }
   };
+
+  // NUEVO: Si no ha seleccionado tipo de préstamo, mostrar selector
+  if (!tipoPrestamo) {
+    return (
+      <AppLayout
+        breadcrumbs={breadcrumbs}
+        renderHeader={() => (
+          <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-white">
+            Gestión de Préstamos
+          </h2>
+        )}
+      >
+        <Head title="Nuevo Préstamo" />
+
+        <div className="py-6 px-20 bg-slate-50 dark:bg-black min-h-screen">
+          <div className="mb-2">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Nuevo Préstamo de Libros
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-1">
+              Seleccione el tipo de préstamo que desea realizar
+            </p>
+          </div>
+
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
+            <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
+          </div>
+
+          <div className="max-w-4xl mx-auto relative z-10">
+            <div className="grid md:grid-cols-2 gap-8 mt-8">
+              {/* Préstamo Individual */}
+              <div
+                className="bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-blue-300 hover:shadow-xl cursor-pointer transition-all duration-300 overflow-hidden group"
+                onClick={() => handleSeleccionarTipo('individual')}
+              >
+                <div className="p-8">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/50 rounded-xl flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-900/70 transition-all duration-300">
+                      <User className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        Préstamo Individual
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-300">
+                        Un ejemplar por préstamo
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Proceso rápido y sencillo
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Control detallado por ejemplar
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Ideal para préstamos diarios
+                      </span>
+                    </div>
+                  </div>
+
+                  <button className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+                    Seleccionar Individual
+                  </button>
+                </div>
+              </div>
+
+              {/* Préstamo Masivo */}
+              <div
+                className="bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-green-300 hover:shadow-xl cursor-pointer transition-all duration-300 overflow-hidden group"
+                onClick={() => handleSeleccionarTipo('masivo')}
+              >
+                <div className="p-8">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 bg-green-100 dark:bg-green-900/50 rounded-xl flex items-center justify-center group-hover:bg-green-200 dark:group-hover:bg-green-900/70 transition-all duration-300">
+                      <Users className="w-8 h-8 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        Préstamo Masivo
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-300">
+                        Múltiples ejemplares del mismo libro
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Selección múltiple con checkboxes
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Mismo período para todos
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Ideal para proyectos o grupos
+                      </span>
+                    </div>
+                  </div>
+
+                  <button className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+                    Seleccionar Masivo
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout
@@ -291,10 +439,15 @@ export default function Index({
       <Head title="Nuevo Préstamo" />
 
       <div className="py-6 px-20 bg-slate-50 dark:bg-black min-h-screen">
-        {/* Título principal - alineado a la izquierda con gradiente colorido */}
+        {/* Título principal modificado - AHORA SIEMPRE AZUL */}
         <div className="mb-2">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Préstamo Individual
+            Préstamo {tipoPrestamo === 'masivo' ? 'Masivo' : 'Individual'}
+            {tipoPrestamo === 'masivo' && ejemplaresSeleccionados.length > 0 && (
+              <span className="text-sm ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+                {ejemplaresSeleccionados.length} ejemplares
+              </span>
+            )}
           </h1>
         </div>
 
@@ -340,6 +493,7 @@ export default function Index({
           </div>
         )}
 
+        {/* Efectos de fondo - AHORA SIEMPRE AZUL */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
           <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
@@ -350,8 +504,8 @@ export default function Index({
           <IndicadorPasos 
             pasoActual={pasoActual} 
             libroSeleccionado={!!libroSeleccionado}
-            ejemplarSeleccionado={!!ejemplarSeleccionado}
-            estudianteEscaneado={!!lectorSeleccionado} // CAMBIO: Usar lectorSeleccionado
+            ejemplarSeleccionado={ejemplaresSeleccionados.length > 0}
+            estudianteEscaneado={!!lectorSeleccionado}
           />
 
           {/* Contenido del paso actual */}
@@ -368,36 +522,44 @@ export default function Index({
               <PasoSeleccionarEjemplar
                 libro={libroSeleccionado}
                 ejemplares={ejemplaresDisponibles}
-                onSeleccionar={handleSeleccionarEjemplar}
+                onSeleccionar={handleSeleccionarEjemplares}
                 onVolver={handlePasoAnterior}
-                ejemplarSeleccionado={ejemplarSeleccionado}
+                ejemplarSeleccionado={ejemplaresSeleccionados.length === 1 ? ejemplaresSeleccionados[0] : null}
+                // NUEVO: Pasar tipo de préstamo y ejemplares seleccionados
+                tipoPrestamo={tipoPrestamo}
+                ejemplaresSeleccionados={ejemplaresSeleccionados}
               />
             )}
 
-            {/* CAMBIO: Actualizado para pasar la función que recibe un objeto Lector */}
-            {pasoActual === 3 && libroSeleccionado && ejemplarSeleccionado && (
+            {pasoActual === 3 && libroSeleccionado && ejemplaresSeleccionados.length > 0 && (
               <PasoEscanearEstudiante
                 libro={libroSeleccionado}
-                ejemplar={ejemplarSeleccionado}
+                ejemplar={ejemplaresSeleccionados[0]} // Para compatibilidad
                 formularioPrestamo={formularioPrestamo}
                 onActualizarFormulario={setFormularioPrestamo}
-                onEscanear={handleEscanearEstudiante} // Esta función ahora recibe un objeto Lector
+                onEscanear={handleEscanearEstudiante}
                 onVolver={handlePasoAnterior}
                 error={errors.codigo_lector}
+                // NUEVO: Pasar información adicional para préstamos masivos
+                tipoPrestamo={tipoPrestamo}
+                ejemplaresSeleccionados={ejemplaresSeleccionados}
               />
             )}
           </div>
 
-          {/* CAMBIO: Modal de resumen - actualizado para pasar el objeto lector completo */}
-          {mostrarResumen && libroSeleccionado && ejemplarSeleccionado && lectorSeleccionado && (
+          {/* Modal de resumen */}
+          {mostrarResumen && libroSeleccionado && ejemplaresSeleccionados.length > 0 && lectorSeleccionado && (
             <ResumenPrestamo
               libro={libroSeleccionado}
-              ejemplar={ejemplarSeleccionado}
-              lector={lectorSeleccionado} // CAMBIO: Pasar el objeto lector completo
+              ejemplar={ejemplaresSeleccionados[0]} // Para compatibilidad
+              lector={lectorSeleccionado}
               formularioPrestamo={formularioPrestamo}
               onConfirmar={handleConfirmarPrestamo}
               onCancelar={() => setMostrarResumen(false)}
               cargando={cargando}
+              // NUEVO: Pasar información adicional para préstamos masivos
+              tipoPrestamo={tipoPrestamo}
+              ejemplaresSeleccionados={ejemplaresSeleccionados}
             />
           )}
 

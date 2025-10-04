@@ -120,7 +120,9 @@ class ReporteController extends Controller
                 })
                 ->orWhereHas('ejemplar', function ($q) use ($search) {
                     $q->whereHas('libro', function ($q) use ($search) {
-                        $q->where('libros.titulo', 'like', "%{$search}%");
+                        $q->where('libros.titulo', 'like', "%{$search}%")
+                          // 🆕 NUEVA BÚSQUEDA POR CÓDIGO_ÚNICO ADEMÁS DE TÍTULO
+                          ->orWhere('libros.codigo_unico', 'like', "%{$search}%");
                     });
                 });
             });
@@ -170,7 +172,7 @@ class ReporteController extends Controller
             );
         }
 
-        // Transformar los datos incluyendo el subgrado desde la relación
+        // 🆕 TRANSFORMAR LOS DATOS CON SOPORTE PARA ISBN/ISSN
         $prestamos->through(function ($prestamo) {
             return [
                 'id' => $prestamo->id,
@@ -180,7 +182,10 @@ class ReporteController extends Controller
                     'numEjemplar' => $prestamo->ejemplar->numEjemplar,
                     'libro' => [
                         'titulo' => $prestamo->ejemplar->libro->titulo,
-                        'isbn' => $prestamo->ejemplar->libro->isbn,
+                        // 🆕 CAMBIO PRINCIPAL: Enviar codigo_unico y clase
+                        'codigo_unico' => $prestamo->ejemplar->libro->codigo_unico,
+                        'isbn' => $prestamo->ejemplar->libro->isbn ?? $prestamo->ejemplar->libro->codigo_unico, // Fallback para compatibilidad
+                        'clase' => $prestamo->ejemplar->libro->clase, // Para determinar si es ISBN o ISSN
                     ],
                 ],
                 'lector' => [

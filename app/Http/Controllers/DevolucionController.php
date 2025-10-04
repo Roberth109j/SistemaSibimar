@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class DevolucionController extends Controller
 {
@@ -19,11 +20,10 @@ class DevolucionController extends Controller
     {
         $fechaActual = Carbon::now();
 
-        // **MEJORADO: Solo actualizar préstamos de ejemplares que NO estén perdidos**
         $prestamosVencidos = Prestamo::where('estado', 'ACTIVO')
             ->where('fecha_devolucion', '<', $fechaActual)
             ->whereHas('ejemplar', function($query) {
-                $query->where('estado', '!=', 'PERDIDO'); // **Excluir ejemplares perdidos**
+                $query->where('estado', '!=', 'PERDIDO');
             })
             ->get();
 
@@ -46,15 +46,12 @@ class DevolucionController extends Controller
      */
     public function index()
     {
-        // Actualizar estado de préstamos vencidos antes de mostrar la vista
         $this->actualizarPrestamosVencidos();
-
         return Inertia::render('Devoluciones/Index');
     }
 
     /**
      * Buscar préstamos pendientes de un lector por código
-     * **MODIFICADO: Excluye préstamos de ejemplares perdidos**
      */
     public function buscarPrestamos(Request $request)
     {
@@ -74,7 +71,6 @@ class DevolucionController extends Controller
         }
 
         try {
-            // Buscar el lector
             $lector = Lector::where('codigo', $codigo)
                 ->where('estado', 'ACTIVO')
                 ->with(['grado'])
@@ -91,21 +87,24 @@ class DevolucionController extends Controller
                 ], 404);
             }
 
-            // Actualizar estado de préstamos vencidos
             $this->actualizarPrestamosVencidos();
 
-            // **MODIFICADO: Buscar préstamos pendientes EXCLUYENDO ejemplares perdidos**
-            $prestamos = Prestamo::with(['ejemplar.libro', 'lector'])
+            $prestamos = Prestamo::with([
+                    'ejemplar:id,libro_id,numEjemplar,estado,observaciones',
+                    'ejemplar.libro:id,titulo,codigo_unico,autor_id,editorial_id',
+                    'ejemplar.libro.autor:id,nombres,apellidos',
+                    'ejemplar.libro.editorial:id,nombre',
+                    'lector:id,codigo,nombre,tipo'
+                ])
+                ->select('id', 'ejemplar_id', 'lector_id', 'fecha_prestamo', 'fecha_devolucion', 'fecha_devuelto', 'estado')
                 ->where('lector_id', $lector->id)
                 ->whereIn('estado', ['ACTIVO', 'VENCIDO'])
                 ->whereHas('ejemplar', function($query) {
-                    // **CLAVE: Solo incluir ejemplares que NO estén perdidos**
                     $query->where('estado', '!=', 'PERDIDO');
                 })
                 ->orderBy('fecha_prestamo', 'desc')
                 ->get();
 
-            // Calcular días de retraso para cada préstamo
             $prestamos->transform(function ($prestamo) {
                 if ($prestamo->fecha_devolucion) {
                     try {
@@ -134,7 +133,6 @@ class DevolucionController extends Controller
                 return $prestamo;
             });
 
-            // **AGREGADO: Contar préstamos excluidos por ejemplares perdidos para logging**
             $prestamosExcluidosPorPerdidos = Prestamo::where('lector_id', $lector->id)
                 ->whereIn('estado', ['ACTIVO', 'VENCIDO'])
                 ->whereHas('ejemplar', function($query) {
@@ -148,10 +146,9 @@ class DevolucionController extends Controller
                 'total_prestamos' => $prestamos->count(),
                 'prestamos_activos' => $prestamos->where('estado', 'ACTIVO')->count(),
                 'prestamos_vencidos' => $prestamos->where('estado', 'VENCIDO')->count(),
-                'prestamos_excluidos_perdidos' => $prestamosExcluidosPorPerdidos // **Info adicional**
+                'prestamos_excluidos_perdidos' => $prestamosExcluidosPorPerdidos
             ]);
 
-            // **MENSAJE PERSONALIZADO si hay préstamos excluidos**
             $mensaje = '';
             if ($prestamos->count() === 0 && $prestamosExcluidosPorPerdidos > 0) {
                 $mensaje = "Lector encontrado. Sus préstamos están asociados a ejemplares marcados como perdidos.";
@@ -176,7 +173,8 @@ class DevolucionController extends Controller
                 'codigo' => $codigo,
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
-                'error_line' => $e->getLine()
+                'error_line' => $e->getLine(),
+                'error_trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
@@ -187,17 +185,15 @@ class DevolucionController extends Controller
     }
 
     /**
-     * Procesar devolución de un préstamo (activo o vencido)
-     * **MEJORADO: Verificar que el ejemplar no esté perdido**
+     * Procesar devolución de un préstamo individual (mantiene compatibilidad)
      */
     public function devolver(Request $request, $id)
     {
-        Log::info('📤 Iniciando devolución de préstamo:', [
+        Log::info('📤 Iniciando devolución individual de préstamo:', [
             'prestamo_id' => $id,
             'request_data' => $request->all()
         ]);
 
-        // Validar los datos recibidos
         $request->validate([
             'fecha_devuelto' => 'required|date',
             'observaciones' => 'nullable|string|max:500',
@@ -208,9 +204,16 @@ class DevolucionController extends Controller
         ]);
 
         try {
-            $prestamo = Prestamo::with(['ejemplar', 'lector'])->findOrFail($id);
+            $prestamo = Prestamo::with([
+                    'ejemplar:id,libro_id,numEjemplar,estado,observaciones',
+                    'ejemplar.libro:id,titulo,codigo_unico,autor_id,editorial_id',
+                    'ejemplar.libro.autor:id,nombres,apellidos',
+                    'ejemplar.libro.editorial:id,nombre',
+                    'lector:id,codigo,nombre,tipo'
+                ])
+                ->select('id', 'ejemplar_id', 'lector_id', 'fecha_prestamo', 'fecha_devolucion', 'fecha_devuelto', 'estado')
+                ->findOrFail($id);
 
-            // **NUEVA VALIDACIÓN: Verificar que el ejemplar no esté perdido**
             if ($prestamo->ejemplar->estado === 'PERDIDO') {
                 Log::warning('⚠️ Intento de devolución de ejemplar perdido:', [
                     'prestamo_id' => $prestamo->id,
@@ -225,7 +228,6 @@ class DevolucionController extends Controller
                 ], 400);
             }
 
-            // Verificar que el préstamo no esté ya devuelto
             if ($prestamo->estado === 'DEVUELTO') {
                 return response()->json([
                     'success' => false,
@@ -233,7 +235,6 @@ class DevolucionController extends Controller
                 ], 400);
             }
 
-            // Verificar que el préstamo esté en estado válido para devolución
             if (!in_array($prestamo->estado, ['ACTIVO', 'VENCIDO'])) {
                 return response()->json([
                     'success' => false,
@@ -241,16 +242,13 @@ class DevolucionController extends Controller
                 ], 400);
             }
 
-            // **TRANSACCIÓN PARA ASEGURAR CONSISTENCIA**
             \DB::beginTransaction();
 
-            // Actualizar solo el préstamo
             $prestamo->update([
                 'estado' => 'DEVUELTO',
                 'fecha_devuelto' => $request->input('fecha_devuelto')
             ]);
 
-            // Actualizar estado del ejemplar y guardar observaciones en el ejemplar
             $prestamo->ejemplar->update([
                 'estado' => 'DISPONIBLE',
                 'observaciones' => $request->input('observaciones', '')
@@ -266,10 +264,18 @@ class DevolucionController extends Controller
                 'fecha_devuelto' => $request->input('fecha_devuelto')
             ]);
 
+            $prestamoActualizado = $prestamo->fresh([
+                'ejemplar:id,libro_id,numEjemplar,estado,observaciones',
+                'ejemplar.libro:id,titulo,codigo_unico,autor_id,editorial_id',
+                'ejemplar.libro.autor:id,nombres,apellidos',
+                'ejemplar.libro.editorial:id,nombre',
+                'lector:id,codigo,nombre,tipo'
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => "Devolución procesada exitosamente. Ejemplar #{$prestamo->ejemplar->numEjemplar} nuevamente disponible.",
-                'prestamo' => $prestamo->fresh(['ejemplar.libro', 'lector'])
+                'prestamo' => $prestamoActualizado
             ]);
 
         } catch (\Exception $e) {
@@ -279,7 +285,8 @@ class DevolucionController extends Controller
                 'prestamo_id' => $id,
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
-                'error_line' => $e->getLine()
+                'error_line' => $e->getLine(),
+                'error_trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
@@ -290,12 +297,270 @@ class DevolucionController extends Controller
     }
 
     /**
-     * **NUEVO MÉTODO: Obtener información sobre préstamos afectados por ejemplares perdidos**
+     * MEJORADO: Procesar devolución múltiple de préstamos sin límite
+     */
+    public function devolverMultiple(Request $request)
+    {
+        Log::info('📤🔄 Iniciando devolución múltiple de préstamos:', [
+            'total_prestamos' => is_array($request->input('prestamos')) ? count($request->input('prestamos')) : 0,
+            'fecha_devuelto' => $request->input('fecha_devuelto'),
+            'tiene_observaciones_globales' => !empty($request->input('observaciones_globales'))
+        ]);
+
+        // Validar datos de entrada - SIN LÍMITE MÁXIMO
+        $request->validate([
+            'prestamos' => 'required|array|min:1',
+            'prestamos.*.id' => 'required|integer|exists:prestamos,id',
+            'prestamos.*.observaciones' => 'nullable|string|max:500',
+            'fecha_devuelto' => 'required|date',
+            'observaciones_globales' => 'nullable|string|max:1000',
+        ], [
+            'prestamos.required' => 'Debe especificar al menos un préstamo para devolver.',
+            'prestamos.min' => 'Debe especificar al menos un préstamo para devolver.',
+            'prestamos.*.id.required' => 'ID de préstamo requerido.',
+            'prestamos.*.id.exists' => 'Uno o más préstamos no existen.',
+            'prestamos.*.observaciones.max' => 'Las observaciones específicas no pueden exceder 500 caracteres.',
+            'fecha_devuelto.required' => 'La fecha de devolución es obligatoria.',
+            'fecha_devuelto.date' => 'La fecha de devolución debe ser una fecha válida.',
+            'observaciones_globales.max' => 'Las observaciones globales no pueden exceder 1000 caracteres.'
+        ]);
+
+        $prestamosData = $request->input('prestamos');
+        $fechaDevuelto = $request->input('fecha_devuelto');
+        $observacionesGlobales = trim($request->input('observaciones_globales', ''));
+
+        try {
+            // Verificar que todos los préstamos existen y están en estado válido
+            $prestamosIds = collect($prestamosData)->pluck('id')->toArray();
+            
+            $prestamos = Prestamo::with([
+                    'ejemplar:id,libro_id,numEjemplar,estado,observaciones',
+                    'ejemplar.libro:id,titulo,codigo_unico,autor_id,editorial_id',
+                    'ejemplar.libro.autor:id,nombres,apellidos',
+                    'lector:id,codigo,nombre,tipo'
+                ])
+                ->select('id', 'ejemplar_id', 'lector_id', 'fecha_prestamo', 'fecha_devolucion', 'fecha_devuelto', 'estado')
+                ->whereIn('id', $prestamosIds)
+                ->get();
+
+            // Validaciones de negocio
+            $errores = [];
+            $prestamosValidos = [];
+            $prestamosYaDevueltos = [];
+            $prestamosEjemplarPerdido = [];
+            $prestamosEstadoInvalido = [];
+
+            foreach ($prestamosData as $prestamoData) {
+                $prestamo = $prestamos->firstWhere('id', $prestamoData['id']);
+                
+                if (!$prestamo) {
+                    $errores[] = "Préstamo con ID {$prestamoData['id']} no encontrado.";
+                    continue;
+                }
+
+                // Verificar si el ejemplar está perdido
+                if ($prestamo->ejemplar->estado === 'PERDIDO') {
+                    $prestamosEjemplarPerdido[] = $prestamo;
+                    continue;
+                }
+
+                // Verificar si ya está devuelto
+                if ($prestamo->estado === 'DEVUELTO') {
+                    $prestamosYaDevueltos[] = $prestamo;
+                    continue;
+                }
+
+                // Verificar estado válido
+                if (!in_array($prestamo->estado, ['ACTIVO', 'VENCIDO'])) {
+                    $prestamosEstadoInvalido[] = $prestamo;
+                    continue;
+                }
+
+                // Determinar las observaciones a usar
+                $observacionesEspecificas = trim($prestamoData['observaciones'] ?? '');
+                $observacionesFinales = '';
+                
+                if (!empty($observacionesEspecificas)) {
+                    $observacionesFinales = $observacionesEspecificas;
+                } elseif (!empty($observacionesGlobales)) {
+                    $observacionesFinales = $observacionesGlobales;
+                }
+
+                // Si llega aquí, el préstamo es válido para devolución
+                $prestamosValidos[] = [
+                    'prestamo' => $prestamo,
+                    'observaciones' => $observacionesFinales
+                ];
+            }
+
+            // Generar errores descriptivos si hay problemas
+            if (!empty($prestamosEjemplarPerdido)) {
+                $ejemplaresPerdidos = collect($prestamosEjemplarPerdido)->map(function($p) {
+                    return "#{$p->ejemplar->numEjemplar}";
+                })->join(', ');
+                $errores[] = "Los siguientes ejemplares están marcados como perdidos: {$ejemplaresPerdidos}";
+            }
+
+            if (!empty($prestamosYaDevueltos)) {
+                $ejemplaresDevueltos = collect($prestamosYaDevueltos)->map(function($p) {
+                    return "#{$p->ejemplar->numEjemplar}";
+                })->join(', ');
+                $errores[] = "Los siguientes préstamos ya fueron devueltos: {$ejemplaresDevueltos}";
+            }
+
+            if (!empty($prestamosEstadoInvalido)) {
+                $ejemplaresInvalidos = collect($prestamosEstadoInvalido)->map(function($p) {
+                    return "#{$p->ejemplar->numEjemplar} ({$p->estado})";
+                })->join(', ');
+                $errores[] = "Los siguientes préstamos no están en estado válido: {$ejemplaresInvalidos}";
+            }
+
+            if (!empty($errores)) {
+                Log::warning('⚠️ Errores de validación en devolución múltiple:', [
+                    'errores' => $errores,
+                    'prestamos_solicitados' => count($prestamosData),
+                    'prestamos_validos' => count($prestamosValidos)
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Se encontraron errores en la solicitud:',
+                    'errors' => $errores
+                ], 400);
+            }
+
+            if (empty($prestamosValidos)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay préstamos válidos para procesar.'
+                ], 400);
+            }
+
+            // Procesar devoluciones en transacción
+            \DB::beginTransaction();
+
+            $prestamosDevueltos = [];
+            $erroresEnProcesamiento = [];
+
+            foreach ($prestamosValidos as $item) {
+                try {
+                    $prestamo = $item['prestamo'];
+                    $observaciones = $item['observaciones'];
+
+                    // Actualizar préstamo
+                    $prestamo->update([
+                        'estado' => 'DEVUELTO',
+                        'fecha_devuelto' => $fechaDevuelto
+                    ]);
+
+                    // Actualizar ejemplar
+                    $prestamo->ejemplar->update([
+                        'estado' => 'DISPONIBLE',
+                        'observaciones' => $observaciones
+                    ]);
+
+                    $prestamosDevueltos[] = $prestamo;
+
+                    Log::info('✅ Préstamo devuelto en lote:', [
+                        'prestamo_id' => $prestamo->id,
+                        'ejemplar_numero' => $prestamo->ejemplar->numEjemplar,
+                        'libro_titulo' => $prestamo->ejemplar->libro->titulo,
+                        'tiene_observaciones' => !empty($observaciones)
+                    ]);
+
+                } catch (\Exception $e) {
+                    $erroresEnProcesamiento[] = "Error procesando préstamo #{$prestamo->ejemplar->numEjemplar}: {$e->getMessage()}";
+                    Log::error('❌ Error procesando préstamo individual en lote:', [
+                        'prestamo_id' => $prestamo->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            if (!empty($erroresEnProcesamiento)) {
+                \DB::rollBack();
+                
+                Log::error('❌ Errores en procesamiento de devolución múltiple:', [
+                    'errores' => $erroresEnProcesamiento,
+                    'prestamos_procesados' => count($prestamosDevueltos)
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores durante el procesamiento:',
+                    'errors' => $erroresEnProcesamiento
+                ], 500);
+            }
+
+            \DB::commit();
+
+            Log::info('🎉 Devolución múltiple completada exitosamente:', [
+                'total_procesados' => count($prestamosDevueltos),
+                'fecha_devuelto' => $fechaDevuelto,
+                'lector_codigo' => $prestamosDevueltos[0]->lector->codigo ?? 'N/A'
+            ]);
+
+            // Preparar respuesta con detalles
+            $librosDevueltos = collect($prestamosDevueltos)->map(function($prestamo) {
+                return [
+                    'ejemplar_numero' => $prestamo->ejemplar->numEjemplar,
+                    'titulo' => $prestamo->ejemplar->libro->titulo,
+                    'codigo' => $prestamo->ejemplar->libro->codigo_unico
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => count($prestamosDevueltos) === 1 
+                    ? "1 préstamo devuelto exitosamente." 
+                    : count($prestamosDevueltos) . " préstamos devueltos exitosamente.",
+                'prestamos_devueltos' => count($prestamosDevueltos),
+                'libros_devueltos' => $librosDevueltos,
+                'fecha_devolucion' => $fechaDevuelto
+            ]);
+
+        } catch (ValidationException $e) {
+            Log::warning('⚠️ Errores de validación en devolución múltiple:', [
+                'errors' => $e->errors()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Errores de validación.',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            
+            Log::error('❌ Error crítico en devolución múltiple:', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'error_trace' => $e->getTraceAsString(),
+                'total_prestamos' => count($prestamosData ?? [])
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor al procesar las devoluciones múltiples.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener información sobre préstamos afectados por ejemplares perdidos
      */
     public function obtenerPrestamosAfectadosPorPerdidos($lectorId)
     {
         try {
-            $prestamosAfectados = Prestamo::with(['ejemplar.libro'])
+            $prestamosAfectados = Prestamo::with([
+                    'ejemplar:id,libro_id,numEjemplar,estado,observaciones',
+                    'ejemplar.libro:id,titulo,codigo_unico,autor_id,editorial_id',
+                    'ejemplar.libro.autor:id,nombres,apellidos',
+                    'ejemplar.libro.editorial:id,nombre'
+                ])
+                ->select('id', 'ejemplar_id', 'lector_id', 'fecha_prestamo', 'fecha_devolucion', 'fecha_devuelto', 'estado')
                 ->where('lector_id', $lectorId)
                 ->whereIn('estado', ['ACTIVO', 'VENCIDO'])
                 ->whereHas('ejemplar', function($query) {
@@ -311,12 +576,62 @@ class DevolucionController extends Controller
         } catch (\Exception $e) {
             Log::error('❌ Error obteniendo préstamos afectados por pérdidas:', [
                 'lector_id' => $lectorId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'error_trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener información de préstamos afectados'
+            ], 500);
+        }
+    }
+
+    /**
+     * MÉTODO DE DEBUG: Verificar estructura de todas las tablas relevantes
+     */
+    public function verificarEstructuraCompleta()
+    {
+        try {
+            $tablas = ['libros', 'lectores', 'ejemplares', 'prestamos', 'autores', 'editoriales'];
+            $estructuras = [];
+
+            foreach ($tablas as $tabla) {
+                $columnas = \DB::select("DESCRIBE {$tabla}");
+                $ejemplo = \DB::table($tabla)->first();
+                
+                $estructuras[$tabla] = [
+                    'columnas' => collect($columnas)->map(function($col) {
+                        return [
+                            'nombre' => $col->Field,
+                            'tipo' => $col->Type,
+                            'nulo' => $col->Null,
+                            'clave' => $col->Key,
+                            'default' => $col->Default
+                        ];
+                    })->toArray(),
+                    'columnas_disponibles' => $ejemplo ? array_keys((array) $ejemplo) : [],
+                    'total_registros' => \DB::table($tabla)->count()
+                ];
+            }
+            
+            Log::info('📊 Estructura completa de todas las tablas:', $estructuras);
+
+            return response()->json([
+                'success' => true,
+                'estructuras' => $estructuras,
+                'message' => 'Análisis completo de estructuras de tablas realizado'
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('❌ Error verificando estructuras completas:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al verificar estructuras: ' . $e->getMessage()
             ], 500);
         }
     }

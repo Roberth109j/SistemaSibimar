@@ -23,7 +23,10 @@ export type Ejemplar = {
 export type Libro = {
   id: number;
   titulo: string;
-  isbn: string;
+  codigo_unico: string; // Campo principal que puede ser ISBN o ISSN
+  isbn?: string; // Mantener para compatibilidad con código existente
+  clase: 'LIBRO' | 'REVISTA'; // Determina si es ISBN o ISSN
+  area?: string; // Nuevo campo
   autor?: Autor;
   editorial?: Editorial;
   seccion?: Seccion;
@@ -46,7 +49,7 @@ export type Seccion = {
   descripcion?: string;
 };
 
-// NUEVO: Tipo Lector agregado
+// Tipo Lector
 export type Lector = {
   id: number;
   nombre: string;
@@ -94,4 +97,19 @@ export type PrestamoForm = {
 export type BreadcrumbItem = {
   title: string;
   href: string;
+};
+
+// Funciones helper para manejar códigos
+export const obtenerTipoCodigo = (libro: Libro): 'ISBN' | 'ISSN' => {
+  return libro.clase === 'LIBRO' ? 'ISBN' : 'ISSN';
+};
+
+export const obtenerCodigoPrincipal = (libro: Libro): string => {
+  return libro.codigo_unico || libro.isbn || '';
+};
+
+export const formatearCodigo = (libro: Libro): string => {
+  const codigo = obtenerCodigoPrincipal(libro);
+  const tipo = obtenerTipoCodigo(libro);
+  return `${tipo}: ${codigo}`;
 };
