@@ -63,6 +63,7 @@ export default function Create({
     paginas: '',
     tema_id: '',
     estanteria_id: '', // Campo opcional
+    sign_top: '', // Signatura Topográfica
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -247,6 +248,7 @@ export default function Create({
                 <ClasificacionSection
                   form={form}
                   categoriasDewey={categoriasDewey}
+                  autores={autores}
                   onPrev={() => setActiveSection('general')}
                   onNext={() => setActiveSection('detalles')}
                   // Props para mantener estado
