@@ -397,20 +397,7 @@ class LibroController extends Controller
         try {
             DB::beginTransaction();
 
-            // Obtener datos del autor para crear la signatura topográfica
-            $autor = Autor::find($request->autor_id);
-            $temaDewey = TemaDewey::find($request->tema_id);
-
-            if (!$autor || !$temaDewey) {
-                throw new \Exception('No se encontraron los datos del autor o tema Dewey.');
-            }
-
-            // Generar signatura topográfica
-            $signTop = $temaDewey->codigo . '.' .
-                strtoupper(substr($autor->apellidos, 0, 1)) . '.' .
-                strtoupper(substr($request->titulo, 0, 1));
-
-            // Crear el libro
+            // Crear el libro sin signatura topográfica (se generará después)
             $libro = new Libro();
             $libro->codigo_unico = $request->codigo_unico; // Cambio de isbn a codigo_unico
             $libro->titulo = $request->titulo;
@@ -429,10 +416,18 @@ class LibroController extends Controller
             $libro->edad_recomendada = $request->edad_recomendada;
             $libro->paginas = $request->paginas ?: 1;
             $libro->tema_id = $request->tema_id;
-            $libro->sign_top = $signTop;
             $libro->estanteria_id = $request->estanteria_id;
 
             $libro->save();
+
+            // Generar y guardar signatura topográfica usando el controlador especializado
+            $signaturaController = new \App\Http\Controllers\SignaturaTopograficaController();
+            $signaturaController->generarYGuardarSignatura(
+                $libro->id,
+                $request->autor_id,
+                $request->tema_id,
+                $request->titulo
+            );
 
             // **NUEVO: Crear ejemplar automáticamente después de crear el libro**
             $ejemplar = new Ejemplar();
@@ -716,20 +711,7 @@ class LibroController extends Controller
         try {
             DB::beginTransaction();
 
-            // Obtener datos del autor y tema para regenerar la signatura topográfica
-            $autor = Autor::find($request->autor_id);
-            $temaDewey = TemaDewey::find($request->tema_id);
-
-            if (!$autor || !$temaDewey) {
-                throw new \Exception('No se encontraron los datos del autor o tema Dewey.');
-            }
-
-            // Regenerar signatura topográfica con los nuevos datos
-            $signTop = $temaDewey->codigo . '.' .
-                strtoupper(substr($autor->apellidos, 0, 1)) . '.' .
-                strtoupper(substr($request->titulo, 0, 1));
-
-            // Preparar datos para actualización
+            // Preparar datos para actualización (sin signatura topográfica)
             $updateData = [
                 'codigo_unico' => $request->codigo_unico, // Cambio de isbn a codigo_unico
                 'titulo' => $request->titulo,
@@ -748,12 +730,20 @@ class LibroController extends Controller
                 'edad_recomendada' => $request->edad_recomendada,
                 'paginas' => $request->paginas ?: 1,
                 'tema_id' => $request->tema_id,
-                'sign_top' => $signTop,
                 'estanteria_id' => $request->estanteria_id,
             ];
 
             // Actualizar todos los campos del libro
             $libro->update($updateData);
+
+            // Regenerar signatura topográfica usando el controlador especializado
+            $signaturaController = new \App\Http\Controllers\SignaturaTopograficaController();
+            $signaturaController->actualizarSignatura(
+                $libro->id,
+                $request->autor_id,
+                $request->tema_id,
+                $request->titulo
+            );
 
             DB::commit();
 

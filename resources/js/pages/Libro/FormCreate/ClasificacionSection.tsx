@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { BookmarkIcon, X } from 'lucide-react';
 import { router } from '@inertiajs/react';
+import SignaturaTopografica from '../../../components/SignaturaTopografica';
+import SignaturaTopograficaSection from './SignaturaTopograficaSection';
 
 interface ClasificacionSectionProps {
   form: any;
   categoriasDewey: any[];
+  autores: any[];
   onPrev: () => void;
   onNext: () => void;
   // Nuevos props para mantener estado
@@ -23,6 +26,7 @@ interface ClasificacionSectionProps {
 export default function ClasificacionSection({
   form,
   categoriasDewey,
+  autores,
   onPrev,
   onNext,
   initialCategoriaId = null,
@@ -288,6 +292,19 @@ export default function ClasificacionSection({
           </div>
         </div>
       )}
+
+      {/* Signatura Topográfica */}
+      <SignaturaTopograficaSection
+        form={form}
+        temaId={form.data.tema_id || ''}
+        autorId={form.data.autor_id || ''}
+        titulo={form.data.titulo || ''}
+        autores={autores}
+        onSignaturaGenerated={(signatura) => {
+          // Callback opcional para cuando se genera una signatura
+          console.log('Signatura generada:', signatura);
+        }}
+      />
       
       <div className="flex justify-between items-center pt-6 border-t border-gray-200 dark:border-gray-700">
         <div className="flex gap-3">

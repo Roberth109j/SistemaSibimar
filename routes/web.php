@@ -21,6 +21,7 @@ use App\Http\Controllers\ExcelTestController;
 use App\Http\Controllers\InlineCreateController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\BuscadorController;
+use App\Http\Controllers\SignaturaTopograficaController;
 
 
 // Ruta para refrescar el token CSRF
@@ -111,6 +112,13 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
     // Rutas adicionales para las funciones AJAX de clasificación Dewey
     Route::get('api/categorias/{categoriaId}/subcategorias', [LibroController::class, 'getSubcategorias']);
     Route::get('api/subcategorias/{subcategoriaId}/temas', [LibroController::class, 'getTemas']);
+
+    // Rutas para Signatura Topográfica
+    Route::prefix('api/signatura')->middleware(['auth', 'verified'])->group(function () {
+        Route::post('/generar-cutter', [SignaturaTopograficaController::class, 'generarCutter'])->name('api.signatura.generar-cutter');
+        Route::post('/generar-signatura', [SignaturaTopograficaController::class, 'generarSignatura'])->name('api.signatura.generar-signatura');
+        Route::post('/validar-signatura', [SignaturaTopograficaController::class, 'validarSignatura'])->name('api.signatura.validar-signatura');
+    });
 
     // ===== RUTAS PARA USUARIOS - SOLO ADMINISTRADORES =====
     Route::middleware('role:Administrador')->group(function () {
