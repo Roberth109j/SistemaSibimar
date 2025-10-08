@@ -528,7 +528,7 @@ export default function Edit({
                           <option value="">Seleccione un autor</option>
                           {autores.map((autor: any) => (
                             <option key={autor.id} value={autor.id}>
-                              {`${autor.apellidos}, ${autor.nombres}`}
+                              {`${autor.nombres} ${autor.apellidos}`}
                             </option>
                           ))}
                         </select>

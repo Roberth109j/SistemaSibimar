@@ -109,9 +109,8 @@ class AreaSheetOptimized implements FromQuery, WithHeadings, WithStyles, WithMap
             ->leftJoin('editoriales', 'libros.editorial_id', '=', 'editoriales.id')
             ->leftJoin('secciones', 'libros.seccion_id', '=', 'secciones.id')
             ->leftJoin('estanterias', 'libros.estanteria_id', '=', 'estanterias.id')
-            ->leftJoin('temas_dewey', 'libros.tema_id', '=', 'temas_dewey.id')
             ->select([
-                'libros.created_at',
+                'libros.fecha_ingreso', // ✅ CAMBIO: ahora usa fecha_ingreso
                 'libros.titulo',
                 'libros.codigo_unico',
                 'libros.clase',
@@ -120,7 +119,7 @@ class AreaSheetOptimized implements FromQuery, WithHeadings, WithStyles, WithMap
                 'editoriales.nombre as editorial_nombre',
                 'secciones.nombre as seccion_nombre',
                 'estanterias.cod_estante',
-                'temas_dewey.codigo as codigo_dewey',
+                'libros.sign_top', // ✅ CAMBIO: ahora usa sign_top en lugar de codigo dewey
                 // Subconsultas optimizadas para conteos
                 DB::raw('(SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = "' . Ejemplar::ESTADO_DISPONIBLE . '") as disponibles'),
                 DB::raw('(SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = "' . Ejemplar::ESTADO_PRESTADO . '") as prestados'),
@@ -191,14 +190,14 @@ class AreaSheetOptimized implements FromQuery, WithHeadings, WithStyles, WithMap
         $totalActivos = ($row->disponibles ?? 0) + ($row->prestados ?? 0);
 
         return [
-            $row->created_at ? date('d/m/Y', strtotime($row->created_at)) : 'N/A',
+            $row->fecha_ingreso ? date('d/m/Y', strtotime($row->fecha_ingreso)) : 'N/A', // ✅ CAMBIO
             $row->titulo ?? 'N/A',
             $row->codigo_unico ?? 'N/A',
             trim($row->autor_completo) ?: 'Sin autor',
             $row->editorial_nombre ?? 'Sin editorial',
             $row->clase ?? 'N/A',
             $row->area ?? 'N/A',
-            $row->codigo_dewey ?? 'N/A',
+            $row->sign_top ?? 'N/A', // ✅ CAMBIO: ahora usa sign_top
             $row->seccion_nombre ?? 'Sin sección',
             $row->cod_estante ?? 'N/A',
             $row->disponibles ?? 0,
@@ -212,14 +211,14 @@ class AreaSheetOptimized implements FromQuery, WithHeadings, WithStyles, WithMap
     public function headings(): array
     {
         return [
-            'Fecha Registro',
+            'Fecha Ingreso', // ✅ CAMBIO: nombre más descriptivo
             'Título',
             'Código Único',
             'Autor',
             'Editorial',
             'Clase',
             'Área',
-            'Código Dewey',
+            'Signatura Topográfica', // ✅ CAMBIO: nuevo nombre
             'Sección',
             'Estantería',
             'Disponibles',
@@ -234,7 +233,7 @@ class AreaSheetOptimized implements FromQuery, WithHeadings, WithStyles, WithMap
     {
         return [
             'C' => NumberFormat::FORMAT_TEXT,
-            'H' => NumberFormat::FORMAT_TEXT,
+            'H' => NumberFormat::FORMAT_TEXT, // Signatura Topográfica como texto
         ];
     }
 
