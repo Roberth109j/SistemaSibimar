@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { useForm } from '@inertiajs/react';
-import { Save, User, Mail, Lock, Calendar, Shield, ArrowLeft, CheckCircle, X } from 'lucide-react';
+import { Save, User, Mail, Lock, Calendar, Shield, ArrowLeft, CheckCircle, X, Eye, EyeOff } from 'lucide-react';
 import AppLayout from '../../layouts/app-layout';
 import { type BreadcrumbItem, type Usuario } from './types';
 
@@ -21,6 +21,8 @@ export default function Edit({
   errors = {}
 }: EditUsuarioPageProps) {
   const [updatePassword, setUpdatePassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
 
   const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Usuarios', href: '/usuarios' },
@@ -73,6 +75,8 @@ export default function Edit({
     if (!checked) {
       setData('password', '');
       setData('password_confirmation', '');
+      setShowPassword(false);
+      setShowPasswordConfirmation(false);
     }
   };
 
@@ -264,27 +268,53 @@ export default function Edit({
                   {updatePassword ? (
                     <>
                       {renderFormField('password', 'Nueva Contraseña', true,
-                        <input
-                          type="password"
-                          id="password"
-                          name="password"
-                          value={data.password}
-                          onChange={handleChange}
-                          placeholder="Mínimo 8 caracteres"
-                          className={inputClasses}
-                        />
+                        <div className="relative">
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            id="password"
+                            name="password"
+                            value={data.password}
+                            onChange={handleChange}
+                            placeholder="Mínimo 8 caracteres"
+                            className={inputClasses + " pr-10"}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            {showPassword ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
                       )}
 
                       {renderFormField('password_confirmation', 'Confirmar Nueva Contraseña', true,
-                        <input
-                          type="password"
-                          id="password_confirmation"
-                          name="password_confirmation"
-                          value={data.password_confirmation}
-                          onChange={handleChange}
-                          placeholder="Repita la nueva contraseña"
-                          className={inputClasses}
-                        />
+                        <div className="relative">
+                          <input
+                            type={showPasswordConfirmation ? "text" : "password"}
+                            id="password_confirmation"
+                            name="password_confirmation"
+                            value={data.password_confirmation}
+                            onChange={handleChange}
+                            placeholder="Repita la nueva contraseña"
+                            className={inputClasses + " pr-10"}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
+                            className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            {showPasswordConfirmation ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
                       )}
 
                       {/* Indicador de seguridad */}
