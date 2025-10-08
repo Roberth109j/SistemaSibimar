@@ -20,15 +20,15 @@ export default function CreateAutorInline({ onAutorCreated }: CreateAutorInlineP
     apellidos: ''
   });
 
-  // Función para limpiar y cerrar modal
   const handleCloseModal = () => {
     reset();
     clearErrors();
     setIsOpen(false);
   };
 
-  // Función para abrir modal
-  const handleOpenModal = () => {
+  const handleOpenModal = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault(); // ✅ PREVENIR SUBMIT
+    e.stopPropagation(); // ✅ EVITAR PROPAGACIÓN
     reset();
     clearErrors();
     setIsOpen(true);
@@ -64,10 +64,14 @@ export default function CreateAutorInline({ onAutorCreated }: CreateAutorInlineP
     }
   ];
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault(); // ✅ PREVENIR SUBMIT
+      e.stopPropagation(); // ✅ EVITAR PROPAGACIÓN
+    }
+    
     clearErrors();
     
-    // Validaciones básicas del frontend
     if (!data.nombres.trim()) {
       setError('nombres', 'Los nombres son obligatorios');
       return;
@@ -94,17 +98,13 @@ export default function CreateAutorInline({ onAutorCreated }: CreateAutorInlineP
           duration: 4000
         });
         
-        // Llamar callback para actualizar el selector
         onAutorCreated(response.data.autor);
-        
-        // Cerrar modal
         handleCloseModal();
       }
     } catch (error: any) {
       console.error('Error al crear autor:', error);
       
       if (error.response?.status === 409) {
-        // Error de duplicado
         showAlert({
           type: 'warning',
           title: 'Autor existente',
@@ -112,7 +112,6 @@ export default function CreateAutorInline({ onAutorCreated }: CreateAutorInlineP
           duration: 5000
         });
       } else if (error.response?.status === 422) {
-        // Errores de validación
         const validationErrors = error.response.data.errors;
         Object.keys(validationErrors).forEach((key) => {
           if (['nombres', 'apellidos'].includes(key)) {
@@ -142,8 +141,12 @@ export default function CreateAutorInline({ onAutorCreated }: CreateAutorInlineP
   const modalFooter = (
     <>
       <button
-        type="button"
-        onClick={handleCloseModal}
+        type="button" // ✅ EXPLÍCITO
+        onClick={(e) => {
+          e.preventDefault(); // ✅ PREVENIR SUBMIT
+          e.stopPropagation();
+          handleCloseModal();
+        }}
         disabled={isSubmitting}
         className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
           bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 
@@ -156,8 +159,12 @@ export default function CreateAutorInline({ onAutorCreated }: CreateAutorInlineP
         Cancelar
       </button>
       <button
-        type="button"
-        onClick={handleSubmit}
+        type="button" // ✅ EXPLÍCITO
+        onClick={(e) => {
+          e.preventDefault(); // ✅ PREVENIR SUBMIT
+          e.stopPropagation();
+          handleSubmit(e);
+        }}
         disabled={isSubmitting}
         className="px-5 py-2.5 text-sm font-medium rounded-lg shadow-sm
           bg-blue-500 hover:bg-blue-600 text-white
@@ -172,7 +179,7 @@ export default function CreateAutorInline({ onAutorCreated }: CreateAutorInlineP
   return (
     <>
       <button
-        type="button"
+        type="button" // ✅ EXPLÍCITO
         onClick={handleOpenModal}
         className="ml-2 p-1.5 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 
                    bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-800/40 

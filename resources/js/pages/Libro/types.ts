@@ -49,6 +49,8 @@ export interface Estanteria {
   id: number;
   cod_estante: string;
   descripcion?: string;
+  seccion_id: number; // ✅ AGREGADO
+  seccion?: Seccion;
   created_at?: string;
   updated_at?: string;
 }

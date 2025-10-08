@@ -27,10 +27,10 @@ interface Seccion {
 
 interface Libro {
   id: number;
-  codigo_unico: string; // Cambio de 'isbn' a 'codigo_unico'
-  isbn?: string; // Mantener para compatibilidad
+  codigo_unico: string;
+  isbn?: string;
   titulo: string;
-  area?: string; // Nuevo campo
+  area?: string;
   clase: string;
   sign_top?: string;
   ejemplares_count: number;
@@ -52,7 +52,7 @@ interface PaginatedLibros {
 interface FilterOptions {
   search?: string;
   clase?: string;
-  area?: string; // Nuevo filtro
+  area?: string;
   idioma?: string;
 }
 
@@ -60,7 +60,7 @@ interface LibroPageProps {
   auth?: any;
   libros: PaginatedLibros;
   clases: string[];
-  areas: string[]; // Nuevo prop
+  areas: string[];
   idiomas: string[];
   estanterias: Estanteria[];
   filters: FilterOptions;
@@ -236,7 +236,7 @@ function useLibroFilters(initialFilters: FilterOptions) {
   const [searchTerm, setSearchTerm] = useState<string>(initialFilters.search || '');
   const [selectedFilters, setSelectedFilters] = useState({
     clase: initialFilters.clase || '',
-    area: initialFilters.area || '', // Nuevo filtro
+    area: initialFilters.area || '',
     idioma: initialFilters.idioma || ''
   });
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -245,7 +245,7 @@ function useLibroFilters(initialFilters: FilterOptions) {
     const params: Record<string, string> = {};
     if (currentSearchTerm) params.search = currentSearchTerm;
     if (currentSelectedFilters.clase) params.clase = currentSelectedFilters.clase;
-    if (currentSelectedFilters.area) params.area = currentSelectedFilters.area; // Nuevo filtro
+    if (currentSelectedFilters.area) params.area = currentSelectedFilters.area;
     if (currentSelectedFilters.idioma) params.idioma = currentSelectedFilters.idioma;
 
     router.get('/libros', params, {
@@ -275,7 +275,7 @@ function useLibroFilters(initialFilters: FilterOptions) {
     setSearchTerm('');
     setSelectedFilters({
       clase: '',
-      area: '', // Nuevo filtro
+      area: '',
       idioma: ''
     });
     router.get('/libros', {}, {
@@ -407,7 +407,7 @@ const Index: React.FC<LibroPageProps> = ({
   auth,
   libros,
   clases,
-  areas = [], // Nuevo prop
+  areas = [],
   idiomas,
   estanterias = [],
   filters: initialFilters = {},
@@ -417,7 +417,6 @@ const Index: React.FC<LibroPageProps> = ({
 }) => {
   const [showFilters, setShowFilters] = useState<boolean>(false);
   
-  // Usar hook personalizado para filtros
   const {
     searchTerm,
     selectedFilters,
@@ -426,7 +425,6 @@ const Index: React.FC<LibroPageProps> = ({
     resetFilters
   } = useLibroFilters(initialFilters);
 
-  // Estado mejorado para alertas
   const [alerts, setAlerts] = useState<{
     success: string | null;
     error: string | null;
@@ -537,7 +535,7 @@ const Index: React.FC<LibroPageProps> = ({
           </div>
         </div>
 
-        {/* Panel de filtros - SIN ESTANTERÍA */}
+        {/* Panel de filtros */}
         {showFilters && (
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-md border border-gray-100 dark:border-gray-700 mb-6">
             <div className="flex justify-between items-center mb-4">
@@ -603,15 +601,15 @@ const Index: React.FC<LibroPageProps> = ({
           </div>
         )}
 
-        {/* Tabla de libros - SIN COLUMNA TIPO, CON SEPARACIÓN MEJORADA */}
+        {/* Tabla de libros - CON TOOLTIP PARA AUTOR */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1000px] table-fixed">
               <colgroup>
                 <col className="w-16" />
                 <col className="w-32" />
-                <col className="w-44" />
-                <col className="w-40" />
+                <col className="w-48" />
+                <col className="w-48" /> {/* Autor - AMPLIADO */}
                 <col className="w-36" />
                 <col className="w-28" />
                 <col className="w-24" />
@@ -641,18 +639,47 @@ const Index: React.FC<LibroPageProps> = ({
                       <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300 font-medium text-sm">
                         {libro.codigo_unico || libro.isbn}
                       </td>
-                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
-                        <div className="truncate" title={libro.titulo}>
-                          {libro.titulo}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm max-w-xs">
-                        <div className="truncate" title={libro.autor ? `${libro.autor.nombres} ${libro.autor.apellidos}` : '-'}>
-                          {libro.autor ? `${libro.autor.nombres} ${libro.autor.apellidos}` : '-'}
-                        </div>
-                      </td>
+                      
+                      {/* Título con tooltip */}
                       <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm">
-                        <div className="break-words" title={libro.area || '-'}>
+                        <div className="relative group">
+                          <div className="truncate max-w-[180px]">
+                            {libro.titulo}
+                          </div>
+                          {libro.titulo.length > 30 && (
+                            <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-max max-w-xs">
+                              <div className="bg-gray-900 text-white text-xs rounded py-2 px-3 shadow-lg">
+                                {libro.titulo}
+                                <div className="absolute top-full left-4 -mt-1">
+                                  <div className="border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      
+                      {/* Autor con tooltip - MEJORADO */}
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm">
+                        <div className="relative group">
+                          <div className="truncate max-w-[180px]">
+                            {libro.autor ? `${libro.autor.nombres} ${libro.autor.apellidos}` : '-'}
+                          </div>
+                          {libro.autor && (
+                            <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-max">
+                              <div className="bg-gray-900 text-white text-xs rounded py-2 px-3 shadow-lg whitespace-nowrap">
+                                {`${libro.autor.nombres} ${libro.autor.apellidos}`}
+                                <div className="absolute top-full left-4 -mt-1">
+                                  <div className="border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-sm">
+                        <div className="truncate max-w-[120px]" title={libro.area || '-'}>
                           {libro.area || '-'}
                         </div>
                       </td>
@@ -713,7 +740,7 @@ const Index: React.FC<LibroPageProps> = ({
           </div>
         </div>
 
-        {/* Paginación usando el componente mejorado */}
+        {/* Paginación */}
         <PaginationComponent libros={libros} filters={initialFilters} />
       </div>
     </div>
