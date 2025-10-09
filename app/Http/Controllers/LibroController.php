@@ -83,7 +83,7 @@ class LibroController extends Controller
         // Filtrar por sección según el rol del usuario
         $user = $request->user();
         $seccionId = null;
-        
+
         if ($user->hasRole('BibliotecarioPrimaria')) {
             $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
             $seccionId = $seccion ? $seccion->id : null;
@@ -98,18 +98,44 @@ class LibroController extends Controller
             }
         }
 
-        // Aplicar filtros en el backend
+        // ✅ BÚSQUEDA MEJORADA - APLICAR FILTROS
         if ($request->filled('search')) {
-            $searchTerm = $request->search;
+            $searchTerm = trim($request->search);
+
+            // Sanitizar el término de búsqueda
+            $searchTerm = preg_replace('/\s+/', ' ', $searchTerm);
+
             $query->where(function ($q) use ($searchTerm) {
-                $q->where('titulo', 'like', '%' . $searchTerm . '%')
-                    ->orWhere('codigo_unico', 'like', '%' . $searchTerm . '%')
+                // 1. Búsqueda en TÍTULO (completo, todas las palabras)
+                $q->where('titulo', 'LIKE', '%' . $searchTerm . '%')
+
+                    // 2. Búsqueda en CÓDIGO ÚNICO (ISBN/ISSN)
+                    ->orWhere('codigo_unico', 'LIKE', '%' . $searchTerm . '%')
+
+                    // 3. Búsqueda INTELIGENTE en AUTOR
                     ->orWhereHas('autor', function ($authorQuery) use ($searchTerm) {
-                        $authorQuery->where('nombres', 'like', '%' . $searchTerm . '%')
-                            ->orWhere('apellidos', 'like', '%' . $searchTerm . '%');
+                        $authorQuery->where(function ($aq) use ($searchTerm) {
+                            $aq->where('nombres', 'LIKE', '%' . $searchTerm . '%')
+                                ->orWhere('apellidos', 'LIKE', '%' . $searchTerm . '%')
+                                ->orWhereRaw("CONCAT(nombres, ' ', apellidos) LIKE ?", ['%' . $searchTerm . '%'])
+                                ->orWhereRaw("CONCAT(apellidos, ' ', nombres) LIKE ?", ['%' . $searchTerm . '%'])
+                                ->orWhereRaw("CONCAT(apellidos, ', ', nombres) LIKE ?", ['%' . $searchTerm . '%']);
+                        });
                     })
-                    // Búsqueda por contenido usando full text search
-                    ->orWhereRaw("MATCH(titulo, contenido) AGAINST(? IN NATURAL LANGUAGE MODE)", [$searchTerm]);
+
+                    // 4. Búsqueda en EDITORIAL
+                    ->orWhereHas('editorial', function ($editorialQuery) use ($searchTerm) {
+                        $editorialQuery->where('nombre', 'LIKE', '%' . $searchTerm . '%');
+                    })
+
+                    // 5. Búsqueda en CONTENIDO
+                    ->orWhere('contenido', 'LIKE', '%' . $searchTerm . '%')
+
+                    // 6. Búsqueda en ÁREA
+                    ->orWhere('area', 'LIKE', '%' . $searchTerm . '%')
+
+                    // 7. Búsqueda en SIGNATURA TOPOGRÁFICA
+                    ->orWhere('sign_top', 'LIKE', '%' . $searchTerm . '%');
             });
         }
 
@@ -132,7 +158,7 @@ class LibroController extends Controller
         // Paginación optimizada con parámetros explícitos
         $libros = $query->orderBy('id')
             ->paginate($perPage, ['*'], 'page', $page)
-            ->withQueryString(); // Mantiene los filtros en la URL
+            ->withQueryString();
 
         // Redirigir si la página solicitada no existe pero hay resultados
         if ($page > $libros->lastPage() && $libros->lastPage() > 0) {
@@ -142,7 +168,7 @@ class LibroController extends Controller
             );
         }
 
-        // Datos para filtros (solo los necesarios)
+        // Datos para filtros
         $clases = [
             Libro::CLASE_LIBRO,
             Libro::CLASE_REVISTA,
@@ -164,7 +190,6 @@ class LibroController extends Controller
             Libro::IDIOMA_OTRO,
         ];
 
-        // Solo cargar datos de filtros cuando son necesarios
         $autores = Autor::select(['id', 'nombres', 'apellidos'])
             ->orderBy('apellidos')
             ->get();
@@ -182,9 +207,9 @@ class LibroController extends Controller
             ->get();
 
         return Inertia::render('Libro/index', [
-            'libros' => $libros, // Objeto paginado de Laravel
+            'libros' => $libros,
             'clases' => $clases,
-            'areas' => $areas, // Nuevo filtro
+            'areas' => $areas,
             'idiomas' => $idiomas,
             'autores' => $autores,
             'estanterias' => $estanterias,
@@ -192,7 +217,6 @@ class LibroController extends Controller
             'categoriasDewey' => $categoriasDewey,
             'seccionId' => $seccionId,
             'filters' => $request->only(['search', 'clase', 'area', 'idioma', 'estanteria']),
-            // Datos de paginación adicionales
             'pagination' => [
                 'current_page' => $libros->currentPage(),
                 'last_page' => $libros->lastPage(),
@@ -204,7 +228,6 @@ class LibroController extends Controller
             ],
         ]);
     }
-
     /**
      * Mostrar formulario de creación
      */
@@ -225,12 +248,12 @@ class LibroController extends Controller
 
         $autores = Autor::orderBy('apellidos')->get();
         $editoriales = Editorial::orderBy('nombre')->get();
-        
+
         // Filtrar estanterías según la sección del usuario
-        $estanterias = $seccionId 
+        $estanterias = $seccionId
             ? Estanteria::where('seccion_id', $seccionId)->get()
             : Estanteria::all();
-            
+
         $secciones = Seccion::all();
         $categoriasDewey = CategoriaDewey::all();
 
@@ -352,8 +375,8 @@ class LibroController extends Controller
             // Mensajes personalizados de error
             'codigo_unico.required' => 'El código único es obligatorio.',
             'codigo_unico.unique' => 'Este código único ya está registrado en el sistema.',
-            'codigo_unico.regex' => $request->clase === Libro::CLASE_LIBRO ? 
-                'El ISBN debe tener exactamente 13 dígitos.' : 
+            'codigo_unico.regex' => $request->clase === Libro::CLASE_LIBRO ?
+                'El ISBN debe tener exactamente 13 dígitos.' :
                 'El ISSN debe tener exactamente 8 dígitos.',
             'titulo.required' => 'El título es obligatorio.',
             'seccion_id.required' => 'Debe seleccionar una sección.',
@@ -524,12 +547,12 @@ class LibroController extends Controller
         // Datos para el formulario
         $autores = Autor::orderBy('apellidos')->get();
         $editoriales = Editorial::orderBy('nombre')->get();
-        
+
         // Filtrar estanterías según la sección del usuario
-        $estanterias = $userSeccionId 
+        $estanterias = $userSeccionId
             ? Estanteria::where('seccion_id', $userSeccionId)->get()
             : Estanteria::all();
-            
+
         $secciones = Seccion::all();
         $categoriasDewey = CategoriaDewey::orderBy('codigo')->get();
 
@@ -669,8 +692,8 @@ class LibroController extends Controller
             // Mensajes personalizados de error
             'codigo_unico.required' => 'El código único es obligatorio.',
             'codigo_unico.unique' => 'Este código único ya está registrado en el sistema.',
-            'codigo_unico.regex' => $request->clase === Libro::CLASE_LIBRO ? 
-                'El ISBN debe tener exactamente 13 dígitos.' : 
+            'codigo_unico.regex' => $request->clase === Libro::CLASE_LIBRO ?
+                'El ISBN debe tener exactamente 13 dígitos.' :
                 'El ISSN debe tener exactamente 8 dígitos.',
             'titulo.required' => 'El título es obligatorio.',
             'seccion_id.required' => 'Debe seleccionar una sección.',
