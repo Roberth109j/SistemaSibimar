@@ -807,7 +807,7 @@ export default function Edit({
                         Detalles del Libro
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {/* Idioma */}
+                        {/* Idioma pendejo */}
                         <div>
                           <label htmlFor="idioma" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Idioma <span className="text-red-500">*</span>
