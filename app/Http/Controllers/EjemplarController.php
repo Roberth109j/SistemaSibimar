@@ -6,7 +6,7 @@ use Inertia\Inertia;
 use Illuminate\Http\Request;
 use App\Models\Libro;
 use App\Models\Ejemplar;
-use App\Models\Prestamo; // **AGREGADO para manejar préstamos**
+use App\Models\Prestamo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +45,7 @@ class EjemplarController extends Controller
         return Inertia::render('Ejemplares/Index', [
             'libro' => $libro,
             'ejemplares' => $ejemplares,
-            'search' => $request->search, // Pasar el término de búsqueda al frontend
+            'search' => $request->search,
         ]);
     }
 
@@ -67,13 +67,13 @@ class EjemplarController extends Controller
         
         $siguienteNumero = $ultimoEjemplar ? $ultimoEjemplar->numEjemplar + 1 : 1;
         
-        // **SOLO DISPONIBLE para creación**
+        // SOLO DISPONIBLE para creación
         $estadosCreacion = ['DISPONIBLE'];
         
         return Inertia::render('Ejemplares/Create', [
             'libro' => $libro,
             'tiposAdquisicion' => Ejemplar::tiposAdquisicion(),
-            'estados' => $estadosCreacion, // **Solo DISPONIBLE**
+            'estados' => $estadosCreacion,
             'siguienteNumero' => $siguienteNumero,
         ]);
     }
@@ -98,7 +98,7 @@ class EjemplarController extends Controller
         
         $siguienteNumero = $ultimoEjemplar ? $ultimoEjemplar->numEjemplar + 1 : 1;
         
-        // **Estados permitidos solo para creación**
+        // Estados permitidos solo para creación
         $estadosCreacion = ['DISPONIBLE'];
         
         // Validación con campo cantidad agregado
@@ -109,7 +109,7 @@ class EjemplarController extends Controller
             ],
             'estado' => [
                 'required',
-                Rule::in($estadosCreacion), // **Solo acepta DISPONIBLE**
+                Rule::in($estadosCreacion),
             ],
             'observaciones' => 'nullable|string|max:500',
             'cantidad' => 'required|integer|min:1|max:50',
@@ -137,7 +137,7 @@ class EjemplarController extends Controller
                     'libro_id' => $libroId,
                     'numEjemplar' => $siguienteNumero + $i,
                     'tipo_adquisicion' => $validatedData['tipo_adquisicion'],
-                    'estado' => 'DISPONIBLE', // **FORZAR SIEMPRE DISPONIBLE**
+                    'estado' => 'DISPONIBLE',
                     'observaciones' => $validatedData['observaciones'] ?? null,
                 ]);
                 
@@ -196,6 +196,7 @@ class EjemplarController extends Controller
     
     /**
      * Muestra el formulario para editar un ejemplar específico.
+     * **ACTUALIZADO: Incluye el estado actual del ejemplar en las opciones**
      *
      * @param  int  $libroId
      * @param  int  $ejemplarId
@@ -209,14 +210,22 @@ class EjemplarController extends Controller
             ->where('id', $ejemplarId)
             ->firstOrFail();
         
-        // **SOLO estados permitidos en edición: DADO DE BAJA y PERDIDO**
+        // **AJUSTE: Incluir el estado actual + estados de baja**
+        // Siempre permitir cambiar a DADO DE BAJA y PERDIDO
         $estadosEdicion = ['DADO DE BAJA', 'PERDIDO'];
+        
+        // Agregar el estado actual si no está ya en el array
+        // Esto permite mantener el estado actual o cambiarlo a los estados de baja
+        if (!in_array($ejemplar->estado, $estadosEdicion)) {
+            // Agregar el estado actual al inicio del array
+            array_unshift($estadosEdicion, $ejemplar->estado);
+        }
         
         return Inertia::render('Ejemplares/Edit', [
             'libro' => $libro,
             'ejemplar' => $ejemplar,
             'tiposAdquisicion' => Ejemplar::tiposAdquisicion(),
-            'estados' => $estadosEdicion, // **Solo DADO DE BAJA y PERDIDO**
+            'estados' => $estadosEdicion, // Array con estado actual + opciones de baja
         ]);
     }
     
@@ -287,7 +296,7 @@ class EjemplarController extends Controller
     
     /**
      * Actualiza un ejemplar específico en la base de datos.
-     * **MODIFICADO: Incluye lógica para manejar estado PERDIDO**
+     * **ACTUALIZADO: Permite mantener el estado actual o cambiarlo**
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $libroId
@@ -303,8 +312,13 @@ class EjemplarController extends Controller
             ->where('id', $ejemplarId)
             ->firstOrFail();
         
-        // **Estados permitidos solo para edición: DADO DE BAJA y PERDIDO**
-        $estadosEdicion = ['DADO DE BAJA', 'PERDIDO'];
+        // **AJUSTE: Estados permitidos incluyen el estado actual + estados de baja**
+        $estadosPermitidos = ['DADO DE BAJA', 'PERDIDO'];
+        
+        // Agregar el estado actual si no está ya en el array
+        if (!in_array($ejemplar->estado, $estadosPermitidos)) {
+            $estadosPermitidos[] = $ejemplar->estado;
+        }
         
         // Validación
         $validatedData = $request->validate([
@@ -314,7 +328,7 @@ class EjemplarController extends Controller
             ],
             'estado' => [
                 'required',
-                Rule::in($estadosEdicion), // **Solo acepta DADO DE BAJA y PERDIDO**
+                Rule::in($estadosPermitidos), // Valida contra el estado actual + estados de baja
             ],
             'observaciones' => 'nullable|string|max:500',
         ], [
@@ -322,14 +336,14 @@ class EjemplarController extends Controller
             'tipo_adquisicion.required' => 'El tipo de adquisición es obligatorio.',
             'tipo_adquisicion.in' => 'El tipo de adquisición seleccionado no es válido.',
             'estado.required' => 'El estado es obligatorio.',
-            'estado.in' => 'Solo se puede cambiar el estado a "Dado de Baja" o "Perdido".',
+            'estado.in' => 'El estado seleccionado no es válido.',
             'observaciones.max' => 'Las observaciones no pueden exceder 500 caracteres.',
         ]);
         
         try {
             DB::beginTransaction();
 
-            // **NUEVA LÓGICA: Verificar si se está marcando como PERDIDO**
+            // **LÓGICA: Verificar si se está marcando como PERDIDO**
             $estadoAnterior = $ejemplar->estado;
             $estadoNuevo = $validatedData['estado'];
 
@@ -363,9 +377,11 @@ class EjemplarController extends Controller
             ]);
 
             // Mensaje personalizado según el estado
-            $mensaje = $estadoNuevo === 'PERDIDO' 
-                ? 'Ejemplar #' . $ejemplar->numEjemplar . ' marcado como perdido. Los préstamos activos han sido actualizados.'
-                : 'Ejemplar #' . $ejemplar->numEjemplar . ' actualizado correctamente';
+            $mensaje = match($estadoNuevo) {
+                'PERDIDO' => 'Ejemplar #' . $ejemplar->numEjemplar . ' marcado como perdido. Los préstamos activos han sido actualizados.',
+                'DADO DE BAJA' => 'Ejemplar #' . $ejemplar->numEjemplar . ' dado de baja correctamente.',
+                default => 'Ejemplar #' . $ejemplar->numEjemplar . ' actualizado correctamente.'
+            };
 
             return Redirect::route('ejemplares.index', $libroId)
                 ->with('success', $mensaje);

@@ -134,15 +134,13 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
     }
   }, [page.props.flash]);
 
-  // **AJUSTE: Solo DADO DE BAJA y PERDIDO**
-  const estadosEdicion = ['DADO DE BAJA', 'PERDIDO'];
+  // **AJUSTE: El estado actual ya viene incluido en el array de estados del backend**
+  const estadosDisponibles = estados;
 
-  const ejemplarEsDisponible = ejemplar.estado === 'DISPONIBLE';
-
-  // Formulario con Inertia - removemos numEjemplar porque no es editable
+  // Formulario con Inertia - inicializa con el estado actual del ejemplar
   const form = useForm({
     tipo_adquisicion: ejemplar.tipo_adquisicion,
-    estado: estadosEdicion[0] || 'DADO DE BAJA',
+    estado: ejemplar.estado, // **IMPORTANTE: Mantiene el estado actual por defecto**
     observaciones: ejemplar.observaciones || '',
   });
 
@@ -198,6 +196,22 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
         }
       }
     });
+  };
+
+  // Función para obtener el badge del estado
+  const getEstadoBadge = (estado: string) => {
+    switch (estado) {
+      case 'DISPONIBLE':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+      case 'PRESTADO':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'DADO DE BAJA':
+        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+      case 'PERDIDO':
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+    }
   };
 
   // Función para renderizar las alertas
@@ -268,34 +282,33 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
           </div>
 
           {/* Mostrar información sobre el estado actual */}
-          {(ejemplarEsDisponible || ejemplar.estado === 'PRESTADO') && (
-            <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-              <div className="flex items-start space-x-3">
-                <div className="p-1 bg-green-100 dark:bg-green-800/50 rounded">
-                  {ejemplarEsDisponible ? (
-                    <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                    </svg>
-                  )}
+          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="flex items-start space-x-3">
+              <div className="p-1 bg-blue-100 dark:bg-blue-800/50 rounded">
+                <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-blue-800 dark:text-blue-300 font-medium mb-2">
+                  Estado actual del ejemplar
+                </p>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${getEstadoBadge(ejemplar.estado)}`}>
+                    {ejemplar.estado}
+                  </span>
+                  <span className="text-xs text-blue-700 dark:text-blue-400">
+                    • Puedes mantener este estado o cambiarlo según sea necesario
+                  </span>
                 </div>
-                <div>
-                  <p className="text-sm text-green-800 dark:text-green-300 font-medium">
-                    {ejemplarEsDisponible ? 'Ejemplar actualmente DISPONIBLE' : 'Ejemplar actualmente PRESTADO'}
+                {ejemplar.estado === 'PRESTADO' && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                    ⚠️ Si marcas como PERDIDO, el préstamo activo se cerrará automáticamente.
                   </p>
-                  <p className="text-sm text-green-700 dark:text-green-400 mt-1">
-                    {ejemplarEsDisponible 
-                      ? 'Este ejemplar está disponible en el inventario. Use este formulario cuando necesite darlo de baja o marcarlo como perdido.'
-                      : 'Este ejemplar está prestado. Si lo marca como perdido, el préstamo se marcará automáticamente como vencido.'
-                    }
-                  </p>
-                </div>
+                )}
               </div>
             </div>
-          )}
+          </div>
 
           {/* Formulario principal */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -357,7 +370,7 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
                   {/* Estado */}
                   <div className="space-y-2">
                     <label htmlFor="estado" className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      Nuevo Estado <span className="text-red-500">*</span>
+                      Estado <span className="text-red-500">*</span>
                     </label>
                     <select
                       id="estado"
@@ -365,19 +378,14 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
                       onChange={e => form.setData('estado', e.target.value as Estado)}
                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
                     >
-                      {estadosEdicion.map(estado => (
+                      {estadosDisponibles.map(estado => (
                         <option key={estado} value={estado}>
                           {estado}
                         </option>
                       ))}
                     </select>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {ejemplarEsDisponible 
-                        ? 'Cambiar estado del ejemplar disponible'
-                        : ejemplar.estado === 'PRESTADO'
-                          ? 'Si marca como PERDIDO, el préstamo se cerrará automáticamente'
-                          : 'Cambiar estado del ejemplar'
-                      }
+                      Mantén el estado actual o cámbialo según sea necesario
                     </p>
                     {form.errors.estado && (
                       <p className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 p-2 rounded-md border-l-2 border-red-500">
@@ -427,9 +435,7 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
                   >
                     <div className="flex items-center gap-2">
                       <Save className="w-4 h-4" />
-                      <span>{form.processing ? 'Guardando...' : 
-                        form.data.estado === 'PERDIDO' ? 'Marcar como Perdido' : 'Dar de Baja'
-                      }</span>
+                      <span>{form.processing ? 'Guardando...' : 'Guardar Cambios'}</span>
                     </div>
                   </button>
                 </div>
@@ -456,13 +462,13 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
                     📋 Estados disponibles:
                   </span>
                   <span className="block mt-1">
-                    • <strong>Dado de Baja:</strong> Ejemplar retirado permanentemente del inventario
+                    • Puedes mantener el estado actual o cambiarlo según sea necesario
                   </span>
                   <span className="block mt-1">
-                    • <strong>Perdido:</strong> Ejemplar extraviado - se cerrarán automáticamente los préstamos activos
+                    • <strong>Perdido:</strong> Marca el ejemplar como extraviado (cerrará préstamos activos automáticamente)
                   </span>
-                  <span className="block mt-2 text-xs bg-blue-100 dark:bg-blue-900/40 p-2 rounded border-l-2 border-blue-500">
-                    <strong>Importante:</strong> Una vez cambiado el estado, el ejemplar no volverá a estar disponible para préstamo.
+                  <span className="block mt-1">
+                    • <strong>Dado de Baja:</strong> Retira permanentemente el ejemplar del inventario
                   </span>
                 </p>
               </div>
