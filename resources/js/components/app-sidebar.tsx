@@ -281,26 +281,30 @@ export function AppSidebar() {
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
 
-                            {/* Generación de Informes - Individual */}
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild>
-                                    <Link href={informesItem.href!}>
-                                        {informesItem.icon && <informesItem.icon className="h-5 w-5" />}
-                                        <span>{informesItem.title}</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            {/* Inventario - Individual */}
+                            {/* Generación de Informes - SOLO BIBLIOTECARIOS (NO ADMIN) */}
+                            {!isAdmin && (
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton asChild>
+                                        <Link href={informesItem.href!}>
+                                            {informesItem.icon && <informesItem.icon className="h-5 w-5" />}
+                                            <span>{informesItem.title}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            )}
 
-                            {/* Generación de Informes - Individual */}
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild>
-                                    <Link href={inventarioItem.href!}>
-                                        {inventarioItem.icon && <inventarioItem.icon className="h-5 w-5" />}
-                                        <span>{inventarioItem.title}</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
+                            {/* Inventario - SOLO BIBLIOTECARIOS (NO ADMIN) */}
+                            {!isAdmin && (
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton asChild>
+                                        <Link href={inventarioItem.href!}>
+                                            {inventarioItem.icon && <inventarioItem.icon className="h-5 w-5" />}
+                                            <span>{inventarioItem.title}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            )}
+
                             {/* Administrar Usuarios - Solo para administradores */}
                             {isAdmin && (
                                 <SidebarMenuItem>

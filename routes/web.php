@@ -12,7 +12,7 @@ use App\Http\Controllers\EjemplarController;
 use App\Http\Controllers\GradoController;
 use App\Http\Controllers\LectorController;
 use App\Http\Controllers\PrestamoController;
-use App\Http\Controllers\DevolucionController; // ← NUEVO CONTROLLER
+use App\Http\Controllers\DevolucionController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InformeController;
@@ -108,7 +108,7 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
     });
     
     // Esta ruta debe ir al final para evitar conflictos con rutas específicas como 'create'
-     Route::get('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'show'])->name('ejemplares.show');
+    Route::get('libros/{libro}/ejemplares/{ejemplar}', [EjemplarController::class, 'show'])->name('ejemplares.show');
 
     // Rutas adicionales para las funciones AJAX de clasificación Dewey
     Route::get('api/categorias/{categoriaId}/subcategorias', [LibroController::class, 'getSubcategorias']);
@@ -183,7 +183,7 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
     Route::post('/lectores/cambio-estado-masivo', [LectorController::class, 'cambioEstadoMasivo'])
         ->name('lectores.cambio-estado-masivo');
 
-    // ===== 🔍 RUTAS PARA PRÉSTAMOS (SOLO CREACIÓN Y GESTIÓN) =====
+    // ===== 📚 RUTAS PARA PRÉSTAMOS (SOLO CREACIÓN Y GESTIÓN) =====
     Route::get('prestamos', [PrestamoController::class, 'index'])->name('prestamos.index');
     Route::get('prestamos/create', [PrestamoController::class, 'create'])->name('prestamos.create');
     Route::post('prestamos', [PrestamoController::class, 'store'])->name('prestamos.store');
@@ -194,7 +194,6 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
 
     // ===== 🆕 NUEVA RUTA PARA PRÉSTAMOS MASIVOS =====
     Route::post('/prestamos/masivo', [PrestamoMasivoController::class, 'store'])->name('prestamos.masivo.store');
-
 
     // RUTAS PARA DEVOLUCIONES
     Route::prefix('devoluciones')->name('devoluciones.')->group(function () {
@@ -209,8 +208,8 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
     // Rutas para Reportes
     Route::get('reportes/historial-prestamos', [ReporteController::class, 'historialPrestamos'])->name('reportes.historial-prestamos');
 
-    // Rutas para InformeController
-    Route::prefix('informes')->group(function () {
+    // Rutas para InformeController - SOLO BIBLIOTECARIOS (NO ADMINISTRADORES)
+    Route::prefix('informes')->middleware('not.admin')->group(function () {
         Route::get('/', [InformeController::class, 'index'])->name('informes.index');
         Route::get('/rangos-fecha', [InformeController::class, 'getRangosFecha']);
         Route::get('/prestamos-realizados', function () {
@@ -233,34 +232,24 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
             ->name('informes.descargar-libros-perdidos');
     });
 
-    // Rutas para InventarioController
-    Route::get('inventario', [InventarioController::class, 'index'])->name('inventario.index');
-    Route::get('/inventario/exportar', [InventarioController::class, 'exportarExcel'])
-        ->name('inventario.exportar');
-
-
-    Route::middleware('role:Administrador')->group(function () {
-        Route::get('usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
-        Route::post('usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
-        Route::get('usuarios/{usuario}', [UsuarioController::class, 'show'])->name('usuarios.show');
-        Route::put('usuarios/{usuario}', [UsuarioController::class, 'update'])->name('usuarios.update');
-        Route::patch('usuarios/{usuario}', [UsuarioController::class, 'update']);
-        Route::delete('usuarios/{usuario}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
-        Route::patch('usuarios/{usuario}/toggle-estado', [UsuarioController::class, 'toggleEstado'])->name('usuarios.toggle-estado');
-        Route::get('usuarios/estadisticas', [UsuarioController::class, 'estadisticas'])->name('usuarios.estadisticas');
+    // Rutas para InventarioController - SOLO BIBLIOTECARIOS (NO ADMINISTRADORES)
+    Route::middleware('not.admin')->group(function () {
+        Route::get('inventario', [InventarioController::class, 'index'])->name('inventario.index');
+        Route::get('/inventario/exportar', [InventarioController::class, 'exportarExcel'])
+            ->name('inventario.exportar');
     });
 
     Route::prefix('api/inline-create')->middleware(['auth', 'verified'])->group(function () {
-    Route::post('/autor', [InlineCreateController::class, 'storeAutor'])
-        ->name('api.inline-create.autor');
-    
-    Route::post('/editorial', [InlineCreateController::class, 'storeEditorial'])
-        ->name('api.inline-create.editorial');
-    
-    Route::post('/estanteria', [InlineCreateController::class, 'storeEstanteria'])
-        ->middleware('role:Administrador|BibliotecarioPrimaria|BibliotecarioBachillerato')
-        ->name('api.inline-create.estanteria');
-});   
+        Route::post('/autor', [InlineCreateController::class, 'storeAutor'])
+            ->name('api.inline-create.autor');
+        
+        Route::post('/editorial', [InlineCreateController::class, 'storeEditorial'])
+            ->name('api.inline-create.editorial');
+        
+        Route::post('/estanteria', [InlineCreateController::class, 'storeEstanteria'])
+            ->middleware('role:Administrador|BibliotecarioPrimaria|BibliotecarioBachillerato')
+            ->name('api.inline-create.estanteria');
+    });   
 });
 
 require __DIR__ . '/settings.php';
