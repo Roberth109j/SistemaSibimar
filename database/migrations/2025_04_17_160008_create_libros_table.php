@@ -77,6 +77,10 @@ return new class extends Migration
 
             // Índice de texto completo para búsqueda eficiente por contenido
             $table->fullText(['titulo', 'contenido']);
+
+            // Índices optimizados para rendimiento en inventario y exportación
+            $table->index(['area', 'titulo'], 'libros_area_titulo_index');
+            $table->index('clase', 'libros_clase_index');
         });
     }
 

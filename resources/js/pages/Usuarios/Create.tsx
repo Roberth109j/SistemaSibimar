@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { useForm } from '@inertiajs/react';
-import { Plus, User, Mail, Lock, Calendar, Shield, ArrowLeft, CheckCircle, X } from 'lucide-react';
+import { Plus, User, Mail, Lock, Calendar, Shield, ArrowLeft, CheckCircle, X, Eye, EyeOff } from 'lucide-react';
 import AppLayout from '../../layouts/app-layout';
 import { type BreadcrumbItem } from './types';
 
@@ -34,6 +34,10 @@ export default function Create({
     fecha_fin_labores: '',
     estado_activo: true
   });
+
+  // Estados para controlar la visibilidad de las contraseñas
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
 
   // Función para manejar cambios en inputs básicos
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -225,27 +229,53 @@ export default function Create({
 
                 <div className="space-y-6">
                   {renderFormField('password', 'Contraseña', true,
-                    <input
-                      type="password"
-                      id="password"
-                      name="password"
-                      value={data.password}
-                      onChange={handleChange}
-                      placeholder="Mínimo 8 caracteres"
-                      className={inputClasses}
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        id="password"
+                        name="password"
+                        value={data.password}
+                        onChange={handleChange}
+                        placeholder="Mínimo 8 caracteres"
+                        className={`${inputClasses} pr-10`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
                   )}
 
                   {renderFormField('password_confirmation', 'Confirmar Contraseña', true,
-                    <input
-                      type="password"
-                      id="password_confirmation"
-                      name="password_confirmation"
-                      value={data.password_confirmation}
-                      onChange={handleChange}
-                      placeholder="Repita la contraseña"
-                      className={inputClasses}
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPasswordConfirmation ? "text" : "password"}
+                        id="password_confirmation"
+                        name="password_confirmation"
+                        value={data.password_confirmation}
+                        onChange={handleChange}
+                        placeholder="Repita la contraseña"
+                        className={`${inputClasses} pr-10`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      >
+                        {showPasswordConfirmation ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
                   )}
 
                   {/* Requisitos de seguridad */}

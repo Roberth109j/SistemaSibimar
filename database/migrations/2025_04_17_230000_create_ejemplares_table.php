@@ -19,6 +19,9 @@ return new class extends Migration
            $table->enum('estado', ['DISPONIBLE','PRESTADO', 'DADO DE BAJA', 'PERDIDO'])->default('DISPONIBLE');
             $table->text('observaciones')->nullable();
             $table->timestamps();
+
+            // Índices optimizados para rendimiento en inventario y gestión de ejemplares
+            $table->index(['libro_id', 'estado'], 'ejemplares_libro_estado_index');
         });              
     }
 

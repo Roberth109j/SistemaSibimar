@@ -372,6 +372,55 @@ class SignaturaTopograficaController extends Controller
      */
     public function actualizarSignatura($libroId, $autorId, $temaId, $titulo)
     {
-        return $this->generarYGuardarSignatura($libroId, $autorId, $temaId, $titulo);
+        try {
+            // Obtener datos del autor
+            $autor = Autor::find($autorId);
+            if (!$autor) {
+                throw new \Exception('Autor no encontrado');
+            }
+
+            // Obtener el código Dewey completo
+            $tema = TemaDewey::with('subcategoria.categoria')->find($temaId);
+            if (!$tema) {
+                throw new \Exception('Tema Dewey no encontrado');
+            }
+
+            $codigoDewey = $tema->codigo;
+            
+            // Generar código Cutter usando el apellido del autor
+            $autorNormalizado = $this->normalizarAutor($autor->apellidos);
+            $cutter = $this->calcularCutter($autorNormalizado);
+            
+            // Obtener primera letra del título (normalizada)
+            $tituloNormalizado = $this->normalizarTitulo($titulo);
+            $letraTitulo = strtolower(substr($tituloNormalizado, 0, 1));
+            
+            // Construir signatura topográfica: CDD-CutterTítulo
+            $signatura = $codigoDewey . '-' . $cutter . $letraTitulo;
+            
+            Log::info('Signatura topográfica generada para actualización:', [
+                'libro_id' => $libroId,
+                'signatura' => $signatura,
+                'componentes' => [
+                    'codigo_dewey' => $codigoDewey,
+                    'cutter' => $cutter,
+                    'letra_titulo' => $letraTitulo
+                ]
+            ]);
+
+            // Retornar la signatura sin guardarla (se guardará en el update principal del LibroController)
+            return $signatura;
+
+        } catch (\Exception $e) {
+            Log::error('Error al generar signatura topográfica para actualización:', [
+                'error' => $e->getMessage(),
+                'libro_id' => $libroId,
+                'autor_id' => $autorId,
+                'tema_id' => $temaId,
+                'titulo' => $titulo
+            ]);
+            
+            throw $e;
+        }
     }
 }
