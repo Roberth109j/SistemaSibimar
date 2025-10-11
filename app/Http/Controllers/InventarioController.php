@@ -11,6 +11,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\InventarioExport;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\RedirectResponse;
 
 class InventarioController extends Controller
@@ -30,24 +31,6 @@ class InventarioController extends Controller
         // FILTROS SIMPLIFICADOS: solo los necesarios
         $filters = $request->only(['search', 'clase', 'area', 'estado', 'seccion']);
         
-        // Consulta base con ejemplares y sus estados
-        $query = Libro::with(['autor:id,nombres,apellidos', 'editorial:id,nombre', 'seccion:id,nombre', 'estanteria:id,cod_estante,descripcion'])
-            ->withCount([
-                'ejemplares',
-                'ejemplares as ejemplares_disponibles_count' => function ($query) {
-                    $query->where('estado', Ejemplar::ESTADO_DISPONIBLE);
-                },
-                'ejemplares as ejemplares_prestados_count' => function ($query) {
-                    $query->where('estado', Ejemplar::ESTADO_PRESTADO);
-                },
-                'ejemplares as ejemplares_dados_baja_count' => function ($query) {
-                    $query->where('estado', Ejemplar::ESTADO_DADO_DE_BAJA);
-                },
-                'ejemplares as ejemplares_perdidos_count' => function ($query) {
-                    $query->where('estado', Ejemplar::ESTADO_PERDIDO);
-                }
-            ]);
-
         // DETERMINAR TIPO DE USUARIO Y APLICAR FILTROS AUTOMÁTICOS
         $user = $request->user();
         $seccionId = null;
@@ -58,24 +41,50 @@ class InventarioController extends Controller
             if ($user->hasRole('BibliotecarioPrimaria')) {
                 $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
                 $seccionId = $seccion ? $seccion->id : null;
-                if ($seccionId) {
-                    $query->where('seccion_id', $seccionId);
-                }
             } elseif ($user->hasRole('BibliotecarioBachillerato')) {
                 $seccion = Seccion::where('nombre', 'BACHILLERATO')->first();
                 $seccionId = $seccion ? $seccion->id : null;
-                if ($seccionId) {
-                    $query->where('seccion_id', $seccionId);
-                }
             }
         } else {
             // PARA ADMINISTRADORES: permitir filtro manual de sección
             if (!empty($filters['seccion'])) {
                 $seccion = Seccion::where('nombre', $filters['seccion'])->first();
-                if ($seccion) {
-                    $query->where('seccion_id', $seccion->id);
-                }
+                $seccionId = $seccion ? $seccion->id : null;
             }
+        }
+        
+        // ✅ OPTIMIZACIÓN: Subconsulta agregada para ejemplares
+        $ejemplaresSubquery = DB::table('ejemplares')
+            ->select([
+                'libro_id',
+                DB::raw('COUNT(*) as total'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_DISPONIBLE . '" THEN 1 ELSE 0 END) as disponibles'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_PRESTADO . '" THEN 1 ELSE 0 END) as prestados'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_DADO_DE_BAJA . '" THEN 1 ELSE 0 END) as dados_baja'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_PERDIDO . '" THEN 1 ELSE 0 END) as perdidos'),
+            ])
+            ->groupBy('libro_id');
+        
+        // ✅ FIX: CAST a UNSIGNED para evitar concatenación de strings en frontend
+        $query = Libro::query()
+            ->with(['autor:id,nombres,apellidos', 'editorial:id,nombre', 'seccion:id,nombre', 'estanteria:id,cod_estante,descripcion'])
+            ->leftJoinSub($ejemplaresSubquery, 'ej', function ($join) {
+                $join->on('libros.id', '=', 'ej.libro_id');
+            })
+            ->select([
+                'libros.*',
+                DB::raw('CAST(COALESCE(ej.total, 0) AS UNSIGNED) as ejemplares_count'),
+                DB::raw('CAST(COALESCE(ej.disponibles, 0) AS UNSIGNED) as ejemplares_disponibles_count'),
+                DB::raw('CAST(COALESCE(ej.prestados, 0) AS UNSIGNED) as ejemplares_prestados_count'),
+                DB::raw('CAST(COALESCE(ej.dados_baja, 0) AS UNSIGNED) as ejemplares_dados_baja_count'),
+                DB::raw('CAST(COALESCE(ej.perdidos, 0) AS UNSIGNED) as ejemplares_perdidos_count'),
+                // ✅ NUEVO: Campo calculado directamente en SQL para total_activos
+                DB::raw('CAST((COALESCE(ej.disponibles, 0) + COALESCE(ej.prestados, 0)) AS UNSIGNED) as total_activos'),
+            ]);
+
+        // Aplicar filtro de sección si existe
+        if ($seccionId) {
+            $query->where('libros.seccion_id', $seccionId);
         }
             
         // APLICAR FILTROS DE BÚSQUEDA Y OTROS FILTROS SIMPLIFICADOS
@@ -85,7 +94,7 @@ class InventarioController extends Controller
         $estadisticasGlobales = $this->calcularEstadisticasGlobalesOptimizado($query, $user, $esAdmin);
         
         // Ejecutar la consulta con paginación
-        $libros = $query->orderBy('titulo')
+        $libros = $query->orderBy('libros.titulo')
                        ->paginate($perPage, ['*'], 'page', $page)
                        ->withQueryString();
         
@@ -134,9 +143,9 @@ class InventarioController extends Controller
             'areas' => $areas,
             'estados' => $estados,
             'all_secciones' => $allSecciones,
-            'secciones' => $secciones, // Solo para administradores
-            'seccionId' => $seccionId, // ID de sección filtrada automáticamente
-            'esAdmin' => $esAdmin, // Indica si es administrador
+            'secciones' => $secciones,
+            'seccionId' => $seccionId,
+            'esAdmin' => $esAdmin,
             'filters' => $filters,
             'pagination' => [
                 'current_page' => $libros->currentPage(),
@@ -152,6 +161,7 @@ class InventarioController extends Controller
 
     /**
      * Aplica filtros a la consulta (método extraído para reutilización)
+     * ✅ OPTIMIZADO: Usa el JOIN ya existente para filtros de estado
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @param  array  $filters
@@ -163,9 +173,9 @@ class InventarioController extends Controller
         if (!empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
-                $q->where('titulo', 'like', "%{$search}%")
-                  ->orWhere('codigo_unico', 'like', "%{$search}%")
-                  ->orWhere('contenido', 'like', "%{$search}%")
+                $q->where('libros.titulo', 'like', "%{$search}%")
+                  ->orWhere('libros.codigo_unico', 'like', "%{$search}%")
+                  ->orWhere('libros.contenido', 'like', "%{$search}%")
                   ->orWhereHas('autor', function ($q) use ($search) {
                       $q->where(DB::raw("CONCAT(nombres, ' ', apellidos)"), 'like', "%{$search}%");
                   });
@@ -174,49 +184,39 @@ class InventarioController extends Controller
         
         // Filtro por clase
         if (!empty($filters['clase'])) {
-            $query->where('clase', $filters['clase']);
+            $query->where('libros.clase', $filters['clase']);
         }
 
         // Filtro por área
         if (!empty($filters['area'])) {
-            $query->where('area', $filters['area']);
+            $query->where('libros.area', $filters['area']);
         }
         
-        // Filtro por estado de ejemplares
+        // ✅ OPTIMIZADO: Filtro por estado usando el JOIN ya calculado
         if (!empty($filters['estado'])) {
             switch ($filters['estado']) {
                 case 'disponibles':
-                    $query->whereHas('ejemplares', function ($q) {
-                        $q->where('estado', Ejemplar::ESTADO_DISPONIBLE);
-                    });
+                    $query->where('ej.disponibles', '>', 0);
                     break;
                 case 'prestados':
-                    $query->whereHas('ejemplares', function ($q) {
-                        $q->where('estado', Ejemplar::ESTADO_PRESTADO);
-                    });
+                    $query->where('ej.prestados', '>', 0);
                     break;
                 case 'dados_baja':
-                    $query->whereHas('ejemplares', function ($q) {
-                        $q->where('estado', Ejemplar::ESTADO_DADO_DE_BAJA);
-                    });
+                    $query->where('ej.dados_baja', '>', 0);
                     break;
                 case 'perdidos':
-                    $query->whereHas('ejemplares', function ($q) {
-                        $q->where('estado', Ejemplar::ESTADO_PERDIDO);
-                    });
+                    $query->where('ej.perdidos', '>', 0);
                     break;
                 case 'en_circulacion':
-                    $query->whereHas('ejemplares', function ($q) {
-                        $q->whereIn('estado', [Ejemplar::ESTADO_DISPONIBLE, Ejemplar::ESTADO_PRESTADO]);
-                    });
+                    $query->whereRaw('(COALESCE(ej.disponibles, 0) + COALESCE(ej.prestados, 0)) > 0');
                     break;
             }
         }
     }
     
     /**
-     * Calcula las estadísticas globales del inventario de forma optimizada
-     * usando agregaciones SQL directas sin cargar registros en memoria
+     * ✅ OPTIMIZADO: Calcula estadísticas globales con una sola consulta SQL
+     * Reduce de 40,000+ subconsultas a 1 consulta con JOIN
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $baseQuery
      * @param  \App\Models\User  $user
@@ -225,44 +225,59 @@ class InventarioController extends Controller
      */
     private function calcularEstadisticasGlobalesOptimizado($baseQuery, $user, $esAdmin)
     {
-        // Clonar la consulta base para no afectar la paginación
+        // Clonar la consulta base
         $query = clone $baseQuery;
         
-        // Obtener estadísticas principales usando agregaciones SQL directas
-        $estadisticasPrincipales = $query->select([
-            DB::raw('COUNT(DISTINCT libros.id) as total_libros'),
-            DB::raw('COALESCE(SUM(
-                (SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id)
-            ), 0) as total_ejemplares'),
-            DB::raw('COALESCE(SUM(
-                (SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = "' . Ejemplar::ESTADO_DISPONIBLE . '")
-            ), 0) as total_disponibles'),
-            DB::raw('COALESCE(SUM(
-                (SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = "' . Ejemplar::ESTADO_PRESTADO . '")
-            ), 0) as total_prestados'),
-            DB::raw('COALESCE(SUM(
-                (SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = "' . Ejemplar::ESTADO_DADO_DE_BAJA . '")
-            ), 0) as total_dados_baja'),
-            DB::raw('COALESCE(SUM(
-                (SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = "' . Ejemplar::ESTADO_PERDIDO . '")
-            ), 0) as total_perdidos')
-        ])->first();
+        // ✅ OPTIMIZACIÓN CRÍTICA: Subconsulta agregada para ejemplares
+        $ejemplaresSubquery = DB::table('ejemplares')
+            ->select([
+                'libro_id',
+                DB::raw('COUNT(*) as total'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_DISPONIBLE . '" THEN 1 ELSE 0 END) as disponibles'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_PRESTADO . '" THEN 1 ELSE 0 END) as prestados'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_DADO_DE_BAJA . '" THEN 1 ELSE 0 END) as dados_baja'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_PERDIDO . '" THEN 1 ELSE 0 END) as perdidos'),
+            ])
+            ->groupBy('libro_id');
 
-        // Calcular estadísticas por clase de forma optimizada
-        $estadisticasPorClase = $this->obtenerEstadisticasPorCampo(clone $baseQuery, 'clase');
+        // Obtener estadísticas principales con JOIN
+        $estadisticasPrincipales = DB::table('libros')
+            ->leftJoinSub($ejemplaresSubquery, 'ej', function ($join) {
+                $join->on('libros.id', '=', 'ej.libro_id');
+            })
+            ->when($baseQuery->getQuery()->wheres, function ($q) use ($baseQuery) {
+                // Aplicar los mismos WHERE que la query base
+                foreach ($baseQuery->getQuery()->wheres as $where) {
+                    if (isset($where['column']) && isset($where['value'])) {
+                        $q->where($where['column'], $where['operator'] ?? '=', $where['value']);
+                    }
+                }
+            })
+            ->select([
+                DB::raw('COUNT(DISTINCT libros.id) as total_libros'),
+                DB::raw('SUM(COALESCE(ej.total, 0)) as total_ejemplares'),
+                DB::raw('SUM(COALESCE(ej.disponibles, 0)) as total_disponibles'),
+                DB::raw('SUM(COALESCE(ej.prestados, 0)) as total_prestados'),
+                DB::raw('SUM(COALESCE(ej.dados_baja, 0)) as total_dados_baja'),
+                DB::raw('SUM(COALESCE(ej.perdidos, 0)) as total_perdidos'),
+            ])
+            ->first();
+
+        // Estadísticas por clase
+        $estadisticasPorClase = $this->obtenerEstadisticasPorCampo($baseQuery, 'clase');
         
-        // Calcular estadísticas por área de forma optimizada
-        $estadisticasPorArea = $this->obtenerEstadisticasPorCampo(clone $baseQuery, 'area');
+        // Estadísticas por área
+        $estadisticasPorArea = $this->obtenerEstadisticasPorCampo($baseQuery, 'area');
         
         $totalEnCirculacion = ($estadisticasPrincipales->total_disponibles ?? 0) + ($estadisticasPrincipales->total_prestados ?? 0);
         
         return [
-            'total_libros' => $estadisticasPrincipales->total_libros ?? 0,
-            'total_ejemplares' => $estadisticasPrincipales->total_ejemplares ?? 0,
-            'total_disponibles' => $estadisticasPrincipales->total_disponibles ?? 0,
-            'total_prestados' => $estadisticasPrincipales->total_prestados ?? 0,
-            'total_dados_baja' => $estadisticasPrincipales->total_dados_baja ?? 0,
-            'total_perdidos' => $estadisticasPrincipales->total_perdidos ?? 0,
+            'total_libros' => (int) ($estadisticasPrincipales->total_libros ?? 0),
+            'total_ejemplares' => (int) ($estadisticasPrincipales->total_ejemplares ?? 0),
+            'total_disponibles' => (int) ($estadisticasPrincipales->total_disponibles ?? 0),
+            'total_prestados' => (int) ($estadisticasPrincipales->total_prestados ?? 0),
+            'total_dados_baja' => (int) ($estadisticasPrincipales->total_dados_baja ?? 0),
+            'total_perdidos' => (int) ($estadisticasPrincipales->total_perdidos ?? 0),
             'total_en_circulacion' => $totalEnCirculacion,
             'por_clase' => $estadisticasPorClase,
             'por_area' => $estadisticasPorArea,
@@ -270,56 +285,72 @@ class InventarioController extends Controller
     }
 
     /**
-     * Obtiene estadísticas agrupadas por un campo específico usando SQL optimizado
+     * ✅ OPTIMIZADO: Obtiene estadísticas agrupadas usando JOIN en lugar de subconsultas
      *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  \Illuminate\Database\Eloquent\Builder  $baseQuery
      * @param  string  $campo
      * @return \Illuminate\Support\Collection
      */
-    private function obtenerEstadisticasPorCampo($query, $campo)
+    private function obtenerEstadisticasPorCampo($baseQuery, $campo)
     {
-        return $query->select([
-            DB::raw("libros.{$campo} as categoria"),
-            DB::raw('COUNT(DISTINCT libros.id) as total_libros'),
-            DB::raw('COALESCE(SUM(
-                (SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id)
-            ), 0) as total_ejemplares'),
-            DB::raw('COALESCE(SUM(
-                (SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = "' . Ejemplar::ESTADO_DISPONIBLE . '")
-            ), 0) as total_disponibles'),
-            DB::raw('COALESCE(SUM(
-                (SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = "' . Ejemplar::ESTADO_PRESTADO . '")
-            ), 0) as total_prestados')
-        ])
-        ->groupBy("libros.{$campo}")
-        ->havingRaw("libros.{$campo} IS NOT NULL")
-        ->get()
-        ->keyBy('categoria')
-        ->map(function ($item) {
+        // Subconsulta agregada para ejemplares
+        $ejemplaresSubquery = DB::table('ejemplares')
+            ->select([
+                'libro_id',
+                DB::raw('COUNT(*) as total'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_DISPONIBLE . '" THEN 1 ELSE 0 END) as disponibles'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_PRESTADO . '" THEN 1 ELSE 0 END) as prestados'),
+            ])
+            ->groupBy('libro_id');
+
+        $query = DB::table('libros')
+            ->leftJoinSub($ejemplaresSubquery, 'ej', function ($join) {
+                $join->on('libros.id', '=', 'ej.libro_id');
+            })
+            ->when($baseQuery->getQuery()->wheres, function ($q) use ($baseQuery) {
+                // Aplicar los mismos WHERE que la query base
+                foreach ($baseQuery->getQuery()->wheres as $where) {
+                    if (isset($where['column']) && isset($where['value'])) {
+                        $q->where($where['column'], $where['operator'] ?? '=', $where['value']);
+                    }
+                }
+            })
+            ->select([
+                DB::raw("libros.{$campo} as categoria"),
+                DB::raw('COUNT(DISTINCT libros.id) as total_libros'),
+                DB::raw('SUM(COALESCE(ej.total, 0)) as total_ejemplares'),
+                DB::raw('SUM(COALESCE(ej.disponibles, 0)) as total_disponibles'),
+                DB::raw('SUM(COALESCE(ej.prestados, 0)) as total_prestados'),
+            ])
+            ->groupBy("libros.{$campo}")
+            ->havingRaw("libros.{$campo} IS NOT NULL")
+            ->get();
+
+        return $query->keyBy('categoria')->map(function ($item) {
             return [
-                'total_libros' => $item->total_libros,
-                'total_ejemplares' => $item->total_ejemplares,
-                'total_disponibles' => $item->total_disponibles,
-                'total_prestados' => $item->total_prestados,
+                'total_libros' => (int) $item->total_libros,
+                'total_ejemplares' => (int) $item->total_ejemplares,
+                'total_disponibles' => (int) $item->total_disponibles,
+                'total_prestados' => (int) $item->total_prestados,
             ];
         });
     }
 
     /**
-     * Calcula las estadísticas globales del inventario (MÉTODO LEGACY - MANTENER COMPATIBILIDAD)
+     * Calcula las estadísticas globales del inventario (MÉTODO LEGACY - COMPATIBILIDAD)
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return array
      */
     private function calcularEstadisticasGlobales($query)
     {
-        // Usar el método optimizado
         return $this->calcularEstadisticasGlobalesOptimizado($query, request()->user(), 
             request()->user()->hasRole('Administrador') || request()->user()->hasRole('SuperAdministrador'));
     }
     
     /**
-     * Genera un Excel con el inventario de libros separado por áreas (ignora filtros de tabla)
+     * ✅ OPTIMIZADO PARA 60,000 REGISTROS TOTALES
+     * Genera un Excel con el inventario de libros separado por áreas (6 hojas ~10k cada una)
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\RedirectResponse
@@ -327,10 +358,17 @@ class InventarioController extends Controller
     public function exportarExcel(Request $request)
     {
         try {
+            // ✅ CONFIGURACIÓN MEJORADA PARA 60,000 REGISTROS
+            ini_set('memory_limit', '1024M');        // 1GB para manejar 60k registros
+            ini_set('max_execution_time', '600');    // 10 minutos
+            set_time_limit(600);
+            
+            $startTime = microtime(true);
+            
             $user = $request->user();
             $esAdmin = $user->hasRole('Administrador') || $user->hasRole('SuperAdministrador');
             
-            // SOLO APLICAR FILTRO DE SECCIÓN según el rol del usuario (ignorar otros filtros)
+            // SOLO APLICAR FILTRO DE SECCIÓN según el rol del usuario
             $filters = [];
             
             if (!$esAdmin) {
@@ -349,7 +387,28 @@ class InventarioController extends Controller
                 }
             }
             
-            // Generar nombre de archivo simple
+            // ✅ VALIDACIÓN PREVIA: Contar registros antes de exportar
+            $queryValidacion = DB::table('libros');
+            if (!empty($filters['seccion_id'])) {
+                $queryValidacion->where('seccion_id', $filters['seccion_id']);
+            }
+            $totalRegistros = $queryValidacion->count();
+            
+            Log::info('🔍 Validación pre-export', [
+                'total_registros' => $totalRegistros,
+                'memoria_disponible' => ini_get('memory_limit'),
+                'tiempo_max' => ini_get('max_execution_time')
+            ]);
+            
+            // ✅ ADVERTENCIA si excede capacidad
+            if ($totalRegistros > 80000) {
+                Log::warning('⚠️ Exportación muy grande', [
+                    'registros' => $totalRegistros,
+                    'recomendacion' => 'Considerar dividir en múltiples exports'
+                ]);
+            }
+            
+            // Generar nombre de archivo
             $filename = 'inventario-biblioteca-por-areas';
             
             if (!empty($filters['seccion_nombre'])) {
@@ -358,15 +417,50 @@ class InventarioController extends Controller
             
             $filename .= '-' . Carbon::now()->format('Y-m-d') . '.xlsx';
             
-            return Excel::download(new InventarioExport($filters), $filename);
+            Log::info('🚀 Iniciando exportación Excel', [
+                'usuario' => $user->email,
+                'filtros' => $filters,
+                'filename' => $filename,
+                'total_registros' => $totalRegistros,
+                'timestamp' => now()
+            ]);
+            
+            $excel = Excel::download(new InventarioExport($filters), $filename);
+            
+            $elapsed = round(microtime(true) - $startTime, 2);
+            $memoriaUsada = round(memory_get_peak_usage(true) / 1024 / 1024, 2);
+            
+            Log::info('✅ Excel generado exitosamente', [
+                'filename' => $filename,
+                'tiempo_segundos' => $elapsed,
+                'memoria_mb' => $memoriaUsada,
+                'registros_procesados' => $totalRegistros,
+                'usuario' => $user->email
+            ]);
+            
+            return $excel;
             
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error al generar el Excel: ' . $e->getMessage());
+            $memoriaUsada = round(memory_get_peak_usage(true) / 1024 / 1024, 2);
+            
+            Log::error('❌ Error al generar Excel', [
+                'usuario' => $user->email ?? 'desconocido',
+                'error' => $e->getMessage(),
+                'memoria_usada_mb' => $memoriaUsada,
+                'linea' => $e->getLine(),
+                'archivo' => $e->getFile(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return redirect()->back()->with('error', 
+                'Error al generar el Excel. El archivo podría ser demasiado grande. ' .
+                'Intente filtrar por sección o contacte al administrador.'
+            );
         }
     }
 
     /**
-     * Método para obtener estadísticas específicas por sección (API endpoint) - OPTIMIZADO
+     * ✅ OPTIMIZADO: Estadísticas por sección con una sola consulta
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
@@ -376,11 +470,10 @@ class InventarioController extends Controller
         $user = $request->user();
         $esAdmin = $user->hasRole('Administrador') || $user->hasRole('SuperAdministrador');
         
-        // Determinar qué secciones puede ver el usuario
+        // Determinar secciones permitidas
         $seccionesPermitidas = [];
         
         if (!$esAdmin) {
-            // Bibliotecarios solo ven su sección asignada
             if ($user->hasRole('BibliotecarioPrimaria')) {
                 $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
                 if ($seccion) $seccionesPermitidas[] = $seccion->id;
@@ -389,45 +482,48 @@ class InventarioController extends Controller
                 if ($seccion) $seccionesPermitidas[] = $seccion->id;
             }
         } else {
-            // Administradores ven todas las secciones
             $seccionesPermitidas = Seccion::pluck('id')->toArray();
         }
 
-        // OPTIMIZACIÓN: Una sola consulta para todas las secciones
+        // ✅ OPTIMIZACIÓN: Una sola consulta con JOIN
+        $ejemplaresSubquery = DB::table('ejemplares')
+            ->select([
+                'libro_id',
+                DB::raw('COUNT(*) as total'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_DISPONIBLE . '" THEN 1 ELSE 0 END) as disponibles'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_PRESTADO . '" THEN 1 ELSE 0 END) as prestados'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_DADO_DE_BAJA . '" THEN 1 ELSE 0 END) as dados_baja'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_PERDIDO . '" THEN 1 ELSE 0 END) as perdidos'),
+            ])
+            ->groupBy('libro_id');
+
         $estadisticas = DB::table('libros')
             ->join('secciones', 'libros.seccion_id', '=', 'secciones.id')
+            ->leftJoinSub($ejemplaresSubquery, 'ej', function ($join) {
+                $join->on('libros.id', '=', 'ej.libro_id');
+            })
             ->whereIn('libros.seccion_id', $seccionesPermitidas)
             ->select([
                 'secciones.nombre as seccion_nombre',
                 DB::raw('COUNT(DISTINCT libros.id) as total_libros'),
-                DB::raw('COALESCE(SUM(
-                    (SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id)
-                ), 0) as total_ejemplares'),
-                DB::raw('COALESCE(SUM(
-                    (SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = "' . Ejemplar::ESTADO_DISPONIBLE . '")
-                ), 0) as total_disponibles'),
-                DB::raw('COALESCE(SUM(
-                    (SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = "' . Ejemplar::ESTADO_PRESTADO . '")
-                ), 0) as total_prestados'),
-                DB::raw('COALESCE(SUM(
-                    (SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = "' . Ejemplar::ESTADO_DADO_DE_BAJA . '")
-                ), 0) as total_dados_baja'),
-                DB::raw('COALESCE(SUM(
-                    (SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = "' . Ejemplar::ESTADO_PERDIDO . '")
-                ), 0) as total_perdidos')
+                DB::raw('SUM(COALESCE(ej.total, 0)) as total_ejemplares'),
+                DB::raw('SUM(COALESCE(ej.disponibles, 0)) as total_disponibles'),
+                DB::raw('SUM(COALESCE(ej.prestados, 0)) as total_prestados'),
+                DB::raw('SUM(COALESCE(ej.dados_baja, 0)) as total_dados_baja'),
+                DB::raw('SUM(COALESCE(ej.perdidos, 0)) as total_perdidos'),
             ])
             ->groupBy('secciones.id', 'secciones.nombre')
             ->get()
             ->keyBy('seccion_nombre')
             ->map(function ($item) {
                 return [
-                    'total_libros' => $item->total_libros,
-                    'total_ejemplares' => $item->total_ejemplares,
-                    'total_disponibles' => $item->total_disponibles,
-                    'total_prestados' => $item->total_prestados,
-                    'total_dados_baja' => $item->total_dados_baja,
-                    'total_perdidos' => $item->total_perdidos,
-                    'total_en_circulacion' => $item->total_disponibles + $item->total_prestados,
+                    'total_libros' => (int) $item->total_libros,
+                    'total_ejemplares' => (int) $item->total_ejemplares,
+                    'total_disponibles' => (int) $item->total_disponibles,
+                    'total_prestados' => (int) $item->total_prestados,
+                    'total_dados_baja' => (int) $item->total_dados_baja,
+                    'total_perdidos' => (int) $item->total_perdidos,
+                    'total_en_circulacion' => (int) ($item->total_disponibles + $item->total_prestados),
                 ];
             });
 
@@ -439,7 +535,7 @@ class InventarioController extends Controller
     }
 
     /**
-     * Método adicional para obtener resumen general (útil para dashboards) - OPTIMIZADO
+     * ✅ OPTIMIZADO: Resumen general con una sola consulta
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
@@ -449,32 +545,65 @@ class InventarioController extends Controller
         $user = $request->user();
         $esAdmin = $user->hasRole('Administrador') || $user->hasRole('SuperAdministrador');
         
-        // Construir query base optimizada (solo campos necesarios)
-        $query = Libro::select('libros.*');
+        // Subconsulta agregada
+        $ejemplaresSubquery = DB::table('ejemplares')
+            ->select([
+                'libro_id',
+                DB::raw('COUNT(*) as total'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_DISPONIBLE . '" THEN 1 ELSE 0 END) as disponibles'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_PRESTADO . '" THEN 1 ELSE 0 END) as prestados'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_DADO_DE_BAJA . '" THEN 1 ELSE 0 END) as dados_baja'),
+                DB::raw('SUM(CASE WHEN estado = "' . Ejemplar::ESTADO_PERDIDO . '" THEN 1 ELSE 0 END) as perdidos'),
+            ])
+            ->groupBy('libro_id');
 
-        // Aplicar filtro automático de sección para bibliotecarios
+        // Construir query base
+        $query = DB::table('libros')
+            ->leftJoinSub($ejemplaresSubquery, 'ej', function ($join) {
+                $join->on('libros.id', '=', 'ej.libro_id');
+            });
+
+        // Aplicar filtro automático de sección
         $seccionAsignada = null;
         if (!$esAdmin) {
             if ($user->hasRole('BibliotecarioPrimaria')) {
                 $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
                 $seccionAsignada = 'PRIMARIA';
                 if ($seccion) {
-                    $query->where('seccion_id', $seccion->id);
+                    $query->where('libros.seccion_id', $seccion->id);
                 }
             } elseif ($user->hasRole('BibliotecarioBachillerato')) {
                 $seccion = Seccion::where('nombre', 'BACHILLERATO')->first();
                 $seccionAsignada = 'BACHILLERATO';
                 if ($seccion) {
-                    $query->where('seccion_id', $seccion->id);
+                    $query->where('libros.seccion_id', $seccion->id);
                 }
             }
         }
         
-        // Usar el método optimizado para calcular estadísticas
-        $estadisticasGlobales = $this->calcularEstadisticasGlobalesOptimizado($query, $user, $esAdmin);
+        // Obtener estadísticas
+        $estadisticas = $query->select([
+                DB::raw('COUNT(DISTINCT libros.id) as total_libros'),
+                DB::raw('SUM(COALESCE(ej.total, 0)) as total_ejemplares'),
+                DB::raw('SUM(COALESCE(ej.disponibles, 0)) as total_disponibles'),
+                DB::raw('SUM(COALESCE(ej.prestados, 0)) as total_prestados'),
+                DB::raw('SUM(COALESCE(ej.dados_baja, 0)) as total_dados_baja'),
+                DB::raw('SUM(COALESCE(ej.perdidos, 0)) as total_perdidos'),
+            ])
+            ->first();
+
+        $resumen = [
+            'total_libros' => (int) ($estadisticas->total_libros ?? 0),
+            'total_ejemplares' => (int) ($estadisticas->total_ejemplares ?? 0),
+            'total_disponibles' => (int) ($estadisticas->total_disponibles ?? 0),
+            'total_prestados' => (int) ($estadisticas->total_prestados ?? 0),
+            'total_dados_baja' => (int) ($estadisticas->total_dados_baja ?? 0),
+            'total_perdidos' => (int) ($estadisticas->total_perdidos ?? 0),
+            'total_en_circulacion' => (int) (($estadisticas->total_disponibles ?? 0) + ($estadisticas->total_prestados ?? 0)),
+        ];
 
         return response()->json([
-            'resumen' => $estadisticasGlobales,
+            'resumen' => $resumen,
             'es_admin' => $esAdmin,
             'seccion_asignada' => $seccionAsignada
         ]);

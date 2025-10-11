@@ -621,6 +621,7 @@ class LibroController extends Controller
     /**
      * Actualizar libro
      */
+
     public function update(Request $request, $id)
     {
         $libro = Libro::findOrFail($id);
@@ -649,10 +650,13 @@ class LibroController extends Controller
         // Determinar la regla de validación para código_unico según la clase
         $codigoRule = 'required|string|unique:libros,codigo_unico,' . $id;
         if ($request->clase === Libro::CLASE_LIBRO) {
-            $codigoRule .= '|regex:/^\d{13}$/'; // ISBN 13 dígitos
+            $codigoRule .= '|regex:/^\d{13}$/';
         } elseif ($request->clase === Libro::CLASE_REVISTA) {
-            $codigoRule .= '|regex:/^\d{8}$/'; // ISSN 8 dígitos
+            $codigoRule .= '|regex:/^\d{8}$/';
         }
+
+        // Regla de validación para signatura según el modo
+        $signaturaRule = $request->signatura_automatica ? 'nullable|string|max:50' : 'required|string|max:50';
 
         $validator = Validator::make($request->all(), [
             'codigo_unico' => $codigoRule,
@@ -688,8 +692,9 @@ class LibroController extends Controller
             'precio' => 'nullable|numeric|min:0',
             'edad_recomendada' => 'nullable|integer|min:0|max:100',
             'contenido' => 'nullable|string',
+            'signatura_automatica' => 'required|boolean',
+            'sign_top' => $signaturaRule,
         ], [
-            // Mensajes personalizados de error
             'codigo_unico.required' => 'El código único es obligatorio.',
             'codigo_unico.unique' => 'Este código único ya está registrado en el sistema.',
             'codigo_unico.regex' => $request->clase === Libro::CLASE_LIBRO ?
@@ -721,6 +726,7 @@ class LibroController extends Controller
             'edad_recomendada.integer' => 'La edad recomendada debe ser un número entero.',
             'edad_recomendada.min' => 'La edad recomendada no puede ser negativa.',
             'edad_recomendada.max' => 'La edad recomendada no puede ser mayor a 100 años.',
+            'sign_top.required' => 'La signatura topográfica es obligatoria en modo manual.',
         ]);
 
         if ($validator->fails()) {
@@ -734,15 +740,15 @@ class LibroController extends Controller
         try {
             DB::beginTransaction();
 
-            // Preparar datos para actualización (sin signatura topográfica)
+            // Preparar datos para actualización
             $updateData = [
-                'codigo_unico' => $request->codigo_unico, // Cambio de isbn a codigo_unico
+                'codigo_unico' => $request->codigo_unico,
                 'titulo' => $request->titulo,
                 'contenido' => $request->contenido,
                 'seccion_id' => $request->seccion_id,
                 'autor_id' => $request->autor_id,
                 'editorial_id' => $request->editorial_id,
-                'area' => $request->area, // Nuevo campo
+                'area' => $request->area,
                 'clase' => $request->clase,
                 'tomo' => $request->tomo,
                 'edicion' => $request->edicion,
@@ -756,21 +762,44 @@ class LibroController extends Controller
                 'estanteria_id' => $request->estanteria_id,
             ];
 
-            // Actualizar todos los campos del libro
-            $libro->update($updateData);
+            // Manejar signatura topográfica según el modo ANTES de actualizar
+            if ($request->signatura_automatica) {
+                // Modo automático: regenerar signatura
+                $signaturaController = new \App\Http\Controllers\SignaturaTopograficaController();
+                $signaturaGenerada = $signaturaController->actualizarSignatura(
+                    $libro->id,
+                    $request->autor_id,
+                    $request->tema_id,
+                    $request->titulo
+                );
+                
+                // Agregar la signatura generada a los datos de actualización
+                $updateData['sign_top'] = $signaturaGenerada;
+                
+                Log::info('Signatura regenerada automáticamente:', [
+                    'libro_id' => $libro->id,
+                    'signatura' => $signaturaGenerada
+                ]);
+            } else {
+                // Modo manual: usar la signatura proporcionada por el usuario
+                $updateData['sign_top'] = $request->sign_top;
+                
+                Log::info('Signatura actualizada manualmente:', [
+                    'libro_id' => $libro->id,
+                    'signatura' => $request->sign_top
+                ]);
+            }
 
-            // Regenerar signatura topográfica usando el controlador especializado
-            $signaturaController = new \App\Http\Controllers\SignaturaTopograficaController();
-            $signaturaController->actualizarSignatura(
-                $libro->id,
-                $request->autor_id,
-                $request->tema_id,
-                $request->titulo
-            );
+            // Actualizar todos los campos del libro incluyendo la signatura
+            $libro->update($updateData);
 
             DB::commit();
 
-            Log::info('Libro actualizado exitosamente:', ['libro_id' => $libro->id, 'titulo' => $libro->titulo]);
+            Log::info('Libro actualizado exitosamente:', [
+                'libro_id' => $libro->id,
+                'titulo' => $libro->titulo,
+                'modo_signatura' => $request->signatura_automatica ? 'automático' : 'manual'
+            ]);
 
             // Redirigir con mensaje de éxito
             return redirect()->route('libros.index')

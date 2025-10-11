@@ -169,13 +169,11 @@ function AlertNotification({
   const colors = {
     success: {
       bg: 'bg-green-50 dark:bg-green-900/20',
-      border: 'border-green-400 dark:border-green-500',
       text: 'text-green-800 dark:text-green-200',
       icon: 'text-green-500 dark:text-green-400'
     },
     error: {
       bg: 'bg-red-50 dark:bg-red-900/20',
-      border: 'border-red-400 dark:border-red-500',
       text: 'text-red-800 dark:text-red-200',
       icon: 'text-red-500 dark:text-red-400'
     }
@@ -192,8 +190,8 @@ function AlertNotification({
       onMouseLeave={resumeTimer}
     >
       <div
-        className={`rounded-xl shadow-2xl border-l-4 backdrop-blur-sm
-                    ${colors[type].border} ${colors[type].bg}
+        className={`rounded-xl shadow-2xl backdrop-blur-sm
+                    ${colors[type].bg}
                     flex items-start p-4 transition-all duration-300 
                     hover:shadow-xl hover:-translate-y-1`}
       >
@@ -202,21 +200,6 @@ function AlertNotification({
           <p className={`text-sm font-semibold ${colors[type].text} leading-relaxed`}>
             {message}
           </p>
-          {autoClose && (
-            <div className="mt-2">
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1">
-                <div 
-                  className={`h-1 rounded-full transition-all duration-100 ${
-                    type === 'success' ? 'bg-green-500' : 'bg-red-500'
-                  }`}
-                  style={{
-                    width: `${(remainingTime / duration) * 100}%`,
-                    transition: isPaused ? 'none' : `width ${remainingTime}ms linear`
-                  }}
-                />
-              </div>
-            </div>
-          )}
         </div>
         <button
           onClick={handleClose}

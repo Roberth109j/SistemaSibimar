@@ -20,6 +20,36 @@ import CreateEditorialInline from './InlineCreate/CreateEditorialInline';
 import CreateEstanteriaInline from './InlineCreate/CreateEstanteriaInline';
 import { AlertProvider } from '@/components/AlertNotification';
 
+// --- Componente ToggleSwitch ---
+interface ToggleSwitchProps {
+  enabled: boolean;
+  onChange: (value: boolean) => void;
+  label: string;
+}
+
+function ToggleSwitch({ enabled, onChange, label }: ToggleSwitchProps) {
+  return (
+    <div className="flex items-center space-x-3">
+      <button
+        type="button"
+        onClick={() => onChange(!enabled)}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+          enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+        }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+            enabled ? 'translate-x-6' : 'translate-x-1'
+          }`}
+        />
+      </button>
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        {label}
+      </span>
+    </div>
+  );
+}
+
 // --- Componente AlertNotification ---
 interface AlertNotificationProps {
   type: 'success' | 'error';
@@ -56,12 +86,12 @@ function AlertNotification({
 
   const colors = {
     success: {
-      light: { bg: 'bg-green-100', border: 'border-green-500', text: 'text-green-800', icon: 'text-green-500' },
-      dark: { bg: 'dark:bg-green-800/40', border: 'dark:border-green-500', text: 'dark:text-green-100', icon: 'dark:text-green-400' }
+      light: { bg: 'bg-green-100', text: 'text-green-800', icon: 'text-green-500' },
+      dark: { bg: 'dark:bg-green-800/40', text: 'dark:text-green-100', icon: 'dark:text-green-400' }
     },
     error: {
-      light: { bg: 'bg-red-100', border: 'border-red-500', text: 'text-red-800', icon: 'text-red-500' },
-      dark: { bg: 'dark:bg-red-800/40', border: 'dark:border-red-500', text: 'dark:text-red-100', icon: 'dark:text-red-400' }
+      light: { bg: 'bg-red-100', text: 'text-red-800', icon: 'text-red-500' },
+      dark: { bg: 'dark:bg-red-800/40', text: 'dark:text-red-100', icon: 'dark:text-red-400' }
     }
   };
 
@@ -70,8 +100,7 @@ function AlertNotification({
   return (
     <div className={`fixed top-6 right-6 z-50 ${animateOut ? 'opacity-0 translate-x-20' : 'opacity-100 translate-x-0'} transition-all duration-500 ease-in-out transform ${className}`}>
       <div
-        className={`max-w-md rounded-lg shadow-xl border-l-4
-                    ${colors[type].light.border} ${colors[type].dark.border}
+        className={`max-w-md rounded-lg shadow-xl
                     ${colors[type].light.bg} ${colors[type].dark.bg}
                     flex items-start p-5 transition-all duration-300 animate-slide-in-right`}
       >
@@ -133,6 +162,9 @@ export default function Edit({
   const [estanterias, setEstanterias] = useState(initialEstanterias);
   const [estanteriasFiltradas, setEstanteriasFiltradas] = useState(initialEstanterias);
   
+  // Estado para el toggle de signatura topográfica
+  const [signaturaAutomatica, setSignaturaAutomatica] = useState(false);
+  
   // Estado para manejar las alertas
   const [alerts, setAlerts] = useState<{
     success: string | null;
@@ -160,7 +192,7 @@ export default function Edit({
   // Verificar si el usuario es administrador
   const isAdmin = auth.user?.roles?.some((role: any) => role.name === 'Administrador') || false;
 
-  const { data, setData, put, processing, errors: formErrors, wasSuccessful, recentlySuccessful } = useForm({
+const { data, setData, put, processing, errors: formErrors, wasSuccessful, recentlySuccessful } = useForm({
     codigo_unico: libro.codigo_unico || libro.isbn || '',
     titulo: libro.titulo || '',
     contenido: libro.contenido || '',
@@ -179,8 +211,14 @@ export default function Edit({
     paginas: libro.paginas?.toString() || '',
     tema_id: libro.tema_id?.toString() || '',
     sign_top: libro.sign_top || '',
-    estanteria_id: libro.estanteria_id?.toString() || ''
+    estanteria_id: libro.estanteria_id?.toString() || '',
+    signatura_automatica: false as boolean  // ✅ Cambiar a false
   });
+
+  // Sincronizar el estado del toggle con los datos del formulario
+  useEffect(() => {
+    setData('signatura_automatica', signaturaAutomatica);
+  }, [signaturaAutomatica]);
 
   // Efecto para filtrar estanterías según la sección seleccionada
   useEffect(() => {
@@ -205,29 +243,24 @@ export default function Edit({
   // Callbacks para actualizar las listas cuando se creen nuevos elementos
   const handleAutorCreated = (newAutor: any) => {
     setAutores(prevAutores => [...prevAutores, newAutor]);
-    // Seleccionar automáticamente el nuevo autor
     setData('autor_id', newAutor.id.toString());
   };
 
   const handleEditorialCreated = (newEditorial: any) => {
     setEditoriales(prevEditoriales => [...prevEditoriales, newEditorial]);
-    // Seleccionar automáticamente la nueva editorial
     setData('editorial_id', newEditorial.id.toString());
   };
 
   const handleEstanteriaCreated = (newEstanteria: any) => {
     setEstanterias(prevEstanterias => [...prevEstanterias, newEstanteria]);
-    // También actualizar la lista filtrada si corresponde a la sección actual
     if (isAdmin && data.seccion_id && newEstanteria.seccion_id === parseInt(data.seccion_id)) {
       setEstanteriasFiltradas(prevFiltradas => [...prevFiltradas, newEstanteria]);
     } else if (!isAdmin) {
       setEstanteriasFiltradas(prevFiltradas => [...prevFiltradas, newEstanteria]);
     }
-    // Seleccionar automáticamente la nueva estantería
     setData('estanteria_id', newEstanteria.id.toString());
   };
 
-  // Determinar la sección predeterminada para estanterías
   const seccionIdForEstanteria = data.seccion_id ? parseInt(data.seccion_id) : null;
 
   // Efecto para determinar el tipo de código según la clase
@@ -394,7 +427,6 @@ export default function Edit({
 
   const breadcrumbs = getBreadcrumbs(libro.id, libro.titulo);
 
-  // Clases CSS reutilizables
   const selectClasses = "w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors";
   const flexSelectClasses = "flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors";
 
@@ -617,100 +649,7 @@ export default function Edit({
                       </div>
                     </div>
 
-                    {/* Clasificación y Ubicación */}
-                    <div className="bg-gray-50 dark:bg-gray-700/50 p-6 border border-gray-200 dark:border-gray-600 rounded-lg">
-                      <div className="flex items-center mb-6">
-                        <div className="flex items-center justify-center w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-lg mr-3">
-                          <MapPin className="w-5 h-5 text-green-600 dark:text-green-400" />
-                        </div>
-                        <h4 className="font-semibold text-lg text-gray-900 dark:text-white">
-                          Clasificación y Ubicación
-                        </h4>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Sección */}
-                        <div>
-                          <label htmlFor="seccion_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Sección <span className="text-red-500">*</span>
-                          </label>
-                          <select
-                            id="seccion_id"
-                            disabled={!isAdmin}
-                            name="seccion_id"
-                            value={data.seccion_id}
-                            onChange={handleChange}
-                            className={`${selectClasses} ${!isAdmin ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' : ''}`}
-                          >
-                            <option value="">{!isAdmin ? 'Sección asignada automáticamente' : 'Seleccione una sección'}</option>
-                            {secciones.map((seccion: any) => (
-                              <option key={seccion.id} value={seccion.id}>
-                                {seccion.nombre}
-                              </option>
-                            ))}
-                          </select>
-                          {(formErrors.seccion_id || errors.seccion_id) && (
-                            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.seccion_id || errors.seccion_id}</p>
-                          )}
-                        </div>
-                        
-                        {/* Estantería con botón + */}
-                        <div>
-                          <label htmlFor="estanteria_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Estantería
-                          </label>
-                          <div className="flex items-center">
-                            <select
-                              id="estanteria_id"
-                              name="estanteria_id"
-                              value={data.estanteria_id || ''}
-                              onChange={handleChange}
-                              className={flexSelectClasses}
-                            >
-                              <option value="">Seleccione una estantería (opcional)</option>
-                              {estanteriasFiltradas.map((estanteria: any) => (
-                                <option key={estanteria.id} value={estanteria.id}>
-                                  {estanteria.cod_estante}
-                                </option>
-                              ))}
-                            </select>
-                            <CreateEstanteriaInline 
-                              onEstanteriaCreated={handleEstanteriaCreated}
-                              secciones={secciones}
-                              seccionId={seccionIdForEstanteria}
-                            />
-                          </div>
-                          {(formErrors.estanteria_id || errors.estanteria_id) && (
-                            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.estanteria_id || errors.estanteria_id}</p>
-                          )}
-                        </div>
-                        
-                        {/* Signatura Topográfica */}
-                        <div>
-                          <label htmlFor="sign_top" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            <div className="flex items-center">
-                              <Hash className="w-4 h-4 mr-1 text-gray-500" />
-                              Signatura Topográfica
-                              <span className="text-xs text-blue-600 dark:text-blue-400 ml-2">(Generada automáticamente)</span>
-                            </div>
-                          </label>
-                          <input
-                            type="text"
-                            id="sign_top"
-                            name="sign_top"
-                            value={data.sign_top}
-                            readOnly
-                            className={`${selectClasses} bg-gray-100 dark:bg-gray-600 cursor-not-allowed`}
-                            placeholder="Signatura topográfica"
-                          />
-                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Se genera automáticamente basada en el tema Dewey, autor y título
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Clasificación Dewey */}
+                                        {/* Clasificación Dewey */}
                     <div className="bg-gray-50 dark:bg-gray-700/50 p-6 border border-gray-200 dark:border-gray-600 rounded-lg">
                       <div className="flex items-center mb-6">
                         <div className="flex items-center justify-center w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-lg mr-3">
@@ -801,13 +740,159 @@ export default function Edit({
                       </div>
                     </div>
 
+                    {/* Clasificación y Ubicación */}
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-6 border border-gray-200 dark:border-gray-600 rounded-lg">
+                      <div className="flex items-center mb-6">
+                        <div className="flex items-center justify-center w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-lg mr-3">
+                          <MapPin className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <h4 className="font-semibold text-lg text-gray-900 dark:text-white">
+                          Clasificación y Ubicación
+                        </h4>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Sección */}
+                        <div>
+                          <label htmlFor="seccion_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Sección <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            id="seccion_id"
+                            disabled={!isAdmin}
+                            name="seccion_id"
+                            value={data.seccion_id}
+                            onChange={handleChange}
+                            className={`${selectClasses} ${!isAdmin ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' : ''}`}
+                          >
+                            <option value="">{!isAdmin ? 'Sección asignada automáticamente' : 'Seleccione una sección'}</option>
+                            {secciones.map((seccion: any) => (
+                              <option key={seccion.id} value={seccion.id}>
+                                {seccion.nombre}
+                              </option>
+                            ))}
+                          </select>
+                          {(formErrors.seccion_id || errors.seccion_id) && (
+                            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.seccion_id || errors.seccion_id}</p>
+                          )}
+                        </div>
+                        
+                        {/* Estantería con botón + */}
+                        <div>
+                          <label htmlFor="estanteria_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Estantería
+                          </label>
+                          <div className="flex items-center">
+                            <select
+                              id="estanteria_id"
+                              name="estanteria_id"
+                              value={data.estanteria_id || ''}
+                              onChange={handleChange}
+                              className={flexSelectClasses}
+                            >
+                              <option value="">Seleccione una estantería (opcional)</option>
+                              {estanteriasFiltradas.map((estanteria: any) => (
+                                <option key={estanteria.id} value={estanteria.id}>
+                                  {estanteria.cod_estante}
+                                </option>
+                              ))}
+                            </select>
+                            <CreateEstanteriaInline 
+                              onEstanteriaCreated={handleEstanteriaCreated}
+                              secciones={secciones}
+                              seccionId={seccionIdForEstanteria}
+                            />
+                          </div>
+                          {(formErrors.estanteria_id || errors.estanteria_id) && (
+                            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.estanteria_id || errors.estanteria_id}</p>
+                          )}
+                        </div>
+                        
+                        {/* Signatura Topográfica con Toggle */}
+                        <div className="md:col-span-2">
+                          <div className="flex items-center justify-between mb-2">
+                            <label htmlFor="sign_top" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                              <div className="flex items-center">
+                                <Hash className="w-4 h-4 mr-1 text-gray-500" />
+                                Signatura Topográfica
+                              </div>
+                            </label>
+                            
+                            {/* Toggle Switch */}
+                            <ToggleSwitch
+                              enabled={signaturaAutomatica}
+                              onChange={setSignaturaAutomatica}
+                              label={signaturaAutomatica ? 'Automático' : 'Manual'}
+                            />
+                          </div>
+                          
+                          <input
+                            type="text"
+                            id="sign_top"
+                            name="sign_top"
+                            value={data.sign_top}
+                            onChange={handleChange}
+                            readOnly={signaturaAutomatica}
+                            className={`${selectClasses} ${
+                              signaturaAutomatica 
+                                ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' 
+                                : ''
+                            }`}
+                            placeholder="Signatura topográfica"
+                          />
+                          
+                          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            {signaturaAutomatica ? (
+                              <>
+                                <span className="font-medium">Modo Automático:</span> La signatura se genera basándose en el tema Dewey, autor y título
+                              </>
+                            ) : (
+                              <>
+                                <span className="font-medium">Modo Manual:</span> Ingrese la signatura topográfica manualmente (Formato: CDD-CutterTítulo)
+                              </>
+                            )}
+                          </p>
+                          
+                          {/* Información adicional según el modo */}
+                          {signaturaAutomatica && (
+                            <div className="mt-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                              <div className="flex items-start">
+                                <BookOpen className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 mr-2 flex-shrink-0" />
+                                <div>
+                                  <p className="text-xs font-medium text-blue-900 dark:text-blue-200 mb-1">
+                                    Componentes de la signatura:
+                                  </p>
+                                  <ul className="text-xs text-blue-800 dark:text-blue-300 space-y-0.5">
+                                    <li>• Código Dewey del tema seleccionado</li>
+                                    <li>• Código Cutter del autor</li>
+                                    <li>• Primera letra del título</li>
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {!signaturaAutomatica && (
+                            <div className="mt-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                              <div className="flex items-start">
+                                <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-2 flex-shrink-0" />
+                                <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                                  <span className="font-semibold">Atención:</span> Use el formato: <code className="bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded">CDD-CutterTítulo</code> (ej: 900-G216h)
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Detalles del Libro */}
                     <div className="bg-gray-50 dark:bg-gray-700/50 p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
                       <h4 className="font-semibold text-lg mb-6 text-gray-900 dark:text-white">
                         Detalles del Libro
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {/* Idioma pendejo */}
+                        {/* Idioma*/}
                         <div>
                           <label htmlFor="idioma" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Idioma <span className="text-red-500">*</span>
