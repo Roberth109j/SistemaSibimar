@@ -14,11 +14,8 @@ type EditUsuarioPageProps = {
 };
 
 export default function Edit({
-  auth,
   usuario,
-  secciones = [],
   roles = [],
-  errors = {}
 }: EditUsuarioPageProps) {
   const [updatePassword, setUpdatePassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -95,13 +92,9 @@ export default function Edit({
       })
     };
 
-    put(`/usuarios/${usuario.id}`, {
+        put(`/usuarios/${usuario.id}`, {
       preserveScroll: true,
       onSuccess: () => {
-        // Agregar delay para que el usuario pueda ver la notificación
-        setTimeout(() => {
-          router.visit('/usuarios');
-        }, 2500); // 2.5 segundos de delay
       },
       onError: (errors: Record<string, string>) => {
         Object.keys(errors).forEach((key) => {

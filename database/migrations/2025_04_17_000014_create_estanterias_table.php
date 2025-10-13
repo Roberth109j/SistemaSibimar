@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('estanterias', function (Blueprint $table) {
             $table->id();
-            $table->string('cod_estante'); // Ej: "A1", "B2", etc.
+            $table->string('cod_estante')
+                ->index(); // Ej: "A1", "B2", etc.
             $table->string('descripcion')->nullable(); // Opcional: por ejemplo "Estante del fondo"
-            $table->timestamps();
         });
     }
 

@@ -14,7 +14,8 @@ return new class extends Migration
         Schema::create('ejemplares', function (Blueprint $table) {
             $table->id();
             $table->foreignId('libro_id')->constrained()->onDelete('cascade');
-            $table->unsignedInteger('numEjemplar')->default(1);
+            $table->unsignedInteger('numEjemplar')->default(1)
+                ->index();
             $table->enum('tipo_adquisicion', ['COMPRA','REPOSICION', 'DONACION'])->default('COMPRA');
            $table->enum('estado', ['DISPONIBLE','PRESTADO', 'DADO DE BAJA', 'PERDIDO'])->default('DISPONIBLE');
             $table->text('observaciones')->nullable();

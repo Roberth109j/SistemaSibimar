@@ -35,7 +35,7 @@ return new class extends Migration {
             // Estado del lector
             $table->enum('estado', ['ACTIVO', 'INACTIVO'])
                 ->default('ACTIVO')
-                  ->index(); // Índice para filtrar por estado
+                ->index(); // Índice para filtrar por estado
         
         });
     }

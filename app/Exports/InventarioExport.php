@@ -11,9 +11,13 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -44,7 +48,6 @@ class InventarioExport implements WithMultipleSheets
             'areas' => $areas
         ]);
         
-        // ✅ OPTIMIZACIÓN: Pre-calcular totales por área para logs
         $totalesPorArea = $this->preCalcularTotales();
         
         foreach ($areas as $area) {
@@ -68,9 +71,6 @@ class InventarioExport implements WithMultipleSheets
         return $sheets;
     }
 
-    /**
-     * ✅ NUEVO: Pre-calcula totales por área para mejor monitoreo
-     */
     private function preCalcularTotales()
     {
         $query = DB::table('libros')
@@ -112,13 +112,6 @@ class InventarioExport implements WithMultipleSheets
     }
 }
 
-/**
- * ✅ OPTIMIZACIÓN CRÍTICA PARA 60,000 REGISTROS
- * - LEFT JOIN + subconsulta agregada: 1 query en lugar de N+1
- * - Chunking inteligente: 1,000 registros por bloque
- * - Monitoreo de memoria por chunk
- * - Límite de seguridad: 15,000 registros por área
- */
 class AreaSheet implements 
     FromQuery, 
     WithHeadings, 
@@ -126,11 +119,13 @@ class AreaSheet implements
     ShouldAutoSize, 
     WithTitle, 
     WithMapping, 
-    WithChunkReading
+    WithChunkReading,
+    WithEvents  // ✅ SOLUCIÓN NUCLEAR
 {
     protected $area;
     protected $filters;
     protected $chunkCounter = 0;
+    protected $totalRows = 0; // ✅ Para el evento AfterSheet
 
     public function __construct($area, $filters = [])
     {
@@ -143,21 +138,11 @@ class AreaSheet implements
         return substr($this->area, 0, 31);
     }
 
-    /**
-     * ✅ CRÍTICO: Procesar en bloques de 1000
-     * - Para 10,000 registros = 10 chunks
-     * - Memoria liberada entre chunks
-     * - Balance: rendimiento vs memoria
-     */
     public function chunkSize(): int
     {
         return 1000;
     }
 
-    /**
-     * ✅ OPTIMIZACIÓN PRINCIPAL: Subconsulta agregada + LEFT JOIN
-     * Reduce queries de 10,000 × 4 = 40,000 a solo 1 query por área
-     */
     public function query()
     {
         $startTime = microtime(true);
@@ -167,7 +152,6 @@ class AreaSheet implements
             'memoria_mb' => round($memoriaInicio / 1024 / 1024, 2)
         ]);
         
-        // ✅ Subconsulta agregada que calcula todo de una vez
         $ejemplaresSubquery = DB::table('ejemplares')
             ->select([
                 'libro_id',
@@ -235,11 +219,10 @@ class AreaSheet implements
             })
             ->orderBy('libros.titulo');
         
-        // ✅ VALIDACIÓN DE SEGURIDAD: Prevenir áreas demasiado grandes
-        $totalRows = $query->count();
+        $this->totalRows = $query->count(); // ✅ Guardar total para AfterSheet
         
-        if ($totalRows > 15000) {
-            Log::warning("⚠️ Área {$this->area} tiene {$totalRows} registros (límite recomendado: 15,000)");
+        if ($this->totalRows > 15000) {
+            Log::warning("⚠️ Área {$this->area} tiene {$this->totalRows} registros (límite recomendado: 15,000)");
         }
         
         $elapsed = round(microtime(true) - $startTime, 2);
@@ -247,7 +230,7 @@ class AreaSheet implements
         $memoriaUsada = round(($memoriaFin - $memoriaInicio) / 1024 / 1024, 2);
         
         Log::info("✅ Query completado para área: {$this->area}", [
-            'registros' => $totalRows,
+            'registros' => $this->totalRows,
             'tiempo_segundos' => $elapsed,
             'memoria_usada_mb' => $memoriaUsada,
             'memoria_total_mb' => round($memoriaFin / 1024 / 1024, 2)
@@ -258,7 +241,6 @@ class AreaSheet implements
 
     public function map($row): array
     {
-        // ✅ MONITOREO: Log cada 1000 registros procesados
         $this->chunkCounter++;
         if ($this->chunkCounter % 1000 === 0) {
             $memoria = round(memory_get_usage(true) / 1024 / 1024, 2);
@@ -267,10 +249,10 @@ class AreaSheet implements
             ]);
         }
         
-        $disponibles = (int) $row->disponibles;
-        $prestados = (int) $row->prestados;
-        $dadosBaja = (int) $row->dados_baja;
-        $perdidos = (int) $row->perdidos;
+        $disponibles = (int) ($row->disponibles ?? 0);
+        $prestados = (int) ($row->prestados ?? 0);
+        $dadosBaja = (int) ($row->dados_baja ?? 0);
+        $perdidos = (int) ($row->perdidos ?? 0);
         $totalActivos = $disponibles + $prestados;
 
         return [
@@ -289,6 +271,43 @@ class AreaSheet implements
             $dadosBaja,
             $perdidos,
             $totalActivos,
+        ];
+    }
+
+    /**
+     * SOLUCIÓN: Formato "0" SOLO en columna Total Activos (O) Y SOLO en filas con datos
+     */
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function(AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+                $lastRow = $this->totalRows + 1;
+                
+                // SOLO columna O (Total Activos)
+                $col = 'O';
+                
+                // SOLO aplicar a filas con datos reales
+                for ($row = 2; $row <= $lastRow; $row++) {
+                    // Verificar si la fila tiene datos (columna B - Título - no vacía)
+                    $tituloCell = $sheet->getCell("B{$row}")->getValue();
+                    
+                    if (!empty($tituloCell) && $tituloCell !== 'N/A') {
+                        $cell = $sheet->getCell("{$col}{$row}");
+                        $value = $cell->getValue();
+                        
+                        // Aplicar formato '0' solo a esta celda
+                        $cell->getStyle()->getNumberFormat()->setFormatCode('0');
+                        
+                        $numValue = is_numeric($value) ? (int)$value : 0;
+                        $cell->setValueExplicit($numValue, DataType::TYPE_NUMERIC);
+                    }
+                }
+                
+                Log::info("Formato '0' aplicado a columna Total Activos: {$this->area}", [
+                    'filas_procesadas' => $lastRow - 1
+                ]);
+            },
         ];
     }
 
@@ -335,12 +354,6 @@ class AreaSheet implements
     }
 }
 
-/**
- * ✅ HOJA RESUMEN OPTIMIZADA
- * - LEFT JOIN para evitar subconsultas múltiples
- * - Agregación en una sola query
- * - Ahora incluye WithChunkReading por consistencia
- */
 class ResumenSheet implements 
     FromQuery, 
     WithHeadings, 
@@ -348,9 +361,11 @@ class ResumenSheet implements
     ShouldAutoSize, 
     WithTitle, 
     WithMapping,
-    WithChunkReading  // ✅ AGREGADO para consistencia
+    WithChunkReading,
+    WithEvents  // SOLUCIÓN NUCLEAR
 {
     protected $filters;
+    protected $totalRows = 0; // Para el evento AfterSheet
 
     public function __construct($filters = [])
     {
@@ -362,9 +377,6 @@ class ResumenSheet implements
         return 'RESUMEN GENERAL';
     }
 
-    /**
-     * ✅ AGREGADO: Aunque el resumen tiene pocas filas, agregamos chunking
-     */
     public function chunkSize(): int
     {
         return 1000;
@@ -408,27 +420,64 @@ class ResumenSheet implements
             })
             ->groupBy('libros.area')
             ->orderBy('libros.area');
+        
+        $this->totalRows = $query->count(); //Guardar total
             
         $elapsed = round(microtime(true) - $startTime, 2);
-        Log::info('✅ Resumen general completado', ['tiempo_segundos' => $elapsed]);
+        Log::info('Resumen general completado', ['tiempo_segundos' => $elapsed]);
         
         return $query;
     }
 
     public function map($row): array
     {
-        $disponibles = (int) $row->disponibles;
-        $prestados = (int) $row->prestados;
+        $disponibles = (int) ($row->disponibles ?? 0);
+        $prestados = (int) ($row->prestados ?? 0);
         
         return [
             $row->area,
-            (int) $row->total_libros,
-            (int) $row->total_ejemplares,
+            (int) ($row->total_libros ?? 0),
+            (int) ($row->total_ejemplares ?? 0),
             $disponibles,
             $prestados,
-            (int) $row->dados_baja,
-            (int) $row->perdidos,
+            (int) ($row->dados_baja ?? 0),
+            (int) ($row->perdidos ?? 0),
             $disponibles + $prestados,
+        ];
+    }
+
+    /**
+     * SOLUCIÓN: Formato "0" SOLO en columna Total Activos (H) Y SOLO en filas con datos
+     */
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function(AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+                $lastRow = $this->totalRows + 1;
+                
+                //SOLO columna H (Total Activos)
+                $col = 'H';
+                
+                // SOLO aplicar a filas con datos reales
+                for ($row = 2; $row <= $lastRow; $row++) {
+                    // Verificar si la fila tiene datos (columna A no vacía)
+                    $areaCell = $sheet->getCell("A{$row}")->getValue();
+                    
+                    if (!empty($areaCell)) {
+                        $cell = $sheet->getCell("{$col}{$row}");
+                        $value = $cell->getValue();
+                        
+                        // Aplicar formato '0' solo a esta celda
+                        $cell->getStyle()->getNumberFormat()->setFormatCode('0');
+                        
+                        $numValue = is_numeric($value) ? (int)$value : 0;
+                        $cell->setValueExplicit($numValue, DataType::TYPE_NUMERIC);
+                    }
+                }
+                
+                Log::info("Formato '0' aplicado a columna Total Activos del resumen");
+            },
         ];
     }
 

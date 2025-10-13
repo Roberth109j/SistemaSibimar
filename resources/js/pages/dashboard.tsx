@@ -315,13 +315,12 @@ export default function Dashboard({
                             <StatCard title="Préstamos Activos" value={estadisticasGenerales.prestamos_activos} icon={BookMarked} trend={false} colorClass="bg-emerald-600" />
                             <StatCard title="Préstamos Vencidos" value={estadisticasGenerales.prestamos_vencidos} icon={AlertTriangle} trend={false} colorClass="bg-rose-600" />
                             <StatCard 
-                                title="Libros Reposición" 
+                                title="Libros Repuestos" 
                                 value={estadisticasGenerales.libros_reposicion} 
                                 icon={RefreshCw} 
                                 trend={estadisticasGenerales.libros_reposicion === 0} 
                                 trendValue={estadisticasGenerales.libros_reposicion === 0 ? "Perfecto" : "Requiere atención"} 
                                 colorClass="bg-orange-600" 
-                                description="Requieren reposición"
                             />
                         </div>
 

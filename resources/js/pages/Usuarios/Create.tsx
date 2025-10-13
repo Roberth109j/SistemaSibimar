@@ -73,12 +73,6 @@ export default function Create({
     
     post('/usuarios', {
       preserveScroll: true,
-      onSuccess: () => {
-        // Agregar delay para que el usuario pueda ver la notificación
-        setTimeout(() => {
-          router.visit('/usuarios');
-        }, 2500); // 2.5 segundos de delay
-      },
       onError: (errors: Record<string, string>) => {
         Object.keys(errors).forEach((key) => {
           if (['name', 'email', 'password', 'password_confirmation'].includes(key)) {

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use Inertia\Response;
+use Inertia\Response;   
 use Spatie\Permission\Models\Role;
 
 class UsuarioController extends Controller
@@ -22,7 +22,6 @@ class UsuarioController extends Controller
      */
     public function index(Request $request): Response|RedirectResponse
     {
-
         // Validación de parámetros de paginación
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 20; // Valor fijo de 20 elementos por página
@@ -46,11 +45,13 @@ class UsuarioController extends Controller
         // Parámetro de búsqueda
         $search = $request->get('search', '');
 
+        // Filtro por estado
+        $estadoFilter = $request->get('estado_filter', '');
+
         // Query base con relaciones
         $query = User::with(['roles', 'seccion']);
 
-        // Filtro por estado
-        $estadoFilter = $request->get('estado_filter', '');
+        // Aplicar filtro de estado si existe
         if ($estadoFilter !== '') {
             $query->where('estado_activo', $estadoFilter === 'activo');
         }
@@ -69,12 +70,25 @@ class UsuarioController extends Controller
 
         // Obtener resultados paginados
         try {
-            $usuarios = $query->paginate($perPage, ['*'], 'page', $page);
+            $usuarios = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
         } catch (\Exception $e) {
             Log::error('Error al paginar usuarios: ' . $e->getMessage());
             return redirect()->route('usuarios.index')
                 ->with('error', 'Error al cargar la lista de usuarios.');
         }
+
+        // Redirigir si la página solicitada no existe pero hay resultados
+        if ($page > $usuarios->lastPage() && $usuarios->lastPage() > 0) {
+            return redirect()->route('usuarios.index', 
+                array_merge($request->query(), ['page' => $usuarios->lastPage()])
+            );
+        }
+
+        // Agregar número de posición a cada elemento
+        $usuarios->getCollection()->transform(function ($usuario, $index) use ($usuarios) {
+            $usuario->position = (($usuarios->currentPage() - 1) * $usuarios->perPage()) + $index + 1;
+            return $usuario;
+        });
 
         // Obtener datos adicionales para formularios
         $secciones = Seccion::orderBy('nombre')->get();
@@ -89,6 +103,15 @@ class UsuarioController extends Controller
                 'sort_field' => $sortField,
                 'sort_order' => $sortOrder,
                 'estado_filter' => $estadoFilter,
+            ],
+            'pagination' => [
+                'current_page' => $usuarios->currentPage(),
+                'last_page' => $usuarios->lastPage(),
+                'per_page' => $usuarios->perPage(),
+                'total' => $usuarios->total(),
+                'from' => $usuarios->firstItem(),
+                'to' => $usuarios->lastItem(),
+                'has_pages' => $usuarios->hasPages(),
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),

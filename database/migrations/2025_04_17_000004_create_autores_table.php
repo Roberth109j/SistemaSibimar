@@ -13,8 +13,10 @@ return new class extends Migration
     {
         Schema::create('autores', function (Blueprint $table) {
             $table->id();
-            $table->string('apellidos');
-            $table->string('nombres');
+            $table->string('apellidos')
+                ->index();
+            $table->string('nombres')
+                ->index();
         });
     }
 

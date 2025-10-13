@@ -26,16 +26,23 @@ return new class extends Migration
             $table->text('contenido')->nullable();
 
             // seccion a la que pertenece el libro primaria o bachillerato
-            $table->foreignId('seccion_id')->constrained('secciones')->onDelete('restrict');
+            $table->foreignId('seccion_id')
+                ->constrained('secciones')
+                ->onDelete('restrict');
 
             // relacion con tabla autores
-            $table->foreignId('autor_id')->constrained('autores')->onDelete('restrict');
+            $table->foreignId('autor_id')
+                ->constrained('autores')
+                ->onDelete('restrict'); 
 
             // relacion con tabla editoriales
-            $table->foreignId('editorial_id')->constrained('editoriales')->onDelete('restrict');
+            $table->foreignId('editorial_id')
+                ->constrained('editoriales')
+                ->onDelete('restrict');
             
             // Nuevo campo Áreas
-            $table->enum('area', ['CIENCIAS', 'MATEMATICAS', 'HUMANIDADES', 'IDIOMAS', 'TECNOLOGIA', 'OTRAS']);
+            $table->enum('area', ['CIENCIAS', 'MATEMATICAS', 'HUMANIDADES', 'IDIOMAS', 'TECNOLOGIA', 'OTRAS'])
+                ->index(); 
 
             // Clase de material - Solo LIBRO y REVISTA
             $table->enum('clase', ['LIBRO', 'REVISTA'])->default('LIBRO');
@@ -56,7 +63,8 @@ return new class extends Migration
             $table->decimal('precio', 8, 2)->nullable();
 
             // Idioma del libro
-            $table->enum('idioma', ['ESPAÑOL', 'INGLES', 'FRANCES','OTRO']);
+            $table->enum('idioma', ['ESPAÑOL', 'INGLES', 'FRANCES','OTRO'])
+                ->index(); 
 
             // Edad recomendada para leer el libro
             $table->integer('edad_recomendada')->nullable();
@@ -65,13 +73,18 @@ return new class extends Migration
             $table->integer('paginas');
             
             // relacion con tabla temas dewey
-            $table->foreignId('tema_id')->constrained('temas_dewey')->onDelete('restrict');
+            $table->foreignId('tema_id')
+                ->constrained('temas_dewey')
+                ->onDelete('restrict'); 
            
             // signatura topografica primera letra apellido numero consecutivo y primera letra del titulo del libro   
             $table->string('sign_top')->nullable();
 
             // estanteria donde se encuentra el libro (opcional)
-            $table->foreignId('estanteria_id')->nullable()->constrained('estanterias')->onDelete('set null');
+            $table->foreignId('estanteria_id')
+                ->nullable()
+                ->constrained('estanterias')
+                ->onDelete('set null');
 
             $table->timestamps();
 

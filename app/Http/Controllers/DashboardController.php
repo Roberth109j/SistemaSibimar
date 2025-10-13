@@ -50,19 +50,11 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Obtener los 5 lectores docentes más frecuentes del año actual (filtrado por sección si aplica)
-        $docentesFrecuentesQuery = Lector::select('lectores.*', DB::raw('COUNT(prestamos.id) as total_prestamos'))
+        // Obtener los 5 lectores docentes más frecuentes del año actual
+        $docentesFrecuentes = Lector::select('lectores.*', DB::raw('COUNT(prestamos.id) as total_prestamos'))
             ->join('prestamos', 'lectores.id', '=', 'prestamos.lector_id')
-            ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
             ->where('lectores.tipo', 'DOCENTE')
-            ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd]);
-            
-        if ($seccionId) {
-            $docentesFrecuentesQuery->where('grados.seccion_id', $seccionId);
-        }
-        
-        $docentesFrecuentes = $docentesFrecuentesQuery
-            ->with('grado')
+            ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd])
             ->groupBy('lectores.id')
             ->orderBy('total_prestamos', 'desc')
             ->limit(5)
@@ -73,10 +65,7 @@ class DashboardController extends Controller
                     'nombre' => $lector->nombre,
                     'total_prestamos' => $lector->total_prestamos,
                     'tipo' => $lector->tipo,
-                    'grado' => $lector->grado ? [
-                        'grado' => $lector->grado->grado,
-                        'subGrado' => $lector->grado->subGrado
-                    ] : null
+                    'grado' => null
                 ];
             });
 
@@ -138,14 +127,13 @@ class DashboardController extends Controller
         }
         
         $lectoresQuery = Lector::leftJoin('grados', 'lectores.grado_id', '=', 'grados.id');
-        $docentesQuery = Lector::leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
-            ->where('lectores.tipo', 'DOCENTE');
+        $docentesQuery = Lector::where('tipo', 'DOCENTE');
         $estudiantesQuery = Lector::leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
             ->where('lectores.tipo', 'ESTUDIANTE');
             
         if ($seccionId) {
             $lectoresQuery->where('grados.seccion_id', $seccionId);
-            $docentesQuery->where('grados.seccion_id', $seccionId);
+            $docentesQuery = Lector::where('tipo', 'DOCENTE');
             $estudiantesQuery->where('grados.seccion_id', $seccionId);
         }
         

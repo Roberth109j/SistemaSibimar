@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { router } from '@inertiajs/react';
+import axios from 'axios';
 import { Hash, Wand2, CheckCircle, AlertCircle, Info, RefreshCw } from 'lucide-react';
 
 interface SignaturaTopograficaSectionProps {
@@ -32,9 +34,14 @@ export default function SignaturaTopograficaSection({
   const [isGenerating, setIsGenerating] = useState(false);
   const [signaturaData, setSignaturaData] = useState<SignaturaResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isManualMode, setIsManualMode] = useState(false);
+  const [isManualMode, setIsManualMode] = useState(!form.data.signatura_automatica);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 2; // Intentar hasta 2 veces
 
-  // Obtener el nombre completo del autor
+  useEffect(() => {
+    setIsManualMode(!form.data.signatura_automatica);
+  }, [form.data.signatura_automatica]);
+
   const getAutorNombre = () => {
     if (!autorId) return '';
     const autor = autores.find(a => a.id.toString() === autorId.toString());
@@ -42,56 +49,136 @@ export default function SignaturaTopograficaSection({
   };
 
   const autorNombre = getAutorNombre();
-
-  // Verificar si se pueden generar automáticamente
   const canGenerate = temaId && autorId && autorNombre.trim() && titulo.trim();
 
-  // Efecto para generar automáticamente cuando cambien los datos
   useEffect(() => {
     if (canGenerate && !isManualMode && !form.data.sign_top) {
       handleGenerateSignatura();
     }
   }, [temaId, autorId, autorNombre, titulo, canGenerate, isManualMode]);
 
-  const handleGenerateSignatura = async () => {
+  // Función para refrescar el token CSRF
+  const refreshCsrfToken = async (): Promise<boolean> => {
+    try {
+      console.log('🔄 Refrescando token CSRF...');
+      const response = await fetch('/csrf-refresh', {
+        method: 'GET',
+        credentials: 'same-origin'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        if (metaTag && data.token) {
+          metaTag.setAttribute('content', data.token);
+          console.log('✅ Token CSRF refrescado');
+          return true;
+        }
+      }
+      return false;
+    } catch (err) {
+      console.error('Error al refrescar token CSRF:', err);
+      return false;
+    }
+  };
+
+  // ✅ Función principal con retry automático
+  const handleGenerateSignatura = async (isRetry: boolean = false) => {
     if (!canGenerate) {
       setError('Debe completar el tema Dewey, autor y título antes de generar la signatura');
       return;
     }
 
     setIsGenerating(true);
-    setError(null);
+    if (!isRetry) {
+      setError(null);
+      setRetryCount(0);
+    }
 
     try {
-      const response = await fetch('/api/signatura/generar-signatura', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-        },
-        body: JSON.stringify({
-          tema_id: temaId,
-          autor: autorNombre,
-          titulo: titulo
-        })
+      console.log(`📤 Generando signatura... (intento ${retryCount + 1})`, {
+        tema_id: temaId,
+        autor: autorNombre,
+        titulo: titulo,
+        isRetry
       });
 
-      const data = await response.json();
+      // ✅ Usar axios que viene preconfigurado con Laravel + Inertia
+      const response = await axios.post('/api/signatura/generar-signatura', {
+        tema_id: temaId,
+        autor: autorNombre,
+        titulo: titulo
+      });
 
-      if (response.ok && data.signatura) {
-        setSignaturaData(data);
-        form.setData('sign_top', data.signatura);
+      console.log('Signatura generada exitosamente:', response.data);
+
+      if (response.data.signatura) {
+        setSignaturaData(response.data);
+        form.setData('sign_top', response.data.signatura);
         if (onSignaturaGenerated) {
-          onSignaturaGenerated(data.signatura);
+          onSignaturaGenerated(response.data.signatura);
         }
         setError(null);
+        setRetryCount(0); // Reset del contador al tener éxito
       } else {
-        setError(data.error || 'Error al generar la signatura topográfica');
-        setSignaturaData(null);
+        throw new Error(response.data.error || 'No se pudo generar la signatura');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error al generar signatura:', err);
-      setError('Error de conexión al generar la signatura topográfica');
+      
+      if (err.response) {
+        const status = err.response.status;
+        const data = err.response.data;
+        
+        // ✅ MANEJO ESPECIAL DEL ERROR 419 CON RETRY AUTOMÁTICO
+        if (status === 419) {
+          console.warn('⚠️ Error 419 detectado - Token CSRF inválido');
+          
+          // Si aún podemos reintentar
+          if (retryCount < MAX_RETRIES) {
+            console.log(`🔄 Reintentando... (${retryCount + 1}/${MAX_RETRIES})`);
+            setRetryCount(prev => prev + 1);
+            
+            // Refrescar el token CSRF
+            const refreshed = await refreshCsrfToken();
+            
+            // Esperar un momento antes de reintentar
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Reintentar
+            setIsGenerating(false);
+            return handleGenerateSignatura(true);
+          } else {
+            // Ya se agotaron los intentos
+            setError('Error de sesión persistente. Por favor, recargue la página.');
+            console.error('Máximo de reintentos alcanzado');
+          }
+          return;
+        }
+        
+        if (status === 401) {
+          setError('No está autenticado. Por favor, inicie sesión.');
+          return;
+        }
+        
+        if (status === 403) {
+          setError('No tiene permisos para realizar esta acción.');
+          return;
+        }
+        
+        if (status === 400) {
+          setError(data.error || 'Datos inválidos para generar la signatura.');
+          return;
+        }
+        
+        // Error genérico del servidor
+        setError(data.error || data.message || `Error del servidor (${status})`);
+      } else if (err.request) {
+        setError('Error de conexión. Verifique su conexión a internet.');
+      } else {
+        setError(err.message || 'Error desconocido al generar la signatura.');
+      }
+      
       setSignaturaData(null);
     } finally {
       setIsGenerating(false);
@@ -105,13 +192,15 @@ export default function SignaturaTopograficaSection({
   };
 
   const toggleManualMode = () => {
-    setIsManualMode(!isManualMode);
-    if (!isManualMode) {
-      // Cambiar a modo manual
+    const newManualMode = !isManualMode;
+    setIsManualMode(newManualMode);
+    form.setData('signatura_automatica', !newManualMode);
+    
+    if (newManualMode) {
       setSignaturaData(null);
       setError(null);
+      setRetryCount(0);
     } else {
-      // Cambiar a modo automático
       if (canGenerate) {
         handleGenerateSignatura();
       }
@@ -157,16 +246,21 @@ export default function SignaturaTopograficaSection({
         {!isManualMode && canGenerate && (
           <button
             type="button"
-            onClick={handleGenerateSignatura}
+            onClick={() => handleGenerateSignatura(false)}
             disabled={isGenerating}
             className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-800 dark:text-emerald-200 dark:hover:bg-emerald-700 rounded-md transition-colors disabled:opacity-50"
           >
             {isGenerating ? (
-              <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+              <>
+                <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                {retryCount > 0 ? `Reintentando (${retryCount}/${MAX_RETRIES})...` : 'Generando...'}
+              </>
             ) : (
-              <Wand2 className="w-4 h-4 mr-1" />
+              <>
+                <Wand2 className="w-4 h-4 mr-1" />
+                Regenerar
+              </>
             )}
-            {isGenerating ? 'Generando...' : 'Regenerar'}
           </button>
         )}
       </div>
@@ -215,9 +309,18 @@ export default function SignaturaTopograficaSection({
       {error && (
         <div className="flex items-start space-x-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
           <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-medium text-red-800 dark:text-red-200">Error</p>
             <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
+            {error.includes('recargue la página') && (
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="mt-2 text-sm text-red-700 underline hover:text-red-900"
+              >
+                Recargar página ahora
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -64,6 +64,7 @@ export default function Create({
     tema_id: '',
     estanteria_id: '', // Campo opcional
     sign_top: '', // Signatura Topográfica
+    signatura_automatica: true,
   });
 
   const handleSubmit = (e: React.FormEvent) => {

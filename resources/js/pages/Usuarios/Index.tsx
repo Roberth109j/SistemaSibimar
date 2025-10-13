@@ -8,9 +8,30 @@ import { type BreadcrumbItem, type IndexProps, type Usuario } from './types';
 interface FilterOptions {
   search?: string;
   estado_filter?: string;
+  sort_field?: string;
+  sort_order?: string;
+}
+
+interface PaginationInfo {
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+  from: number | null;
+  to: number | null;
+  has_pages: boolean;
 }
 
 // --- Componente AlertNotification Mejorado ---
+interface AlertNotificationProps {
+  type: 'success' | 'error';
+  message: string;
+  className?: string;
+  autoClose?: boolean;
+  duration?: number;
+  onClose?: () => void;
+}
+
 interface AlertNotificationProps {
   type: 'success' | 'error';
   message: string;
@@ -123,8 +144,9 @@ function AlertNotification({
 
   return (
     <div
-      className={`fixed top-6 right-6 z-50 max-w-md transition-all duration-500 ease-in-out transform ${animateOut ? 'opacity-0 translate-x-full scale-95' : 'opacity-100 translate-x-0 scale-100'
-        } ${className}`}
+      className={`fixed top-6 right-6 z-50 max-w-md transition-all duration-500 ease-in-out transform ${
+        animateOut ? 'opacity-0 translate-x-full scale-95' : 'opacity-100 translate-x-0 scale-100'
+      } ${className}`}
       onMouseEnter={pauseTimer}
       onMouseLeave={resumeTimer}
     >
@@ -139,20 +161,7 @@ function AlertNotification({
           <p className={`text-sm font-semibold ${colors[type].text} leading-relaxed`}>
             {message}
           </p>
-          {autoClose && (
-            <div className="mt-2">
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1">
-                <div
-                  className={`h-1 rounded-full transition-all duration-100 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'
-                    }`}
-                  style={{
-                    width: `${(remainingTime / duration) * 100}%`,
-                    transition: isPaused ? 'none' : `width ${remainingTime}ms linear`
-                  }}
-                />
-              </div>
-            </div>
-          )}
+          {/* Barra de progreso eliminada */}
         </div>
         <button
           onClick={handleClose}
@@ -211,7 +220,9 @@ function ToggleSwitch({
 function useUsuarioFilters(initialFilters: FilterOptions) {
   const [searchTerm, setSearchTerm] = useState<string>(initialFilters.search || '');
   const [selectedFilters, setSelectedFilters] = useState({
-    estado_filter: initialFilters.estado_filter || ''
+    estado_filter: initialFilters.estado_filter || '',
+    sort_field: initialFilters.sort_field || 'name',
+    sort_order: initialFilters.sort_order || 'asc'
   });
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
@@ -219,6 +230,8 @@ function useUsuarioFilters(initialFilters: FilterOptions) {
     const params: Record<string, string> = {};
     if (currentSearchTerm) params.search = currentSearchTerm;
     if (currentSelectedFilters.estado_filter) params.estado_filter = currentSelectedFilters.estado_filter;
+    if (currentSelectedFilters.sort_field) params.sort_field = currentSelectedFilters.sort_field;
+    if (currentSelectedFilters.sort_order) params.sort_order = currentSelectedFilters.sort_order;
 
     router.get('/usuarios', params, {
       preserveState: true,
@@ -246,7 +259,9 @@ function useUsuarioFilters(initialFilters: FilterOptions) {
   const resetFilters = useCallback(() => {
     setSearchTerm('');
     setSelectedFilters({
-      estado_filter: ''
+      estado_filter: '',
+      sort_field: 'name',
+      sort_order: 'asc'
     });
     router.get('/usuarios', {}, {
       preserveState: true,
@@ -271,109 +286,6 @@ function useUsuarioFilters(initialFilters: FilterOptions) {
   };
 }
 
-// --- Componente de Paginación Mejorado ---
-interface PaginationProps {
-  usuarios: any;
-  filters: FilterOptions;
-  sort_order: string;
-}
-
-function PaginationComponent({ usuarios, filters, sort_order }: PaginationProps) {
-  const handlePageChange = useCallback((page: number) => {
-    router.get('/usuarios', {
-      ...filters,
-      sort_order,
-      page: page
-    }, {
-      preserveState: true,
-      preserveScroll: true,
-    });
-  }, [filters, sort_order]);
-
-  const totalUsuarios = 'total' in usuarios ? usuarios.total : usuarios.length;
-  const currentPage = 'current_page' in usuarios ? usuarios.current_page : 1;
-  const lastPage = 'last_page' in usuarios ? usuarios.last_page : 1;
-
-  if (lastPage <= 1) return null;
-
-  return (
-    <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-      <div className="text-sm text-gray-600 dark:text-gray-400">
-        Página {currentPage} de {lastPage}
-      </div>
-
-      <div className="flex items-center space-x-2">
-        {/* Botón anterior */}
-        <button
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage <= 1}
-          className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${currentPage > 1
-              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
-            }`}
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-
-        {/* Números de página */}
-        {[...Array(lastPage)].map((_, index) => {
-          const pageNum = index + 1;
-          const maxVisiblePages = 5;
-          const halfVisible = Math.floor(maxVisiblePages / 2);
-
-          let showPage = false;
-          if (lastPage <= maxVisiblePages) {
-            showPage = true;
-          } else if (
-            pageNum === 1 ||
-            pageNum === lastPage ||
-            (pageNum >= currentPage - halfVisible && pageNum <= currentPage + halfVisible)
-          ) {
-            showPage = true;
-          }
-
-          if (showPage) {
-            return (
-              <button
-                key={pageNum}
-                onClick={() => handlePageChange(pageNum)}
-                className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors ${currentPage === pageNum
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                  }`}
-              >
-                {pageNum}
-              </button>
-            );
-          } else if (
-            (pageNum === 2 && currentPage > halfVisible + 1) ||
-            (pageNum === lastPage - 1 && currentPage < lastPage - halfVisible)
-          ) {
-            return (
-              <span key={pageNum} className="flex items-center justify-center w-10 h-10 text-sm font-medium text-gray-500 dark:text-gray-400">
-                ...
-              </span>
-            );
-          }
-          return null;
-        })}
-
-        {/* Botón siguiente */}
-        <button
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage >= lastPage}
-          className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${currentPage < lastPage
-              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
-            }`}
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
 const breadcrumbs: BreadcrumbItem[] = [
   { title: 'Usuarios', href: '/usuarios' },
 ];
@@ -386,9 +298,6 @@ const Index = ({
   flash,
   errors = {},
   pagination,
-  sort_order = 'asc',
-  search = '',
-  start_number = 0,
   filters = {}
 }: IndexProps) => {
   const page = usePage();
@@ -402,7 +311,12 @@ const Index = ({
     handleSearch,
     handleFilterChange,
     resetFilters
-  } = useUsuarioFilters({ search, estado_filter: filters?.estado_filter });
+  } = useUsuarioFilters({ 
+    search: filters.search, 
+    estado_filter: filters.estado_filter,
+    sort_field: filters.sort_field,
+    sort_order: filters.sort_order
+  });
 
   // Estado mejorado para alertas
   const [alerts, setAlerts] = useState<{
@@ -495,20 +409,12 @@ const Index = ({
   };
 
   const handleSort = () => {
-    const newSortOrder = sort_order === 'asc' ? 'desc' : 'asc';
-    router.get('/usuarios', {
-      search: searchTerm,
-      sort_order: newSortOrder,
-      estado_filter: selectedFilters.estado_filter,
-    }, {
-      preserveState: true,
-      replace: true,
-    });
+    const newSortOrder = selectedFilters.sort_order === 'asc' ? 'desc' : 'asc';
+    handleFilterChange('sort_order', newSortOrder);
   };
 
   const handleToggleEstado = (usuario: Usuario) => {
     if (confirm(`¿Estás seguro de que deseas ${usuario.estado_activo ? 'desactivar' : 'activar'} al usuario "${usuario.name}"?`)) {
-      // Activar loading para este usuario específico
       setLoadingStates(prev => ({ ...prev, [usuario.id]: true }));
 
       router.patch(`/usuarios/${usuario.id}/toggle-estado`, {}, {
@@ -527,14 +433,12 @@ const Index = ({
           }));
         },
         onFinish: () => {
-          // Desactivar loading
           setLoadingStates(prev => ({ ...prev, [usuario.id]: false }));
         }
       });
     }
   };
 
-  // Navigation handlers - Navegación en lugar de modales
   const handleCreate = () => {
     router.visit('/usuarios/create');
   };
@@ -548,11 +452,55 @@ const Index = ({
   };
 
   const usuariosData = Array.isArray(usuarios) ? usuarios : usuarios.data || [];
-  const totalUsuarios = 'total' in usuarios ? usuarios.total : usuariosData.length;
-  const currentPage = 'current_page' in usuarios ? usuarios.current_page : 1;
-  const lastPage = 'last_page' in usuarios ? usuarios.last_page : 1;
-  const fromRecord = 'from' in usuarios ? usuarios.from : start_number + 1;
-  const toRecord = 'to' in usuarios ? usuarios.to : start_number + usuariosData.length;
+  
+  // Función helper para extraer datos de paginación de manera segura
+  const extractPaginationData = (): PaginationInfo => {
+    // Si pagination existe y está completo, usarlo directamente
+    if (pagination) {
+      return pagination;
+    }
+
+    // Si usuarios es un array simple, retornar valores por defecto
+    if (Array.isArray(usuarios)) {
+      return {
+        current_page: 1,
+        last_page: 1,
+        per_page: 20,
+        total: usuarios.length,
+        from: usuarios.length > 0 ? 1 : null,
+        to: usuarios.length,
+        has_pages: usuarios.length > 20
+      };
+    }
+
+    // Si usuarios es un objeto paginado, extraer sus propiedades
+    const isPaginated = 'current_page' in usuarios && 'last_page' in usuarios;
+    
+    if (isPaginated) {
+      return {
+        current_page: usuarios.current_page ?? 1,
+        last_page: usuarios.last_page ?? 1,
+        per_page: 'per_page' in usuarios ? (usuarios.per_page ?? 20) : 20,
+        total: usuarios.total ?? usuariosData.length,
+        from: 'from' in usuarios ? (usuarios.from ?? (usuariosData.length > 0 ? 1 : null)) : (usuariosData.length > 0 ? 1 : null),
+        to: 'to' in usuarios ? (usuarios.to ?? usuariosData.length) : usuariosData.length,
+        has_pages: (usuarios.total ?? usuariosData.length) > 20
+      };
+    }
+
+    // Fallback para objeto simple sin paginación
+    return {
+      current_page: 1,
+      last_page: 1,
+      per_page: 20,
+      total: usuariosData.length,
+      from: usuariosData.length > 0 ? 1 : null,
+      to: usuariosData.length,
+      has_pages: usuariosData.length > 20
+    };
+  };
+
+  const paginationData = extractPaginationData();
 
   const getRoleBadgeColor = (roleName: string) => {
     switch (roleName) {
@@ -566,6 +514,21 @@ const Index = ({
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
     }
   };
+
+  const handlePageChange = useCallback((pageNum: number) => {
+    const params: Record<string, string> = {
+      page: String(pageNum)
+    };
+    if (searchTerm) params.search = searchTerm;
+    if (selectedFilters.estado_filter) params.estado_filter = selectedFilters.estado_filter;
+    if (selectedFilters.sort_field) params.sort_field = selectedFilters.sort_field;
+    if (selectedFilters.sort_order) params.sort_order = selectedFilters.sort_order;
+
+    router.get('/usuarios', params, {
+      preserveState: true,
+      preserveScroll: true,
+    });
+  }, [searchTerm, selectedFilters]);
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -616,7 +579,6 @@ const Index = ({
             </div>
           </div>
 
-          {/* Panel de filtros */}
           {showFilters && (
             <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md border border-gray-100 dark:border-gray-700 mb-4">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-3">
@@ -646,18 +608,17 @@ const Index = ({
             </div>
           )}
 
-          {/* Información de resultados */}
-          {typeof totalUsuarios === 'number' && totalUsuarios > 0 && (
+          {paginationData.total > 0 && (
             <div className="mb-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Mostrando {fromRecord || 1} a {toRecord || usuariosData.length} de {totalUsuarios} resultados
+              Mostrando {paginationData.from || 1} a {paginationData.to || usuariosData.length} de {paginationData.total} resultados
             </div>
           )}
 
-          {/* Tabla de usuarios */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full table-auto">
                 <colgroup>
+                  <col className="w-12" />
                   <col className="min-w-[140px]" />
                   <col className="min-w-[180px]" />
                   <col className="min-w-[100px]" />
@@ -669,13 +630,14 @@ const Index = ({
                 </colgroup>
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-700">
+                    <th className="px-2 sm:px-3 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">N°</th>
                     <th className="px-2 sm:px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       <button
                         onClick={handleSort}
                         className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-100"
                       >
                         <span>Nombre</span>
-                        {sort_order === 'asc' ? (
+                        {selectedFilters.sort_order === 'asc' ? (
                           <ChevronUp className="h-3 w-3" />
                         ) : (
                           <ChevronDown className="h-3 w-3" />
@@ -693,8 +655,11 @@ const Index = ({
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
                   {usuariosData.length > 0 ? (
-                    usuariosData.map((usuario, index) => (
+                    usuariosData.map((usuario) => (
                       <tr key={usuario.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center text-gray-600 dark:text-gray-400 text-xs sm:text-sm font-medium">
+                          {usuario.position}
+                        </td>
                         <td className="px-2 sm:px-3 py-2 text-gray-700 dark:text-gray-300 font-medium text-xs sm:text-sm">
                           <div className="flex flex-col">
                             <span className="font-medium truncate">{usuario.name}</span>
@@ -802,7 +767,7 @@ const Index = ({
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 text-sm">
+                      <td colSpan={9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 text-sm">
                         <div className="flex flex-col items-center space-y-3">
                           <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
                             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -835,8 +800,84 @@ const Index = ({
             </div>
           </div>
 
-          {/* Paginación usando el componente mejorado */}
-          <PaginationComponent usuarios={usuarios} filters={{ search: searchTerm, estado_filter: selectedFilters.estado_filter }} sort_order={sort_order} />
+          {/* Paginación Optimizada */}
+          {paginationData.has_pages && paginationData.last_page > 1 && (
+            <div className="mt-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Página {paginationData.current_page} de {paginationData.last_page}
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handlePageChange(paginationData.current_page - 1)}
+                  disabled={paginationData.current_page <= 1}
+                  className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+                    paginationData.current_page > 1
+                      ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+
+                {[...Array(paginationData.last_page)].map((_, index) => {
+                  const pageNum = index + 1;
+                  const maxVisiblePages = 5;
+                  const currentPage = paginationData.current_page;
+                  const halfVisible = Math.floor(maxVisiblePages / 2);
+
+                  let showPage = false;
+                  if (paginationData.last_page <= maxVisiblePages) {
+                    showPage = true;
+                  } else if (
+                    pageNum === 1 ||
+                    pageNum === paginationData.last_page ||
+                    (pageNum >= currentPage - halfVisible && pageNum <= currentPage + halfVisible)
+                  ) {
+                    showPage = true;
+                  }
+
+                  if (showPage) {
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  } else if (
+                    (pageNum === 2 && currentPage > halfVisible + 1) ||
+                    (pageNum === paginationData.last_page - 1 && currentPage < paginationData.last_page - halfVisible)
+                  ) {
+                    return (
+                      <span key={pageNum} className="flex items-center justify-center w-10 h-10 text-sm font-medium text-gray-500 dark:text-gray-400">
+                        ...
+                      </span>
+                    );
+                  }
+                  return null;
+                })}
+
+                <button
+                  onClick={() => handlePageChange(paginationData.current_page + 1)}
+                  disabled={paginationData.current_page >= paginationData.last_page}
+                  className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+                    paginationData.current_page < paginationData.last_page
+                      ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>

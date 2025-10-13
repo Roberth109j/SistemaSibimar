@@ -420,15 +420,15 @@ class LibroController extends Controller
         try {
             DB::beginTransaction();
 
-            // Crear el libro sin signatura topográfica (se generará después)
+            // Crear el libro SIN signatura topográfica primero
             $libro = new Libro();
-            $libro->codigo_unico = $request->codigo_unico; // Cambio de isbn a codigo_unico
+            $libro->codigo_unico = $request->codigo_unico;
             $libro->titulo = $request->titulo;
             $libro->contenido = $request->contenido;
             $libro->seccion_id = $request->seccion_id;
             $libro->autor_id = $request->autor_id;
             $libro->editorial_id = $request->editorial_id;
-            $libro->area = $request->area; // Nuevo campo
+            $libro->area = $request->area;
             $libro->clase = $request->clase;
             $libro->tomo = $request->tomo;
             $libro->edicion = $request->edicion;
@@ -441,23 +441,40 @@ class LibroController extends Controller
             $libro->tema_id = $request->tema_id;
             $libro->estanteria_id = $request->estanteria_id;
 
-            $libro->save();
+            // MANEJAR SIGNATURA SEGÚN EL MODO
+            if ($request->signatura_automatica) {
+                // Modo automático: generar signatura
+                $libro->save(); // Guardar primero para tener el ID
+                
+                $signaturaController = new \App\Http\Controllers\SignaturaTopograficaController();
+                $signaturaController->generarYGuardarSignatura(
+                    $libro->id,
+                    $request->autor_id,
+                    $request->tema_id,
+                    $request->titulo
+                );
+                
+                Log::info('Signatura generada automáticamente al crear libro:', [
+                    'libro_id' => $libro->id,
+                    'signatura' => $libro->fresh()->sign_top
+                ]);
+            } else {
+                // Modo manual: usar la signatura proporcionada por el usuario
+                $libro->sign_top = $request->sign_top;
+                $libro->save();
+                
+                Log::info('Signatura ingresada manualmente al crear libro:', [
+                    'libro_id' => $libro->id,
+                    'signatura' => $request->sign_top
+                ]);
+            }
 
-            // Generar y guardar signatura topográfica usando el controlador especializado
-            $signaturaController = new \App\Http\Controllers\SignaturaTopograficaController();
-            $signaturaController->generarYGuardarSignatura(
-                $libro->id,
-                $request->autor_id,
-                $request->tema_id,
-                $request->titulo
-            );
-
-            // **NUEVO: Crear ejemplar automáticamente después de crear el libro**
+            // Crear ejemplar automáticamente después de crear el libro
             $ejemplar = new Ejemplar();
             $ejemplar->libro_id = $libro->id;
-            $ejemplar->numEjemplar = 1; // Primer ejemplar siempre es número 1
-            $ejemplar->tipo_adquisicion = 'COMPRA'; // Valor por defecto
-            $ejemplar->estado = 'DISPONIBLE'; // Valor por defecto
+            $ejemplar->numEjemplar = 1;
+            $ejemplar->tipo_adquisicion = 'COMPRA';
+            $ejemplar->estado = 'DISPONIBLE';
             $ejemplar->observaciones = 'Ejemplar creado automáticamente al registrar el libro';
             $ejemplar->save();
 
@@ -466,7 +483,8 @@ class LibroController extends Controller
             Log::info('Libro y ejemplar creados exitosamente:', [
                 'libro_id' => $libro->id,
                 'titulo' => $libro->titulo,
-                'ejemplar_id' => $ejemplar->id
+                'ejemplar_id' => $ejemplar->id,
+                'modo_signatura' => $request->signatura_automatica ? 'automático' : 'manual'
             ]);
 
             return redirect()->route('libros.index')
@@ -693,7 +711,8 @@ class LibroController extends Controller
             'edad_recomendada' => 'nullable|integer|min:0|max:100',
             'contenido' => 'nullable|string',
             'signatura_automatica' => 'required|boolean',
-            'sign_top' => $signaturaRule,
+            'sign_top' => $request->signatura_automatica ? 'nullable|string|max:50' : 'required|string|max:50',
+], [
         ], [
             'codigo_unico.required' => 'El código único es obligatorio.',
             'codigo_unico.unique' => 'Este código único ya está registrado en el sistema.',

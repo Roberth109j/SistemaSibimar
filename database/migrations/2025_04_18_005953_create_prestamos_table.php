@@ -15,23 +15,33 @@ return new class extends Migration
             $table->id();
 
             // Relación con el ejemplar prestado
-            $table->foreignId('ejemplar_id')->constrained('ejemplares')->onDelete('restrict');
+            $table->foreignId('ejemplar_id')
+                ->constrained('ejemplares')
+                ->onDelete('restrict'); 
 
             // Relación con el lector (estudiante o usuario)
-            $table->foreignId('lector_id')->constrained('lectores')->onDelete('cascade');
+            $table->foreignId('lector_id')
+                ->constrained('lectores')
+                ->onDelete('cascade');
 
             // Fecha del préstamo
-            $table->date('fecha_prestamo');
+            $table->date('fecha_prestamo')
+                ->index(); 
 
             // Fecha esperada de devolución
-            $table->date('fecha_devolucion');
+            $table->date('fecha_devolucion')
+                ->index();
 
             // Fecha real de devolución (si ya fue devuelto)
             $table->date('fecha_devuelto')->nullable();
 
             // Estado del préstamo
-            $table->enum('estado', ['ACTIVO', 'DEVUELTO', 'VENCIDO'])->default('ACTIVO');
+            $table->enum('estado', ['ACTIVO', 'DEVUELTO', 'VENCIDO'])
+                ->default('ACTIVO')
+                ->index();
 
+            //  Índice compuesto para dashboard (préstamos por mes)
+            $table->index(['estado', 'fecha_prestamo'], 'prestamos_estado_fecha_index');
         });
     }
 

@@ -36,7 +36,8 @@ return new class extends Migration
             // Relación con secciones (Primaria / Bachillerato)
             $table->foreignId('seccion_id')
                 ->constrained('secciones')
-                ->onDelete('cascade');
+                ->onDelete('cascade')
+                ->index();
             
             $table->enum('estado', ['ACTIVO', 'INACTIVO'])
                 ->default('ACTIVO');

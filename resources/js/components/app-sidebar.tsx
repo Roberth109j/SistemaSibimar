@@ -28,12 +28,14 @@ import {
     BookUp2,
     Folder,
     Undo2,
-    BookmarkX,
     ArrowRightLeft,
     FolderClock,
     ChevronDown,
     NotebookTabs,
-    FileBarChart
+    FileBarChart,
+    HelpCircle,
+    Users,
+    CodeSquare
 } from 'lucide-react';
 import { useState, useRef, useCallback } from 'react';
 import AppLogo from './app-logo';
@@ -322,7 +324,24 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                            <Link href="/ayuda">
+                                <HelpCircle className="h-5 w-5" />
+                                <span>Ayuda</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild>
+                            <Link href="/nosotros">
+                                <CodeSquare className="h-5 w-5" />
+                                <span>Nosotros</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

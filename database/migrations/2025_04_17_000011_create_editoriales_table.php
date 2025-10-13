@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::create('editoriales', function (Blueprint $table) {
             $table->id();
-            $table->string('nombre')->unique(); // Único para evitar duplicados
+            $table->string('nombre')->unique() // Único para evitar duplicados
+                ->index();
             $table->string('ciudad')->nullable(); // Ciudad donde se encuentra la editorial
             $table->string('pais')->nullable(); // País donde se encuentra la editorial
-            $table->timestamps();
         });
     }
 
