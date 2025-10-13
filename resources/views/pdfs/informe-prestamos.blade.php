@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Informe de Prestamos Realizados</title>
     <style>
+        @page { margin: 15px 10px; }
         body {
             font-family: Arial, sans-serif;
             font-size: 10px;
@@ -72,7 +73,11 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 10px;
+            page-break-inside: auto;
         }
+        thead { display: table-header-group; }
+        tfoot { display: table-footer-group; }
+        tr { page-break-inside: avoid; page-break-after: auto; }
         th, td {
             border: 1px solid #e5e7eb;
             padding: 4px;
@@ -108,9 +113,7 @@
             max-width: none;
             overflow: visible;
         }
-        .page-break {
-            page-break-before: always;
-        }
+        .header, .footer { page-break-inside: avoid; }
     </style>
 </head>
 <body>
@@ -184,7 +187,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($prestamos as $index => $prestamo)
+                @foreach($prestamos as $prestamo)
                     <tr>
                         <td>{{ \Carbon\Carbon::parse($prestamo->fecha_prestamo)->format('d/m/Y') }}</td>
                         <td class="nombre-completo">
@@ -208,24 +211,6 @@
                             }}
                         </td>
                     </tr>
-                    @if(($index + 1) % 30 == 0 && $index < count($prestamos) - 1)
-                    </tbody>
-        </table>
-        <div class="page-break"></div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Lector</th>
-                    <th>Grado</th>
-                    <th>Libro</th>
-                    <th class="text-center">Ejemplar</th>
-                    <th>Estado</th>
-                    <th>F. Devolucion</th>
-                </tr>
-            </thead>
-            <tbody>
-                    @endif
                 @endforeach
             </tbody>
         </table>

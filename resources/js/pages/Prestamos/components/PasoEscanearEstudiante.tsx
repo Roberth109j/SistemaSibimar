@@ -13,6 +13,9 @@ interface PasoEscanearEstudianteProps {
   // PROPS OPCIONALES para préstamos masivos
   tipoPrestamo?: 'individual' | 'masivo';
   ejemplaresSeleccionados?: Ejemplar[];
+  // Observaciones específicas por ejemplar (solo para masivo)
+  observacionesPorEjemplar?: Record<number, string>;
+  onActualizarObservacionEjemplar?: (id: number, observacion: string) => void;
 }
 
 const OPCIONES_DEVOLUCION = [
@@ -31,7 +34,9 @@ export function PasoEscanearEstudiante({
   onVolver,
   error,
   tipoPrestamo = 'individual',
-  ejemplaresSeleccionados = []
+  ejemplaresSeleccionados = [],
+  observacionesPorEjemplar = {},
+  onActualizarObservacionEjemplar
 }: PasoEscanearEstudianteProps) {
   const [codigoEstudiante, setCodigoEstudiante] = useState('');
   const [verificandoEstudiante, setVerificandoEstudiante] = useState<boolean>(false);
@@ -49,15 +54,15 @@ export function PasoEscanearEstudiante({
     inputRef.current?.focus();
   }, []);
 
-  // Inicializar las observaciones con las que ya tiene el ejemplar
+  // Inicializar las observaciones con las que ya tiene el ejemplar (solo en individual)
   useEffect(() => {
-    if (ejemplar.observaciones && !formularioPrestamo.observaciones) {
+    if (tipoPrestamo === 'individual' && ejemplar.observaciones && !formularioPrestamo.observaciones) {
       onActualizarFormulario({
         ...formularioPrestamo,
         observaciones: ejemplar.observaciones
       });
     }
-  }, [ejemplar.observaciones]);
+  }, [ejemplar.observaciones, tipoPrestamo]);
 
   // Validar que sea un código de estudiante válido (solo números y letras)
   const esCodigoValido = (codigo: string): boolean => {
@@ -366,29 +371,59 @@ export function PasoEscanearEstudiante({
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Observaciones del estado del ejemplar{tipoPrestamo === 'masivo' ? ' (aplicadas a todos)' : ''}
-              </label>
-              <textarea
-                value={formularioPrestamo.observaciones}
-                onChange={(e) => onActualizarFormulario({
-                  ...formularioPrestamo,
-                  observaciones: e.target.value
-                })}
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none text-sm dark:bg-gray-700 dark:text-white focus:ring-blue-500"
-                placeholder={tipoPrestamo === 'masivo' 
-                  ? 'Observaciones que se aplicarán a todos los préstamos...'
-                  : 'Registre el estado actual del ejemplar o agregue nuevas observaciones...'
-                }
-              />
-              {tipoPrestamo === 'masivo' && (
+            {tipoPrestamo !== 'masivo' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Observaciones del estado del ejemplar
+                </label>
+                <textarea
+                  value={formularioPrestamo.observaciones}
+                  onChange={(e) => onActualizarFormulario({
+                    ...formularioPrestamo,
+                    observaciones: e.target.value
+                  })}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none text-sm dark:bg-gray-700 dark:text-white focus:ring-blue-500"
+                  placeholder={'Registre el estado actual del ejemplar o agregue nuevas observaciones...'}
+                />
+              </div>
+            )}
+
+            {tipoPrestamo === 'masivo' && ejemplares.length > 0 && (
+              <div className="mt-4">
+                <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Observaciones específicas por ejemplar</span>
+                </div>
+                <div className="max-h-48 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-md">
+                  {ejemplares.map((ejItem) => {
+                    const valor = (observacionesPorEjemplar?.[ejItem.id] ?? ejItem.observaciones ?? '');
+                    return (
+                      <div key={ejItem.id} className="p-3 bg-white dark:bg-gray-800">
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Ejemplar #{ejItem.numEjemplar}
+                        </label>
+                        <textarea
+                          value={valor}
+                          onChange={(e) => onActualizarObservacionEjemplar?.(ejItem.id, e.target.value)}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none text-sm dark:bg-gray-700 dark:text-white focus:ring-blue-500"
+                          placeholder="Observación específica (dejar vacío para mantener la existente)"
+                        />
+                        {ejItem.observaciones && !observacionesPorEjemplar?.[ejItem.id] && (
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Observación actual: {ejItem.observaciones}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Estas observaciones se aplicarán a todos los {ejemplares.length} préstamos
+                  Si deja una observación vacía, se conservará la existente del ejemplar.
                 </p>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

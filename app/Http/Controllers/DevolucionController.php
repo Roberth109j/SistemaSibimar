@@ -249,10 +249,15 @@ class DevolucionController extends Controller
                 'fecha_devuelto' => $request->input('fecha_devuelto')
             ]);
 
-            $prestamo->ejemplar->update([
-                'estado' => 'DISPONIBLE',
-                'observaciones' => $request->input('observaciones', '')
-            ]);
+            // Actualizar ejemplar: NO borrar observaciones si el campo viene vacío
+            $observacionesInput = trim($request->input('observaciones', ''));
+            $ejemplarUpdateData = [
+                'estado' => 'DISPONIBLE'
+            ];
+            if ($observacionesInput !== '') {
+                $ejemplarUpdateData['observaciones'] = $observacionesInput;
+            }
+            $prestamo->ejemplar->update($ejemplarUpdateData);
 
             \DB::commit();
 
@@ -453,11 +458,14 @@ class DevolucionController extends Controller
                         'fecha_devuelto' => $fechaDevuelto
                     ]);
 
-                    // Actualizar ejemplar
-                    $prestamo->ejemplar->update([
-                        'estado' => 'DISPONIBLE',
-                        'observaciones' => $observaciones
-                    ]);
+                    // Actualizar ejemplar: NO borrar observaciones si no hay texto
+                    $ejemplarUpdateData = [
+                        'estado' => 'DISPONIBLE'
+                    ];
+                    if (!empty(trim($observaciones))) {
+                        $ejemplarUpdateData['observaciones'] = $observaciones;
+                    }
+                    $prestamo->ejemplar->update($ejemplarUpdateData);
 
                     $prestamosDevueltos[] = $prestamo;
 
