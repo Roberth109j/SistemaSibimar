@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Informe de Libros Perdidos</title>
     <style>
+        @page { margin: 15px 10px; }
         body {
             font-family: Arial, sans-serif;
             font-size: 10px;
@@ -72,7 +73,11 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 10px;
+            page-break-inside: auto;
         }
+        thead { display: table-header-group; }
+        tfoot { display: table-footer-group; }
+        tr { page-break-inside: avoid; page-break-after: auto; }
         th, td {
             border: 1px solid #e5e7eb;
             padding: 4px;
@@ -124,8 +129,9 @@
             font-size: 9px;
         }
         .page-break {
-            page-break-before: always;
+            /* ya no se usa para cortes manuales */
         }
+        .header, .footer { page-break-inside: avoid; }
     </style>
 </head>
 <body>
@@ -188,22 +194,6 @@
                         <td>{{ $ejemplar->fecha_perdida_formateada }}</td>
                         <td style="word-wrap: break-word; white-space: normal; max-width: 100px;">{{ $ejemplar->observaciones ?: 'Sin observaciones' }}</td>
                     </tr>
-                    @if(($index + 1) % 30 == 0 && $index < count($ejemplares_perdidos) - 1)
-                    </tbody>
-        </table>
-        <div class="page-break"></div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Titulo</th>
-                    <th>Autor</th>
-                    <th class="text-center">Ejemplar</th>
-                    <th>Fecha Perdida</th>
-                    <th>Observaciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                    @endif
                 @endforeach
             </tbody>
         </table>

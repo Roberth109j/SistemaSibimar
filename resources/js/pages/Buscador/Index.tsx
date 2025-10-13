@@ -3,6 +3,21 @@ import { Head, router } from '@inertiajs/react';
 import { Search, ChevronLeft, ChevronRight, BookOpen, MapPin, CheckCircle, Eye, GraduationCap, Users, ArrowLeft, Home, ChevronDown, ChevronRight as ChevronRightIcon, FileText } from 'lucide-react';
 import { Autor, Estanteria, Seccion, Libro, PaginationLink, PaginatedLibros, BuscadorProps } from './types';
 
+// Utilidad: Formatea el nombre del autor a "Nombre Apellido" evitando dependencias del backend
+const formatAutorDisplayName = (autor: Autor | null | undefined): string => {
+  if (!autor || !autor.nombre) return '-';
+  const raw = autor.nombre.trim();
+  // Maneja formato "Apellidos, Nombres" -> "Nombres Apellidos"
+  const commaIndex = raw.indexOf(',');
+  if (commaIndex !== -1) {
+    const apellido = raw.slice(0, commaIndex).trim();
+    const nombre = raw.slice(commaIndex + 1).trim();
+    return [nombre, apellido].filter(Boolean).join(' ');
+  }
+  // Si ya viene sin coma, devolver tal cual
+  return raw;
+};
+
 // Componentes memoizados para evitar re-renders innecesarios
 const LoadingSpinner = memo(({ search, seccionNombre }: { search: string; seccionNombre: string }) => (
   <div className="text-center py-12">
@@ -225,7 +240,7 @@ const LibroRow = memo(({ libro, isExpanded, onToggleExpanded }: {
         </td>
         
         <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 align-middle text-left">
-          {libro.autor.nombre}
+          {formatAutorDisplayName(libro.autor)}
         </td>
         
         <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 align-middle text-center">

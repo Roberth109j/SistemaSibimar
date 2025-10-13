@@ -219,58 +219,8 @@ export default function ConfirmacionModalMultiple({
               </div>
             </div>
           </div>
-
-          {/* Observaciones globales (opcional y expandible) */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                Observaciones generales (opcional)
-              </label>
-              <button
-                onClick={() => setMostrarObservacionesGlobales(!mostrarObservacionesGlobales)}
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 
-                           font-medium flex items-center gap-1 transition-colors"
-              >
-                {mostrarObservacionesGlobales ? (
-                  <>
-                    <EyeOff className="w-4 h-4" />
-                    Ocultar
-                  </>
-                ) : (
-                  <>
-                    <Eye className="w-4 h-4" />
-                    Mostrar
-                  </>
-                )}
-                {mostrarObservacionesGlobales ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-            </div>
-            
-            {mostrarObservacionesGlobales && (
-              <div className="space-y-2">
-                <textarea
-                  value={observacionesGlobales}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setObservacionesGlobales(e.target.value)}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 h-20
-                             bg-white dark:bg-gray-700 text-gray-900 dark:text-white
-                             focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500
-                             placeholder-gray-400 dark:placeholder-gray-500 resize-none
-                             transition-all duration-200"
-                  placeholder="Estado general de todos los ejemplares, observaciones comunes..."
-                  maxLength={LIMITES_DEVOLUCION_MULTIPLE.MAX_OBSERVACIONES_GLOBALES}
-                />
-                <div className="flex justify-between items-center text-xs">
-                  <div className="text-gray-500 dark:text-gray-400">
-                    Se aplicará a {estadisticas.prestamosQueUsaranObservacionesGlobales} ejemplar(es) sin observaciones específicas
-                  </div>
-                  <div className="text-gray-500 dark:text-gray-400">
-                    {observacionesGlobales.length}/{LIMITES_DEVOLUCION_MULTIPLE.MAX_OBSERVACIONES_GLOBALES}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          
+          
 
           {/* Lista de préstamos con paginación mejorada */}
           <div>
@@ -318,7 +268,8 @@ export default function ConfirmacionModalMultiple({
                   const fechaDevolucion = new Date(prestamo.fecha_devolucion);
                   const hoy = new Date();
                   const estaVencido = fechaDevolucion < hoy;
-                  const observacionIndividual = observacionesIndividuales.get(prestamo.id) || '';
+                  // Prefill with DB observation from ejemplar if present; empty if null
+                  const observacionIndividual = (observacionesIndividuales.get(prestamo.id) ?? prestamo.ejemplar.observaciones ?? '').toString();
                   const tieneObservacionExpandida = prestamosConObservacionesExpandidas.has(prestamo.id);
                   const usaraObservacionGlobal = !observacionIndividual.trim() && observacionesGlobales.trim();
 

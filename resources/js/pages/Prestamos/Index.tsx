@@ -85,6 +85,8 @@ export default function Index({
   );
   const [cargando, setCargando] = useState<boolean>(false);
   const [mostrarResumen, setMostrarResumen] = useState<boolean>(false);
+  // Observaciones específicas por ejemplar (solo masivo)
+  const [observacionesPorEjemplar, setObservacionesPorEjemplar] = useState<Record<number, string>>({});
   
   // Estado del formulario de préstamo
   const [formularioPrestamo, setFormularioPrestamo] = useState<PrestamoForm>({
@@ -221,7 +223,10 @@ export default function Index({
       codigo_lector: lectorSeleccionado.codigo,
       fecha_prestamo: formularioPrestamo.fecha_prestamo,
       fecha_devolucion: formularioPrestamo.fecha_devolucion,
-      estado: formularioPrestamo.estado
+      estado: formularioPrestamo.estado,
+      // Observaciones: globales y por ejemplar. El backend aplicará las no vacías
+      observaciones_globales: formularioPrestamo.observaciones,
+      observaciones_por_ejemplar: observacionesPorEjemplar
     } : {
       ejemplar_id: ejemplaresSeleccionados[0].id,
       codigo_lector: lectorSeleccionado.codigo,
@@ -543,6 +548,10 @@ export default function Index({
                 // NUEVO: Pasar información adicional para préstamos masivos
                 tipoPrestamo={tipoPrestamo}
                 ejemplaresSeleccionados={ejemplaresSeleccionados}
+                observacionesPorEjemplar={observacionesPorEjemplar}
+                onActualizarObservacionEjemplar={(id, obs) =>
+                  setObservacionesPorEjemplar(prev => ({ ...prev, [id]: obs }))
+                }
               />
             )}
           </div>

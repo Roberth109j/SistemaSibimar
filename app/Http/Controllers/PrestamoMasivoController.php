@@ -22,7 +22,10 @@ class PrestamoMasivoController extends Controller
             'ejemplar_ids.*' => 'required|exists:ejemplares,id',
             'codigo_lector' => 'required|exists:lectores,codigo',
             'fecha_prestamo' => 'required|date',
-            'fecha_devolucion' => 'required|date|after:fecha_prestamo'
+            'fecha_devolucion' => 'required|date|after:fecha_prestamo',
+            // Observaciones (opcionales)
+            'observaciones_globales' => 'nullable|string',
+            'observaciones_por_ejemplar' => 'nullable|array'
         ], [
             'ejemplar_ids.required' => 'Debe seleccionar al menos un ejemplar.',
             'ejemplar_ids.array' => 'Los ejemplares deben ser un arreglo válido.',
@@ -79,6 +82,11 @@ class PrestamoMasivoController extends Controller
 
             $prestamosCreados = [];
             $ejemplaresPrestados = [];
+            $observacionesGlobales = trim((string)($request->input('observaciones_globales') ?? ''));
+            $observacionesPorEjemplar = $request->input('observaciones_por_ejemplar', []);
+            if (!is_array($observacionesPorEjemplar)) {
+                $observacionesPorEjemplar = [];
+            }
 
             // Crear un préstamo por cada ejemplar
             foreach ($ejemplares as $ejemplar) {
@@ -91,10 +99,28 @@ class PrestamoMasivoController extends Controller
                     'estado' => 'ACTIVO'
                 ]);
 
-                // Actualizar estado del ejemplar a PRESTADO
-                $ejemplar->update([
-                    'estado' => 'PRESTADO'
-                ]);
+                // Actualizar estado del ejemplar a PRESTADO y observaciones si corresponde
+                $observacionParaEjemplar = '';
+                if (array_key_exists($ejemplar->id, $observacionesPorEjemplar)) {
+                    $observacionParaEjemplar = trim((string)$observacionesPorEjemplar[$ejemplar->id]);
+                }
+
+                if ($observacionParaEjemplar !== '') {
+                    $ejemplar->update([
+                        'estado' => 'PRESTADO',
+                        'observaciones' => $observacionParaEjemplar
+                    ]);
+                } elseif ($observacionesGlobales !== '') {
+                    $ejemplar->update([
+                        'estado' => 'PRESTADO',
+                        'observaciones' => $observacionesGlobales
+                    ]);
+                } else {
+                    // No modificar observaciones si no se proporcionan nuevas
+                    $ejemplar->update([
+                        'estado' => 'PRESTADO'
+                    ]);
+                }
 
                 $prestamosCreados[] = $prestamo->id;
                 $ejemplaresPrestados[] = $ejemplar->numEjemplar;

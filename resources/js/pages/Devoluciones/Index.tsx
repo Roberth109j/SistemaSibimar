@@ -757,6 +757,7 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
                   const diasVencimiento = calcularDiasVencimiento(prestamo.fecha_devolucion);
                   const isSelected = prestamosSeleccionados.has(prestamo.id);
                   const observacionesExpanded = prestamosConObservacionesExpandidas.has(prestamo.id);
+                  const observacionIndividual = (observacionesIndividuales.get(prestamo.id) ?? prestamo.ejemplar.observaciones ?? '');
                   
                   return (
                     <div 
@@ -866,7 +867,7 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
                                     Observaciones específicas para el ejemplar #{prestamo.ejemplar.numEjemplar}:
                                   </label>
                                   <textarea
-                                    value={observacionesIndividuales.get(prestamo.id) || ''}
+                                    value={observacionIndividual}
                                     onChange={(e) => {
                                       setObservacionesIndividuales(prev => {
                                         const nuevas = new Map(prev);
@@ -887,7 +888,7 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
                                   />
                                   <div className="flex justify-between items-center text-xs text-blue-600 dark:text-blue-400 mt-1">
                                     <span>Estas observaciones prevalecen sobre las globales</span>
-                                    <span>{(observacionesIndividuales.get(prestamo.id) || '').length}/{LIMITES_DEVOLUCION_MULTIPLE.MAX_OBSERVACIONES_INDIVIDUALES}</span>
+                                    <span>{observacionIndividual.length}/{LIMITES_DEVOLUCION_MULTIPLE.MAX_OBSERVACIONES_INDIVIDUALES}</span>
                                   </div>
                                 </div>
                               )}

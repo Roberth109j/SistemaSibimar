@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Informe de Libros Vencidos No Devueltos</title>
     <style>
+        @page { margin: 15px 10px; }
         body {
             font-family: Arial, sans-serif;
             font-size: 10px;
@@ -101,7 +102,11 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 10px;
+            page-break-inside: auto;
         }
+        thead { display: table-header-group; }
+        tfoot { display: table-footer-group; }
+        tr { page-break-inside: avoid; page-break-after: auto; }
         th, td {
             border: 1px solid #e5e7eb;
             padding: 4px;
@@ -143,8 +148,9 @@
             overflow: visible;
         }
         .page-break {
-            page-break-before: always;
+            /* ya no se usa para cortes manuales */
         }
+        .header, .footer { page-break-inside: avoid; }
     </style>
 </head>
 <body>
@@ -288,26 +294,6 @@
                             <span class="{{ $severidadClase }}">{{ $severidadTexto }}</span>
                         </td>
                     </tr>
-                    @if(($index + 1) % 25 == 0 && $index < count($prestamos_no_devueltos) - 1)
-                    </tbody>
-        </table>
-        <div class="page-break"></div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Estudiante</th>
-                    <th>Codigo</th>
-                    <th>Grado</th>
-                    <th>Libro</th>
-                    <th>Ejemplar</th>
-                    <th>F. Prestamo</th>
-                    <th>F. Vencimiento</th>
-                    <th>Dias Retraso</th>
-                    <th>Severidad</th>
-                </tr>
-            </thead>
-            <tbody>
-                    @endif
                 @endforeach
             </tbody>
         </table>
