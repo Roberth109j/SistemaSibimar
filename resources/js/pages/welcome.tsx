@@ -430,7 +430,7 @@ export default function Welcome() {
                         
                         <div className="border-t border-blue-400/20 pt-1">
                             <p className="text-xs text-white/90">
-                                © {new Date().getFullYear()} Todos los derechos reservados.
+                                © {new Date().getFullYear()} Liceo de la Merced Maridíaz - Todos los derechos reservados.
                             </p>
                         </div>
                     </div>

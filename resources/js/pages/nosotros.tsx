@@ -38,23 +38,10 @@ export default function DevelopersModal({ isOpen, onClose }: DevelopersModalProp
       role: "Developer",
       linkedin: "https://linkedin.com/in/roberth-jose-riascos-salcedo-488368378",
       github: "https://github.com/Roberth109j",
-      avatar: "https://ui-avatars.com/api/?name=Roberth+Riascos&background=10b981&color=fff&bold=true&size=80",
+      avatar: "https://ui-avatars.com/api/?name=Roberth+Riascos&background=c0392b&color=fff&bold=true&size=80",
       color: "from-emerald-500 to-teal-500"
     }
   ];
-
-  const modalFooter = (
-    <button
-      type="button"
-      onClick={onClose}
-      className="px-6 py-2 text-sm font-semibold rounded-lg shadow-sm
-        bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 
-        text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-        transition-all duration-200 transform hover:scale-105"
-    >
-      Cerrar
-    </button>
-  );
 
   return (
     <Modal
@@ -62,7 +49,6 @@ export default function DevelopersModal({ isOpen, onClose }: DevelopersModalProp
       onClose={onClose}
       title="Nuestro Equipo de Desarrollo"
       description="Conoce el equipo que hizo posible este proyecto"
-      footer={modalFooter}
     >
       <div className="space-y-3 max-h-[450px] overflow-y-auto pr-2 
                       scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 
