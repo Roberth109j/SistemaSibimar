@@ -22,7 +22,7 @@ class Editorial extends Model
      *
      * @var bool
      */
-    public $timestamps = true;
+    public $timestamps = false;
 
     /**
      * Los atributos que son asignables en masa.
