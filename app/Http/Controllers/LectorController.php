@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Lector;
 use App\Models\Grado;
+use App\Models\Seccion;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,7 +31,7 @@ class LectorController extends Controller
             ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
             ->select([
                 'lectores.*',
-                \DB::raw("(SELECT COUNT(*) FROM prestamos WHERE prestamos.lector_id = lectores.id AND prestamos.estado = 'ACTIVO') as prestamos_count")
+                DB::raw("(SELECT COUNT(*) FROM prestamos WHERE prestamos.lector_id = lectores.id AND prestamos.estado = 'ACTIVO') as prestamos_count")
             ])
             //  Primero ordenar por estado (ACTIVO primero, INACTIVO al final)
             ->orderByRaw("CASE WHEN lectores.estado = 'ACTIVO' THEN 0 ELSE 1 END")
@@ -38,10 +41,11 @@ class LectorController extends Controller
 
         // Aplicar filtros
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = trim($request->search);
             $query->where(function($q) use ($search) {
-                $q->where('lectores.nombre', 'LIKE', "%{$search}%")
-                ->orWhere('lectores.codigo', 'LIKE', "%{$search}%");
+                // Búsqueda insensible a mayúsculas/minúsculas en nombre y código
+                $q->whereRaw('LOWER(lectores.nombre) LIKE ?', ['%' . strtolower($search) . '%'])
+                  ->orWhereRaw('LOWER(lectores.codigo) LIKE ?', ['%' . strtolower($search) . '%']);
             });
         }
 
@@ -125,12 +129,12 @@ class LectorController extends Controller
             ->with('seccion');
         
         if ($user->hasRole('BibliotecarioPrimaria')) {
-            $seccion = \App\Models\Seccion::where('nombre', 'PRIMARIA')->first();
+            $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
             if ($seccion) {
                 $gradosQuery->where('seccion_id', $seccion->id);
             }
         } elseif ($user->hasRole('BibliotecarioBachillerato')) {
-            $seccion = \App\Models\Seccion::where('nombre', 'BACHILLERATO')->first();
+            $seccion = Seccion::where('nombre', 'BACHILLERATO')->first();
             if ($seccion) {
                 $gradosQuery->where('seccion_id', $seccion->id);
             }
@@ -216,12 +220,12 @@ class LectorController extends Controller
             ->with('seccion');
         
         if ($user->hasRole('BibliotecarioPrimaria')) {
-            $seccion = \App\Models\Seccion::where('nombre', 'PRIMARIA')->first();
+            $seccion = Seccion::where('nombre', 'PRIMARIA')->first();
             if ($seccion) {
                 $gradosQuery->where('seccion_id', $seccion->id);
             }
         } elseif ($user->hasRole('BibliotecarioBachillerato')) {
-            $seccion = \App\Models\Seccion::where('nombre', 'BACHILLERATO')->first();
+            $seccion = Seccion::where('nombre', 'BACHILLERATO')->first();
             if ($seccion) {
                 $gradosQuery->where('seccion_id', $seccion->id);
             }
@@ -301,14 +305,14 @@ class LectorController extends Controller
     {         
         $codigo = $request->input('codigo');
         
-        \Log::info('Buscando lector con código: ' . $codigo);
+        Log::info('Buscando lector con código: ' . $codigo);
         
         $lector = Lector::where('codigo', $codigo)
             ->where('estado', Lector::ESTADO_ACTIVO)
              ->with('grado')
             ->first();
         
-        \Log::info('Lector encontrado: ' . ($lector ? 'SÍ' : 'NO'));
+        Log::info('Lector encontrado: ' . ($lector ? 'SÍ' : 'NO'));
                     
         if (!$lector) {
             return response()->json([
@@ -395,7 +399,7 @@ class LectorController extends Controller
             return back()->with('success', "Se cambió exitosamente el estado de {$actualizados} estudiantes a {$estadoTexto}.");
             
         } catch (\Exception $e) {
-            \Log::error('Error en cambio masivo de estado:', [
+            Log::error('Error en cambio masivo de estado:', [
                 'error' => $e->getMessage(),
                 'lector_ids' => $validated['lector_ids'],
                 'nuevo_estado' => $validated['nuevo_estado']
@@ -436,7 +440,7 @@ class LectorController extends Controller
             return back()->with('success', "Se asignaron exitosamente {$actualizados} estudiantes al grado {$gradoDestino->grado}° {$gradoDestino->subGrado}.");
             
         } catch (\Exception $e) {
-            \Log::error('Error en asignación masiva de grados:', [
+            Log::error('Error en asignación masiva de grados:', [
                 'error' => $e->getMessage(),
                 'lector_ids' => $validated['lector_ids'],
                 'nuevo_grado_id' => $validated['nuevo_grado_id']
