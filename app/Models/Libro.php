@@ -15,13 +15,13 @@ class Libro extends Model
     protected $table = 'libros';
 
     protected $fillable = [
-        'codigo_unico', // Cambio de 'isbn' a 'codigo_unico'
+        'codigo_unico',
         'titulo',
         'contenido',
         'seccion_id',
         'autor_id',
         'editorial_id',
-        'area', // Nuevo campo
+        'area',
         'clase',
         'tomo',
         'edicion',
@@ -36,8 +36,9 @@ class Libro extends Model
         'estanteria_id'
     ];
 
+    // ✅ FIX: Cambiar 'date' a 'date:Y-m-d' para evitar problemas de timezone
     protected $casts = [
-        'fecha_ingreso' => 'date',
+        'fecha_ingreso' => 'date:Y-m-d',  // Formato fijo sin timezone
         'anio' => 'integer',
         'precio' => 'decimal:2',
         'paginas' => 'integer',
@@ -101,7 +102,6 @@ class Libro extends Model
     // Scopes
     public function scopeDisponibles($query)
     {
-        // Implementar lógica para libros disponibles
         return $query;
     }
 
@@ -120,7 +120,6 @@ class Libro extends Model
         return $query->where('area', $area);
     }
 
-    // Scope para búsqueda de texto completo
     public function scopeSearchByContent($query, $searchTerm)
     {
         return $query->whereRaw(
@@ -133,9 +132,9 @@ class Libro extends Model
     public static function getCodigoValidationRule($clase)
     {
         if ($clase === self::CLASE_LIBRO) {
-            return 'regex:/^\d{13}$/'; // ISBN 13 dígitos
+            return 'regex:/^\d{13}$/';
         } elseif ($clase === self::CLASE_REVISTA) {
-            return 'regex:/^\d{8}$/'; // ISSN 8 dígitos
+            return 'regex:/^\d{8}$/';
         }
         return 'required|string';
     }

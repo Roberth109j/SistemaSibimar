@@ -13,36 +13,37 @@ interface GeneralInfoSectionProps {
   editoriales: any[];
   secciones: any[];
   clases: string[];
-  areas: string[]; // Nuevo prop
+  areas: string[];
   idiomas: string[];
   estanterias: any[];
   isAdmin: boolean;
   onNext: () => void;
+  // ✅ NUEVOS CALLBACKS desde el padre
+  onAutorCreated: (autor: any) => void;
+  onEditorialCreated: (editorial: any) => void;
+  onEstanteriaCreated: (estanteria: any) => void;
 }
 
 export default function GeneralInfoSection({
   form,
-  autores: initialAutores,
-  editoriales: initialEditoriales,
+  autores,
+  editoriales,
   secciones,
   clases,
-  areas, // Nuevo prop
+  areas,
   idiomas,
-  estanterias: initialEstanterias,
+  estanterias,
   isAdmin,
-  onNext
+  onNext,
+  onAutorCreated,
+  onEditorialCreated,
+  onEstanteriaCreated
 }: GeneralInfoSectionProps) {
-  
-  // Estados locales para manejar las listas actualizables
-  const [autores, setAutores] = useState(initialAutores);
-  const [editoriales, setEditoriales] = useState(initialEditoriales);
-  const [estanterias, setEstanterias] = useState(initialEstanterias);
-  const [estanteriasFiltradas, setEstanteriasFiltradas] = useState(initialEstanterias);
-  
-  // Estado para manejar el tipo de código según la clase seleccionada
+
+  // ✅ Solo filtrado de estanterías (no estado de listas)
+  const [estanteriasFiltradas, setEstanteriasFiltradas] = useState(estanterias);
   const [codigoTipo, setCodigoTipo] = useState<'ISBN' | 'ISSN' | null>(null);
 
-  // Efecto para determinar el tipo de código según la clase
   useEffect(() => {
     if (form.data.clase === 'LIBRO') {
       setCodigoTipo('ISBN');
@@ -53,22 +54,20 @@ export default function GeneralInfoSection({
     }
   }, [form.data.clase]);
 
-  // Efecto para inicializar la sección automáticamente para administradores
   useEffect(() => {
     if (isAdmin && secciones.length > 0 && !form.data.seccion_id) {
       form.setData('seccion_id', secciones[0].id);
     }
   }, [isAdmin, secciones, form.data.seccion_id]);
 
-  // Efecto para filtrar estanterías según la sección seleccionada (solo para administradores)
+  // ✅ Actualizar filtrado cuando cambien las estanterías del padre
   useEffect(() => {
     if (isAdmin && form.data.seccion_id) {
-      const estanteriasFiltradas = estanterias.filter(estanteria => 
+      const filtradas = estanterias.filter(estanteria =>
         estanteria.seccion_id === parseInt(form.data.seccion_id)
       );
-      setEstanteriasFiltradas(estanteriasFiltradas);
-      
-      // Limpiar la estantería seleccionada si no pertenece a la nueva sección
+      setEstanteriasFiltradas(filtradas);
+
       if (form.data.estanteria_id) {
         const estanteriaSeleccionada = estanterias.find(e => e.id === parseInt(form.data.estanteria_id));
         if (estanteriaSeleccionada && estanteriaSeleccionada.seccion_id !== parseInt(form.data.seccion_id)) {
@@ -76,12 +75,10 @@ export default function GeneralInfoSection({
         }
       }
     } else {
-      // Para no administradores, mostrar todas las estanterías de su sección
       setEstanteriasFiltradas(estanterias);
     }
   }, [isAdmin, form.data.seccion_id, estanterias, form.data.estanteria_id]);
 
-  // Función para validar campos obligatorios de esta sección
   const validateSection = () => {
     const requiredFields = {
       codigo_unico: 'Código único',
@@ -95,22 +92,19 @@ export default function GeneralInfoSection({
     };
 
     const errors = [];
-    
+
     for (const [field, label] of Object.entries(requiredFields)) {
       if (!form.data[field] || form.data[field] === '') {
         errors.push(label);
       }
     }
 
-    // Validación específica para código único según la clase
     if (form.data.codigo_unico) {
       if (form.data.clase === 'LIBRO') {
-        // ISBN debe tener 13 dígitos
         if (!/^\d{13}$/.test(form.data.codigo_unico.replace(/[^0-9]/g, ''))) {
           errors.push('ISBN debe tener exactamente 13 dígitos');
         }
       } else if (form.data.clase === 'REVISTA') {
-        // ISSN debe tener 8 dígitos
         if (!/^\d{8}$/.test(form.data.codigo_unico.replace(/[^0-9]/g, ''))) {
           errors.push('ISSN debe tener exactamente 8 dígitos');
         }
@@ -120,41 +114,34 @@ export default function GeneralInfoSection({
     return errors;
   };
 
-  // Función para manejar el clic en "Siguiente"
   const handleNext = () => {
     const validationErrors = validateSection();
-    
+
     if (validationErrors.length > 0) {
       const errorMessage = `Por favor complete los siguientes campos obligatorios:\n• ${validationErrors.join('\n• ')}`;
       alert(errorMessage);
       return;
     }
-    
+
     onNext();
   };
 
-  // Función para cancelar y volver al índice
   const handleCancel = () => {
     if (confirm('¿Está seguro que desea cancelar? Se perderán todos los datos ingresados.')) {
       router.visit(route('libros.index'));
     }
   };
 
-  // Función para manejar cambio de clase
   const handleClaseChange = (value: string) => {
     form.setData('clase', value);
-    // Limpiar el código único cuando cambie la clase
     form.setData('codigo_unico', '');
   };
 
-  // Función para manejar el cambio de código único
   const handleCodigoChange = (value: string) => {
-    // Permitir solo números
     const numericValue = value.replace(/[^0-9]/g, '');
     form.setData('codigo_unico', numericValue);
   };
 
-  // Función para obtener el placeholder del código según la clase
   const getCodigoPlaceholder = () => {
     if (form.data.clase === 'LIBRO') {
       return '9780123456789 (13 dígitos)';
@@ -164,7 +151,6 @@ export default function GeneralInfoSection({
     return 'Seleccione primero una clase';
   };
 
-  // Función para obtener el label del código según la clase
   const getCodigoLabel = () => {
     if (form.data.clase === 'LIBRO') {
       return 'ISBN';
@@ -174,42 +160,13 @@ export default function GeneralInfoSection({
     return 'Código Único';
   };
 
-  // NUEVA FUNCIÓN: Manejo específico para estantería
   const handleEstanteriaChange = (value: string) => {
-    // Si es string vacío, convertir a null
     const processedValue = value === '' ? '' : value;
     form.setData('estanteria_id', processedValue);
   };
 
-  // Callbacks para actualizar las listas cuando se creen nuevos elementos
-  const handleAutorCreated = (newAutor: any) => {
-    setAutores(prevAutores => [...prevAutores, newAutor]);
-    // Seleccionar automáticamente el nuevo autor
-    form.setData('autor_id', newAutor.id.toString());
-  };
-
-  const handleEditorialCreated = (newEditorial: any) => {
-    setEditoriales(prevEditoriales => [...prevEditoriales, newEditorial]);
-    // Seleccionar automáticamente la nueva editorial
-    form.setData('editorial_id', newEditorial.id.toString());
-  };
-
-  const handleEstanteriaCreated = (newEstanteria: any) => {
-    setEstanterias(prevEstanterias => [...prevEstanterias, newEstanteria]);
-    // También actualizar la lista filtrada si corresponde a la sección actual
-    if (isAdmin && form.data.seccion_id && newEstanteria.seccion_id === parseInt(form.data.seccion_id)) {
-      setEstanteriasFiltradas(prevFiltradas => [...prevFiltradas, newEstanteria]);
-    } else if (!isAdmin) {
-      setEstanteriasFiltradas(prevFiltradas => [...prevFiltradas, newEstanteria]);
-    }
-    // Seleccionar automáticamente la nueva estantería
-    form.setData('estanteria_id', newEstanteria.id.toString());
-  };
-
-  // Determinar la sección predeterminada para estanterías
   const seccionIdForEstanteria = form.data.seccion_id ? parseInt(form.data.seccion_id) : null;
 
-  // Clases CSS reutilizables para evitar duplicación
   const selectClasses = "block w-full px-3 py-2 text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
   const inputClasses = "block w-full px-3 py-2 text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
   const flexSelectClasses = "flex-1 px-3 py-2 text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
@@ -239,11 +196,10 @@ export default function GeneralInfoSection({
             Proporcione los datos básicos del libro como título, autor y editorial.
           </p>
         </div>
-        
-        {/* Grid mejorado con mejor distribución */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {/* Clase - Primero para determinar el tipo de código */}
-          {renderFormField('clase', 'Tipo de Material', true, 
+          {/* Clase */}
+          {renderFormField('clase', 'Tipo de Material', true,
             <select
               id="clase"
               value={form.data.clase}
@@ -260,8 +216,8 @@ export default function GeneralInfoSection({
             "col-span-1 md:col-span-1 xl:col-span-1"
           )}
 
-          {/* Código Único - Dinámico según la clase */}
-          {renderFormField('codigo_unico', getCodigoLabel(), true, 
+          {/* Código Único */}
+          {renderFormField('codigo_unico', getCodigoLabel(), true,
             <div className="relative rounded-md shadow-sm">
               <input
                 type="text"
@@ -286,9 +242,9 @@ export default function GeneralInfoSection({
             </div>,
             "col-span-1 md:col-span-1 xl:col-span-1"
           )}
-          
-          {/* Título - Span de 1 columna */}
-          {renderFormField('titulo', 'Título', true, 
+
+          {/* Título */}
+          {renderFormField('titulo', 'Título', true,
             <input
               type="text"
               id="titulo"
@@ -299,10 +255,9 @@ export default function GeneralInfoSection({
             />,
             "col-span-1 md:col-span-1 xl:col-span-1"
           )}
-          
-          {/* Segunda fila - 3 campos con mejor distribución */}
+
           {/* Autor Principal */}
-          {renderFormField('autor_id', 'Autor Principal', true, 
+          {renderFormField('autor_id', 'Autor Principal', true,
             <div className="flex items-center">
               <select
                 id="autor_id"
@@ -317,13 +272,13 @@ export default function GeneralInfoSection({
                   </option>
                 ))}
               </select>
-              <CreateAutorInline onAutorCreated={handleAutorCreated} />
+              <CreateAutorInline onAutorCreated={onAutorCreated} />
             </div>,
             "col-span-1 md:col-span-1 xl:col-span-1"
           )}
-          
+
           {/* Editorial */}
-          {renderFormField('editorial_id', 'Editorial', true, 
+          {renderFormField('editorial_id', 'Editorial', true,
             <div className="flex items-center">
               <select
                 id="editorial_id"
@@ -338,13 +293,13 @@ export default function GeneralInfoSection({
                   </option>
                 ))}
               </select>
-              <CreateEditorialInline onEditorialCreated={handleEditorialCreated} />
+              <CreateEditorialInline onEditorialCreated={onEditorialCreated} />
             </div>,
             "col-span-1 md:col-span-1 xl:col-span-1"
           )}
-          
-          {/* Sección - Editable para administradores, automática para otros roles */}
-          {renderFormField('seccion_id', 'Sección', true, 
+
+          {/* Sección */}
+          {renderFormField('seccion_id', 'Sección', true,
             <select
               id="seccion_id"
               value={form.data.seccion_id}
@@ -361,10 +316,9 @@ export default function GeneralInfoSection({
             </select>,
             "col-span-1 md:col-span-1 xl:col-span-1"
           )}
-          
-          {/* Tercera fila - 3 campos */}
-          {/* Área - Nuevo campo */}
-          {renderFormField('area', 'Área', true, 
+
+          {/* Área */}
+          {renderFormField('area', 'Área', true,
             <select
               id="area"
               value={form.data.area}
@@ -380,9 +334,9 @@ export default function GeneralInfoSection({
             </select>,
             "col-span-1 md:col-span-1 xl:col-span-1"
           )}
-          
+
           {/* Idioma */}
-          {renderFormField('idioma', 'Idioma', true, 
+          {renderFormField('idioma', 'Idioma', true,
             <select
               id="idioma"
               value={form.data.idioma}
@@ -398,25 +352,25 @@ export default function GeneralInfoSection({
             </select>,
             "col-span-1 md:col-span-1 xl:col-span-1"
           )}
-          
-          {/* Estantería - Campo opcional */}
-          {renderFormField('estanteria_id', 'Estantería', false, 
+
+          {/* Estantería */}
+          {renderFormField('estanteria_id', 'Estantería', false,
             <div className="flex items-center">
               <select
                 id="estanteria_id"
-                value={form.data.estanteria_id || ''} // Asegurar que nunca sea undefined
+                value={form.data.estanteria_id || ''}
                 onChange={e => handleEstanteriaChange(e.target.value)}
                 className={flexSelectClasses}
               >
                 <option value="">Seleccione una estantería (opcional)</option>
                 {estanteriasFiltradas.map(estanteria => (
                   <option key={estanteria.id} value={estanteria.id}>
-                    {estanteria.cod_estante}
+                    {estanteria.cod_estante}{estanteria.descripcion ? ` - ${estanteria.descripcion}` : ''}
                   </option>
                 ))}
               </select>
-              <CreateEstanteriaInline 
-                onEstanteriaCreated={handleEstanteriaCreated}
+              <CreateEstanteriaInline
+                onEstanteriaCreated={onEstanteriaCreated}
                 secciones={secciones}
                 seccionId={seccionIdForEstanteria}
               />
@@ -425,14 +379,14 @@ export default function GeneralInfoSection({
           )}
         </div>
 
-        {/* Contenido - Campo de texto amplio que ocupa todo el ancho */}
+        {/* Contenido */}
         <div className="mt-6">
           <label htmlFor="contenido" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Contenido
           </label>
           <textarea
             id="contenido"
-            value={form.data.contenido || ''} // Asegurar que nunca sea undefined
+            value={form.data.contenido || ''}
             onChange={e => form.setData('contenido', e.target.value)}
             rows={4}
             className="block w-full px-3 py-2 text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -460,7 +414,7 @@ export default function GeneralInfoSection({
                 </h4>
                 <div className="text-blue-700 dark:text-blue-300 space-y-2">
                   <p className="text-sm">
-                    {form.data.clase === 'LIBRO' 
+                    {form.data.clase === 'LIBRO'
                       ? 'Identificador único de 13 dígitos para libros'
                       : 'Identificador único de 8 dígitos para publicaciones periódicas como revistas'
                     }
@@ -488,7 +442,7 @@ export default function GeneralInfoSection({
             </div>
           </div>
         )}
-        
+
         <div className="flex justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
           <button
             type="button"
@@ -498,7 +452,7 @@ export default function GeneralInfoSection({
             <X className="w-4 h-4" />
             Cancelar
           </button>
-          
+
           <button
             type="button"
             onClick={handleNext}

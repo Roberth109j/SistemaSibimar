@@ -23,19 +23,23 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function Create({
   auth,
   clases,
-  areas, // Nuevo prop
+  areas,
   idiomas,
-  autores = [],
-  editoriales = [],
-  estanterias = [],
+  autores: initialAutores = [],
+  editoriales: initialEditoriales = [],
+  estanterias: initialEstanterias = [],
   secciones = [],
   categoriasDewey = [],
-  seccionId = null, // Sección predeterminada según el rol del usuario
+  seccionId = null,
 }: LibroPageProps) {
-  // Verificar si el usuario es administrador
   const isAdmin = auth.user?.roles?.some((role: any) => role.name === 'Administrador') || false;
   const [activeSection, setActiveSection] = useState('general');
-  
+
+  // ✅ ESTADOS MOVIDOS AL PADRE para persistir entre navegaciones
+  const [autores, setAutores] = useState(initialAutores);
+  const [editoriales, setEditoriales] = useState(initialEditoriales);
+  const [estanterias, setEstanterias] = useState(initialEstanterias);
+
   // Estados para mantener los datos de clasificación entre secciones
   const [clasificacionState, setClasificacionState] = useState({
     categoriaId: null as number | null,
@@ -45,32 +49,37 @@ export default function Create({
   });
 
   const form = useForm({
-    codigo_unico: '', // Cambio de 'isbn' a 'codigo_unico'
+    codigo_unico: '',
     titulo: '',
     contenido: '',
-    seccion_id: seccionId || '', // Usar la sección predeterminada según el rol
+    seccion_id: seccionId || '',
     autor_id: '',
     editorial_id: '',
-    area: '', // Nuevo campo
+    area: '',
     clase: '',
     tomo: '',
     edicion: '',
     anio: '',
-    fecha_ingreso: new Date().toISOString().split('T')[0],
+    fecha_ingreso: (() => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    })(),
     precio: '',
     idioma: '',
     edad_recomendada: '',
     paginas: '',
     tema_id: '',
-    estanteria_id: '', // Campo opcional
-    sign_top: '', // Signatura Topográfica
+    estanteria_id: '',
+    sign_top: '',
     signatura_automatica: true,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validar campos requeridos
     const camposRequeridos = {
       codigo_unico: 'Código único',
       titulo: 'Título',
@@ -94,16 +103,13 @@ export default function Create({
       return;
     }
 
-    // Validar formato de código único según la clase
     if (form.data.clase === 'LIBRO') {
-      // ISBN - 13 dígitos
       const isbnRegex = /^\d{13}$/;
       if (!isbnRegex.test(form.data.codigo_unico.replace(/[^0-9]/g, ''))) {
         alert('El ISBN debe contener exactamente 13 dígitos');
         return;
       }
     } else if (form.data.clase === 'REVISTA') {
-      // ISSN - 8 dígitos
       const issnRegex = /^\d{8}$/;
       if (!issnRegex.test(form.data.codigo_unico.replace(/[^0-9]/g, ''))) {
         alert('El ISSN debe contener exactamente 8 dígitos');
@@ -111,7 +117,6 @@ export default function Create({
       }
     }
 
-    // Validaciones adicionales
     if (form.data.fecha_ingreso && new Date(form.data.fecha_ingreso) > new Date()) {
       alert('La fecha de ingreso no puede ser futura');
       return;
@@ -137,7 +142,6 @@ export default function Create({
       return;
     }
 
-    // Enviar formulario
     form.post(route('libros.store'), {
       onSuccess: () => {
         console.log('Libro creado exitosamente');
@@ -152,7 +156,22 @@ export default function Create({
     });
   };
 
-  // Función para manejar cambios de estado en la sección de clasificación
+  // ✅ CALLBACKS para actualizar las listas en el padre
+  const handleAutorCreated = (newAutor: any) => {
+    setAutores(prevAutores => [...prevAutores, newAutor]);
+    form.setData('autor_id', newAutor.id.toString());
+  };
+
+  const handleEditorialCreated = (newEditorial: any) => {
+    setEditoriales(prevEditoriales => [...prevEditoriales, newEditorial]);
+    form.setData('editorial_id', newEditorial.id.toString());
+  };
+
+  const handleEstanteriaCreated = (newEstanteria: any) => {
+    setEstanterias(prevEstanterias => [...prevEstanterias, newEstanteria]);
+    form.setData('estanteria_id', newEstanteria.id.toString());
+  };
+
   const handleClasificacionStateChange = (state: {
     categoriaId: number | null;
     subcategoriaId: number | null;
@@ -181,53 +200,48 @@ export default function Create({
 
       <div className="py-6">
         <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-          {/* Header con título y barra de navegación por secciones */}
           <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg mb-6">
             <div className="p-6 bg-gradient-to-r from-blue-600 to-indigo-700">
               <h1 className="text-2xl font-bold text-white mb-2">Registrar Nuevo Material</h1>
               <p className="text-blue-100">Complete los campos para agregar un nuevo libro o revista al catálogo</p>
             </div>
-            
-            {/* Navegación entre secciones */}
+
             <div className="flex flex-wrap border-b border-gray-200 dark:border-gray-700">
               {sections.map((section) => (
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
-                  className={`flex items-center px-4 py-3 font-medium text-sm focus:outline-none transition-colors ${
-                    activeSection === section.id
+                  className={`flex items-center px-4 py-3 font-medium text-sm focus:outline-none transition-colors ${activeSection === section.id
                       ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
                       : 'text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-700'
-                  }`}
+                    }`}
                 >
                   <span className="mr-2">{section.icon}</span>
                   {section.label}
                 </button>
               ))}
             </div>
-            
-            {/* Indicador de progreso */}
+
             <div className="px-6 py-2 bg-gray-50 dark:bg-gray-700">
               <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                 <span className="mr-2">Progreso:</span>
                 <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-2 mr-4">
-                  <div 
+                  <div
                     className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
                     style={{
-                      width: activeSection === 'general' ? '33%' : 
-                             activeSection === 'clasificacion' ? '66%' : '100%'
+                      width: activeSection === 'general' ? '33%' :
+                        activeSection === 'clasificacion' ? '66%' : '100%'
                     }}
                   ></div>
                 </div>
                 <span className="text-xs font-medium">
-                  {activeSection === 'general' ? '1/3' : 
-                   activeSection === 'clasificacion' ? '2/3' : '3/3'}
+                  {activeSection === 'general' ? '1/3' :
+                    activeSection === 'clasificacion' ? '2/3' : '3/3'}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Formulario */}
           <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <form onSubmit={handleSubmit} className="p-6">
               {activeSection === 'general' && (
@@ -237,14 +251,17 @@ export default function Create({
                   editoriales={editoriales}
                   secciones={secciones}
                   clases={clases}
-                  areas={areas} // Nuevo prop
+                  areas={areas}
                   idiomas={idiomas}
                   estanterias={estanterias}
                   isAdmin={isAdmin}
                   onNext={() => setActiveSection('clasificacion')}
+                  onAutorCreated={handleAutorCreated}
+                  onEditorialCreated={handleEditorialCreated}
+                  onEstanteriaCreated={handleEstanteriaCreated}
                 />
               )}
-              
+
               {activeSection === 'clasificacion' && (
                 <ClasificacionSection
                   form={form}
@@ -252,7 +269,6 @@ export default function Create({
                   autores={autores}
                   onPrev={() => setActiveSection('general')}
                   onNext={() => setActiveSection('detalles')}
-                  // Props para mantener estado
                   initialCategoriaId={clasificacionState.categoriaId}
                   initialSubcategoriaId={clasificacionState.subcategoriaId}
                   initialSubcategorias={clasificacionState.subcategorias}
@@ -260,7 +276,7 @@ export default function Create({
                   onStateChange={handleClasificacionStateChange}
                 />
               )}
-              
+
               {activeSection === 'detalles' && (
                 <DetallesSection
                   form={form}
@@ -270,8 +286,7 @@ export default function Create({
               )}
             </form>
           </div>
-          
-          {/* Información de ayuda */}
+
           <div className="mt-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <div className="flex">
               <div className="flex-shrink-0">

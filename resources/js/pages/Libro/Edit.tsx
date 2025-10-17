@@ -192,7 +192,7 @@ export default function Edit({
   // Verificar si el usuario es administrador
   const isAdmin = auth.user?.roles?.some((role: any) => role.name === 'Administrador') || false;
 
-const { data, setData, put, processing, errors: formErrors, wasSuccessful, recentlySuccessful } = useForm({
+  const { data, setData, put, processing, errors: formErrors, wasSuccessful, recentlySuccessful } = useForm({
     codigo_unico: libro.codigo_unico || libro.isbn || '',
     titulo: libro.titulo || '',
     contenido: libro.contenido || '',
@@ -204,7 +204,7 @@ const { data, setData, put, processing, errors: formErrors, wasSuccessful, recen
     tomo: libro.tomo?.toString() || '',
     edicion: libro.edicion || '',
     anio: libro.anio?.toString() || '',
-    fecha_ingreso: libro.fecha_ingreso ? libro.fecha_ingreso.substring(0, 10) : '',
+    fecha_ingreso: libro.fecha_ingreso || '',
     precio: libro.precio?.toString() || '',
     idioma: libro.idioma || '',
     edad_recomendada: libro.edad_recomendada?.toString() || '',
@@ -212,7 +212,7 @@ const { data, setData, put, processing, errors: formErrors, wasSuccessful, recen
     tema_id: libro.tema_id?.toString() || '',
     sign_top: libro.sign_top || '',
     estanteria_id: libro.estanteria_id?.toString() || '',
-    signatura_automatica: false as boolean  // ✅ Cambiar a false
+    signatura_automatica: false as boolean
   });
 
   // Sincronizar el estado del toggle con los datos del formulario
@@ -228,7 +228,6 @@ const { data, setData, put, processing, errors: formErrors, wasSuccessful, recen
       );
       setEstanteriasFiltradas(estanteriasFiltradas);
       
-      // Limpiar la estantería seleccionada si no pertenece a la nueva sección
       if (data.estanteria_id) {
         const estanteriaSeleccionada = estanterias.find(e => e.id === parseInt(data.estanteria_id));
         if (estanteriaSeleccionada && estanteriaSeleccionada.seccion_id !== parseInt(data.seccion_id)) {
@@ -649,7 +648,7 @@ const { data, setData, put, processing, errors: formErrors, wasSuccessful, recen
                       </div>
                     </div>
 
-                                        {/* Clasificación Dewey */}
+                    {/* Clasificación Dewey */}
                     <div className="bg-gray-50 dark:bg-gray-700/50 p-6 border border-gray-200 dark:border-gray-600 rounded-lg">
                       <div className="flex items-center mb-6">
                         <div className="flex items-center justify-center w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-lg mr-3">
@@ -777,7 +776,7 @@ const { data, setData, put, processing, errors: formErrors, wasSuccessful, recen
                           )}
                         </div>
                         
-                        {/* Estantería con botón + */}
+                        {/* ✅ Estantería con botón + Y DESCRIPCIÓN */}
                         <div>
                           <label htmlFor="estanteria_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Estantería
@@ -793,7 +792,7 @@ const { data, setData, put, processing, errors: formErrors, wasSuccessful, recen
                               <option value="">Seleccione una estantería (opcional)</option>
                               {estanteriasFiltradas.map((estanteria: any) => (
                                 <option key={estanteria.id} value={estanteria.id}>
-                                  {estanteria.cod_estante}
+                                  {estanteria.cod_estante}{estanteria.descripcion ? ` - ${estanteria.descripcion}` : ''}
                                 </option>
                               ))}
                             </select>

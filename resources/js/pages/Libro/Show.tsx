@@ -88,13 +88,20 @@ const InfoField = ({
           </span>
         );
       case 'date':
+        // ✅ FIX: Parsear la fecha correctamente sin conversión de timezone
+        const formatDate = (dateString: string) => {
+          // Si la fecha viene en formato YYYY-MM-DD, parsearla directamente
+          const [year, month, day] = dateString.split('T')[0].split('-');
+          const monthNames = [
+            'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+            'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+          ];
+          return `${parseInt(day)} de ${monthNames[parseInt(month) - 1]} de ${year}`;
+        };
+        
         return (
           <span className="font-medium text-gray-900 dark:text-white">
-            {new Date(value).toLocaleDateString('es-ES', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
+            {formatDate(value)}
           </span>
         );
       default:
@@ -122,7 +129,6 @@ const ExpandableContent = ({ content }: { content: string }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
-  // Determinar si el contenido es largo (más de 300 caracteres o 5 líneas)
   const isLongContent = content.length > 300 || content.split('\n').length > 5;
   const previewContent = isLongContent ? content.substring(0, 300) + '...' : content;
 
@@ -133,7 +139,6 @@ const ExpandableContent = ({ content }: { content: string }) => {
     return (
       <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-hidden">
         <div className="h-full flex flex-col">
-          {/* Header del modal fullscreen */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
             <div className="flex items-center gap-3">
               <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -150,7 +155,6 @@ const ExpandableContent = ({ content }: { content: string }) => {
             </button>
           </div>
           
-          {/* Contenido scrolleable */}
           <div className="flex-1 overflow-auto p-6">
             <div className="max-w-4xl mx-auto">
               <div className="prose prose-gray dark:prose-invert max-w-none">
@@ -167,7 +171,6 @@ const ExpandableContent = ({ content }: { content: string }) => {
 
   return (
     <div className="space-y-4">
-      {/* Contenido con altura controlada */}
       <div className={`
         bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 border-blue-500 overflow-hidden
         ${isExpanded ? '' : 'max-h-48'}
@@ -181,13 +184,11 @@ const ExpandableContent = ({ content }: { content: string }) => {
           </pre>
         </div>
         
-        {/* Gradiente fade si no está expandido y el contenido es largo */}
         {!isExpanded && isLongContent && (
           <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-50 dark:from-gray-700 to-transparent pointer-events-none" />
         )}
       </div>
 
-      {/* Controles */}
       {isLongContent && (
         <div className="flex items-center justify-between gap-3">
           <button
@@ -217,7 +218,6 @@ const ExpandableContent = ({ content }: { content: string }) => {
         </div>
       )}
 
-      {/* Información adicional sobre el contenido */}
       <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-600">
         <span className="flex items-center gap-1">
           <Hash className="w-3 h-3" />
@@ -242,7 +242,6 @@ export default function Show({ auth, libro, success }: ShowLibroProps) {
 
   const breadcrumbs = getBreadcrumbs(libro.id, libro.titulo);
 
-  // Función para obtener el label del código según la clase
   const getCodigoLabel = () => {
     if (libro.clase === 'LIBRO') {
       return 'ISBN';
@@ -257,7 +256,6 @@ export default function Show({ auth, libro, success }: ShowLibroProps) {
       <Head title={`${libro.titulo} - Detalles`} />
 
       <div className="min-h-screen bg-slate-50 dark:bg-black">
-        {/* Efectos de fondo decorativos */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-600/10"></div>
           <div className="absolute bottom-1/3 right-1/4 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-600/10"></div>
@@ -389,7 +387,10 @@ export default function Show({ auth, libro, success }: ShowLibroProps) {
                     <div>
                       <InfoField 
                         label="Estantería" 
-                        value={libro.estanteria?.cod_estante}
+                        value={libro.estanteria ? 
+                          `${libro.estanteria.cod_estante}${libro.estanteria.descripcion ? ` - ${libro.estanteria.descripcion}` : ''}` 
+                          : null
+                        }
                         icon={MapPin}
                       />
                       <InfoField 
@@ -439,7 +440,7 @@ export default function Show({ auth, libro, success }: ShowLibroProps) {
                   )}
                 </InfoCard>
 
-                {/* Content - Mejorado */}
+                {/* Content */}
                 {libro.contenido && (
                   <InfoCard title="Contenido del Material" icon={BookOpen}>
                     <ExpandableContent content={libro.contenido} />

@@ -12,6 +12,7 @@ class Estanteria extends Model
     use HasFactory;
 
     protected $table = 'estanterias';
+    public $timestamps = false;
 
     protected $fillable = [
         'cod_estante',
