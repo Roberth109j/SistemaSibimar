@@ -842,53 +842,45 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
                                   {prestamo.estado}
                                 </span>
 
-                                {/* NUEVO: Botón opcional para observaciones individuales */}
+                                {/* Botón para ver observaciones específicas (solo lectura) */}
                                 {isSelected && (
                                   <button
                                     onClick={() => toggleObservacionesIndividuales(prestamo.id)}
                                     className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 ${
                                       observacionesExpanded
-                                        ? 'bg-green-100 text-green-800 border border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700'
+                                        ? 'bg-gray-100 text-gray-800 border border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
                                         : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600'
                                     }`}
-                                    title={observacionesExpanded ? 'Ocultar observaciones específicas' : 'Agregar observaciones específicas'}
+                                    title={observacionesExpanded ? 'Ocultar observaciones específicas' : 'Ver observaciones específicas (solo lectura)'}
                                   >
-                                    <MessageSquare className="w-3 h-3 mr-1" />
-                                    {observacionesExpanded ? 'Ocultar obs.' : 'Agregar obs.'}
-                                    {observacionesExpanded ? <EyeOff className="w-3 h-3 ml-1" /> : <Eye className="w-3 h-3 ml-1" />}
+                                    <Eye className="w-3 h-3 mr-1" />
+                                    {observacionesExpanded ? 'Ocultar obs.' : 'Ver obs.'}
+                                    {observacionesExpanded ? <EyeOff className="w-3 h-3 ml-1" /> : <MessageSquare className="w-3 h-3 ml-1" />}
                                   </button>
                                 )}
                               </div>
 
-                              {/* Campo de observaciones específicas OPCIONAL y COLAPSABLE */}
+                              {/* Campo de observaciones específicas SOLO LECTURA - Edición en modal de confirmación */}
                               {isSelected && observacionesExpanded && (
-                                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-                                  <label className="block text-xs font-medium text-blue-800 dark:text-blue-300 mb-1">
+                                <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     Observaciones específicas para el ejemplar #{prestamo.ejemplar.numEjemplar}:
                                   </label>
                                   <textarea
                                     value={observacionIndividual}
-                                    onChange={(e) => {
-                                      setObservacionesIndividuales(prev => {
-                                        const nuevas = new Map(prev);
-                                        if (e.target.value.trim()) {
-                                          nuevas.set(prestamo.id, e.target.value);
-                                        } else {
-                                          nuevas.delete(prestamo.id);
-                                        }
-                                        return nuevas;
-                                      });
-                                    }}
-                                    placeholder="Estado específico, daños, notas importantes..."
-                                    className="w-full text-xs p-2 border border-blue-300 dark:border-blue-600 rounded 
-                                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white
-                                               focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                    readOnly
+                                    placeholder="Las observaciones específicas se editarán en la confirmación de devolución..."
+                                    className="w-full text-xs p-2 border border-gray-300 dark:border-gray-600 rounded 
+                                               bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300
+                                               cursor-not-allowed resize-none opacity-75"
                                     rows={2}
-                                    maxLength={LIMITES_DEVOLUCION_MULTIPLE.MAX_OBSERVACIONES_INDIVIDUALES}
                                   />
-                                  <div className="flex justify-between items-center text-xs text-blue-600 dark:text-blue-400 mt-1">
-                                    <span>Estas observaciones prevalecen sobre las globales</span>
-                                    <span>{observacionIndividual.length}/{LIMITES_DEVOLUCION_MULTIPLE.MAX_OBSERVACIONES_INDIVIDUALES}</span>
+                                  <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    <span className="flex items-center gap-1">
+                                      <MessageSquare className="w-3 h-3" />
+                                      Edición disponible en "Confirmar Devolución Múltiple"
+                                    </span>
+                                    <span className="text-blue-600 dark:text-blue-400 font-medium">Solo lectura</span>
                                   </div>
                                 </div>
                               )}

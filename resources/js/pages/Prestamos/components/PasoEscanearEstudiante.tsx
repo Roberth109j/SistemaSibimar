@@ -389,41 +389,7 @@ export function PasoEscanearEstudiante({
               </div>
             )}
 
-            {tipoPrestamo === 'masivo' && ejemplares.length > 0 && (
-              <div className="mt-4">
-                <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>Observaciones específicas por ejemplar</span>
-                </div>
-                <div className="max-h-48 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-md">
-                  {ejemplares.map((ejItem) => {
-                    const valor = (observacionesPorEjemplar?.[ejItem.id] ?? ejItem.observaciones ?? '');
-                    return (
-                      <div key={ejItem.id} className="p-3 bg-white dark:bg-gray-800">
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Ejemplar #{ejItem.numEjemplar}
-                        </label>
-                        <textarea
-                          value={valor}
-                          onChange={(e) => onActualizarObservacionEjemplar?.(ejItem.id, e.target.value)}
-                          rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent resize-none text-sm dark:bg-gray-700 dark:text-white focus:ring-blue-500"
-                          placeholder="Observación específica (dejar vacío para mantener la existente)"
-                        />
-                        {ejItem.observaciones && !observacionesPorEjemplar?.[ejItem.id] && (
-                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Observación actual: {ejItem.observaciones}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Si deja una observación vacía, se conservará la existente del ejemplar.
-                </p>
-              </div>
-            )}
+            {/* Observaciones específicas por ejemplar - REMOVIDO para préstamos masivos */}
           </div>
         </div>
       </div>
