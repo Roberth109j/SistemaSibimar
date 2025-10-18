@@ -327,13 +327,17 @@ export function AppSidebar() {
                 </SidebarContent>
 
                 <SidebarFooter>
-                    <SidebarMenu>
+                   <SidebarMenu>
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild>
-                                <Link href="/ayuda">
+                                <a 
+                                    href="https://www.youtube.com/watch?v=JT4oHYFpw34&list=PL-s6XUYTlEzqsyLODxenw6QAuccbQgydU" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                >
                                     <HelpCircle className="h-5 w-5" />
                                     <span>Ayuda</span>
-                                </Link>
+                                </a>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                         
