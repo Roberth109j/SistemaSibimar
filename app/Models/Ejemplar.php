@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Prestamo;
 
 class Ejemplar extends Model
 {
@@ -94,6 +95,16 @@ class Ejemplar extends Model
     {
         return $this->belongsTo(Libro::class);
     }
+
+    /**
+     * Relación con Préstamos
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function prestamos(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Prestamo::class);
+    }
     
     /**
      * Comprueba si el ejemplar está disponible
@@ -180,6 +191,7 @@ class Ejemplar extends Model
     
     /**
      * Marca el ejemplar como perdido
+     * Si tiene un préstamo activo, lo marca como vencido
      *
      * @return void
      */
@@ -187,5 +199,14 @@ class Ejemplar extends Model
     {
         $this->estado = self::ESTADO_PERDIDO;
         $this->save();
+        
+        // Si tiene un préstamo activo, marcarlo como vencido
+        $prestamoActivo = Prestamo::where('ejemplar_id', $this->id)
+            ->where('estado', Prestamo::ESTADO_ACTIVO)
+            ->first();
+            
+        if ($prestamoActivo) {
+            $prestamoActivo->marcarComoVencido();
+        }
     }
 }

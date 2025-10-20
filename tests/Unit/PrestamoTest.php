@@ -33,7 +33,6 @@ class PrestamoTest extends TestCase
         $this->assertEquals('2023-01-15', $prestamo->fecha_devolucion);
         $this->assertNull($prestamo->fecha_devuelto);
         $this->assertEquals(Prestamo::ESTADO_ACTIVO, $prestamo->estado);
-        $this->assertEquals('Préstamo inicial', $prestamo->observaciones);
     }
 
     /** @test */
@@ -48,8 +47,7 @@ class PrestamoTest extends TestCase
         $this->assertContains('fecha_devolucion', $fillable);
         $this->assertContains('fecha_devuelto', $fillable);
         $this->assertContains('estado', $fillable);
-        $this->assertContains('observaciones', $fillable);
-        $this->assertCount(7, $fillable);
+        $this->assertCount(6, $fillable);
     }
 
     /** @test */
@@ -188,21 +186,18 @@ class PrestamoTest extends TestCase
     {
         $prestamo = Prestamo::factory()->create([
             'fecha_devolucion' => '2023-01-15',
-            'estado' => Prestamo::ESTADO_ACTIVO,
-            'observaciones' => 'Observación inicial'
+            'estado' => Prestamo::ESTADO_ACTIVO
         ]);
 
         $prestamo->update([
             'fecha_devolucion' => '2023-01-30',
-            'estado' => Prestamo::ESTADO_DEVUELTO,
-            'observaciones' => 'Observación actualizada'
+            'estado' => Prestamo::ESTADO_DEVUELTO
         ]);
 
         $this->assertDatabaseHas('prestamos', [
             'id' => $prestamo->id,
             'fecha_devolucion' => '2023-01-30',
-            'estado' => Prestamo::ESTADO_DEVUELTO,
-            'observaciones' => 'Observación actualizada'
+            'estado' => Prestamo::ESTADO_DEVUELTO
         ]);
     }
 

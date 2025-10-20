@@ -16,20 +16,26 @@ class LibroFactory extends Factory
 
     public function definition(): array
     {
+        // Usar firstOrCreate para secciones para evitar duplicados
+        $seccion = Seccion::firstOrCreate(['nombre' => $this->faker->randomElement(['PRIMARIA', 'BACHILLERATO'])]);
+        
         return [
-            'isbn' => $this->faker->unique()->isbn13(),
+            'codigo_unico' => $this->faker->unique()->isbn13(),
             'titulo' => $this->faker->sentence(3),
             'contenido' => $this->faker->paragraph(),
-            'seccion_id' => Seccion::factory(),
+            'seccion_id' => $seccion->id,
             'autor_id' => Autor::factory(),
             'editorial_id' => Editorial::factory(),
+            'area' => $this->faker->randomElement([
+                Libro::AREA_CIENCIAS,
+                Libro::AREA_MATEMATICAS,
+                Libro::AREA_HUMANIDADES,
+                Libro::AREA_IDIOMAS,
+                Libro::AREA_TECNOLOGIA,
+                Libro::AREA_OTRAS,
+            ]),
             'clase' => $this->faker->randomElement([
                 Libro::CLASE_LIBRO,
-                Libro::CLASE_CARTILLA,
-                Libro::CLASE_CUENTO,
-                Libro::CLASE_DICCIONARIO,
-                Libro::CLASE_ENCICLOPEDIA,
-                Libro::CLASE_NOVELA,
                 Libro::CLASE_REVISTA,
             ]),
             'tomo' => $this->faker->optional()->numberBetween(1, 10),

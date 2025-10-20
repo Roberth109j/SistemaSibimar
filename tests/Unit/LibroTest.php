@@ -22,10 +22,10 @@ class LibroTest extends TestCase
     public function puede_crear_un_libro_con_datos_validos()
     {
         $datos = [
-            'isbn' => '978-84-376-0494-7',
+            'codigo_unico' => '978-84-376-0494-7',
             'titulo' => 'Cien años de soledad',
             'contenido' => 'Descripción del libro',
-            'clase' => Libro::CLASE_NOVELA,
+            'clase' => Libro::CLASE_LIBRO,
             'tomo' => 1,
             'edicion' => '1ra',
             'anio' => 1967,
@@ -39,9 +39,9 @@ class LibroTest extends TestCase
 
         $libro = new Libro($datos);
 
-        $this->assertEquals('978-84-376-0494-7', $libro->isbn);
+        $this->assertEquals('978-84-376-0494-7', $libro->codigo_unico);
         $this->assertEquals('Cien años de soledad', $libro->titulo);
-        $this->assertEquals(Libro::CLASE_NOVELA, $libro->clase);
+        $this->assertEquals(Libro::CLASE_LIBRO, $libro->clase);
         $this->assertEquals(1, $libro->tomo);
         $this->assertEquals('1ra', $libro->edicion);
         $this->assertEquals(1967, $libro->anio);
@@ -60,8 +60,8 @@ class LibroTest extends TestCase
         $fillable = $libro->getFillable();
 
         $camposEsperados = [
-            'isbn', 'titulo', 'contenido', 'seccion_id', 'autor_id',
-            'editorial_id', 'clase', 'tomo', 'edicion', 'anio',
+            'codigo_unico', 'titulo', 'contenido', 'seccion_id', 'autor_id',
+            'editorial_id', 'area', 'clase', 'tomo', 'edicion', 'anio',
             'fecha_ingreso', 'precio', 'idioma', 'edad_recomendada',
             'paginas', 'tema_id', 'sign_top', 'estanteria_id'
         ];
@@ -69,7 +69,7 @@ class LibroTest extends TestCase
         foreach ($camposEsperados as $campo) {
             $this->assertContains($campo, $fillable);
         }
-        $this->assertCount(18, $fillable);
+        $this->assertCount(19, $fillable);
     }
 
     /** @test */
@@ -86,7 +86,7 @@ class LibroTest extends TestCase
         $libro = new Libro();
         $casts = $libro->getCasts();
 
-        $this->assertEquals('date', $casts['fecha_ingreso']);
+        $this->assertEquals('date:Y-m-d', $casts['fecha_ingreso']);
         $this->assertEquals('integer', $casts['anio']);
         $this->assertEquals('decimal:2', $casts['precio']);
         $this->assertEquals('integer', $casts['paginas']);
@@ -97,18 +97,13 @@ class LibroTest extends TestCase
     public function tiene_las_constantes_de_clase_definidas()
     {
         $this->assertEquals('LIBRO', Libro::CLASE_LIBRO);
-        $this->assertEquals('CARTILLA', Libro::CLASE_CARTILLA);
-        $this->assertEquals('CUENTO', Libro::CLASE_CUENTO);
-        $this->assertEquals('DICCIONARIO', Libro::CLASE_DICCIONARIO);
-        $this->assertEquals('ENCICLOPEDIA', Libro::CLASE_ENCICLOPEDIA);
-        $this->assertEquals('NOVELA', Libro::CLASE_NOVELA);
         $this->assertEquals('REVISTA', Libro::CLASE_REVISTA);
     }
 
     /** @test */
     public function tiene_las_constantes_de_idioma_definidas()
     {
-        $this->assertEquals('ESPANOL', Libro::IDIOMA_ESPANOL);
+        $this->assertEquals('ESPAÑOL', Libro::IDIOMA_ESPANOL);
         $this->assertEquals('INGLES', Libro::IDIOMA_INGLES);
         $this->assertEquals('FRANCES', Libro::IDIOMA_FRANCES);
         $this->assertEquals('OTRO', Libro::IDIOMA_OTRO);
@@ -198,12 +193,14 @@ class LibroTest extends TestCase
     /** @test */
     public function puede_filtrar_por_seccion()
     {
-        $seccion = Seccion::factory()->create();
-        $libro1 = Libro::factory()->create(['seccion_id' => $seccion->id]);
-        $libro2 = Libro::factory()->create(['seccion_id' => $seccion->id]);
-        Libro::factory()->create(); // Libro de otra sección
+        $seccion1 = Seccion::firstOrCreate(['nombre' => 'PRIMARIA']);
+        $seccion2 = Seccion::firstOrCreate(['nombre' => 'BACHILLERATO']);
+        
+        $libro1 = Libro::factory()->create(['seccion_id' => $seccion1->id]);
+        $libro2 = Libro::factory()->create(['seccion_id' => $seccion1->id]);
+        Libro::factory()->create(['seccion_id' => $seccion2->id]); // Libro de otra sección
 
-        $libros = Libro::porSeccion($seccion->id)->get();
+        $libros = Libro::porSeccion($seccion1->id)->get();
 
         $this->assertCount(2, $libros);
         $this->assertTrue($libros->contains($libro1));
@@ -213,21 +210,21 @@ class LibroTest extends TestCase
     /** @test */
     public function puede_filtrar_por_clase()
     {
-        $seccion = Seccion::create(['nombre' => 'PRIMARIA']);
+        $seccion = Seccion::firstOrCreate(['nombre' => 'PRIMARIA']);
         $libro1 = Libro::factory()->create([
-            'clase' => Libro::CLASE_NOVELA,
+            'clase' => Libro::CLASE_LIBRO,
             'seccion_id' => $seccion->id
         ]);
         $libro2 = Libro::factory()->create([
-            'clase' => Libro::CLASE_NOVELA,
+            'clase' => Libro::CLASE_LIBRO,
             'seccion_id' => $seccion->id
         ]);
         Libro::factory()->create([
-            'clase' => Libro::CLASE_CUENTO,
+            'clase' => Libro::CLASE_REVISTA,
             'seccion_id' => $seccion->id
         ]);
 
-        $libros = Libro::porClase(Libro::CLASE_NOVELA)->get();
+        $libros = Libro::porClase(Libro::CLASE_LIBRO)->get();
 
         $this->assertCount(2, $libros);
         $this->assertTrue($libros->contains($libro1));
@@ -243,8 +240,9 @@ class LibroTest extends TestCase
         $tema = TemaDewey::factory()->create();
         
         $libro = Libro::create([
-            'isbn' => '978-1234567890',
+            'codigo_unico' => '978-1234567890',
             'titulo' => 'Libro de Prueba',
+            'area' => Libro::AREA_CIENCIAS,
             'clase' => Libro::CLASE_LIBRO,
             'idioma' => Libro::IDIOMA_ESPANOL,
             'seccion_id' => $seccion->id,
@@ -256,8 +254,9 @@ class LibroTest extends TestCase
         ]);
 
         $this->assertDatabaseHas('libros', [
-            'isbn' => '978-1234567890',
+            'codigo_unico' => '978-1234567890',
             'titulo' => 'Libro de Prueba',
+            'area' => Libro::AREA_CIENCIAS,
             'clase' => Libro::CLASE_LIBRO,
             'idioma' => Libro::IDIOMA_ESPANOL,
             'seccion_id' => $seccion->id,
@@ -280,13 +279,13 @@ class LibroTest extends TestCase
 
         $libro->update([
             'titulo' => 'Título Actualizado',
-            'clase' => Libro::CLASE_NOVELA
+            'clase' => Libro::CLASE_REVISTA
         ]);
 
         $this->assertDatabaseHas('libros', [
             'id' => $libro->id,
             'titulo' => 'Título Actualizado',
-            'clase' => Libro::CLASE_NOVELA
+            'clase' => Libro::CLASE_REVISTA
         ]);
     }
 

@@ -13,7 +13,6 @@ class Prestamo extends Model
 
     protected $table = 'prestamos';
     
-
     protected $fillable = [
         'ejemplar_id',
         'lector_id',
@@ -22,6 +21,54 @@ class Prestamo extends Model
         'fecha_devuelto',
         'estado',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($prestamo) {
+            // Validar datos antes de crear el préstamo
+            self::validatePrestamoData($prestamo->toArray());
+            
+            // Validar que el lector existe y está activo
+            if ($prestamo->lector_id) {
+                $lector = Lector::find($prestamo->lector_id);
+                if (!$lector) {
+                    throw new \Exception('El lector no existe');
+                }
+                if (!$lector->estaActivo()) {
+                    throw new \Exception('El lector no está activo');
+                }
+            }
+            
+            // Marcar el ejemplar como prestado cuando se crea el préstamo
+            if ($prestamo->ejemplar_id) {
+                $ejemplar = Ejemplar::find($prestamo->ejemplar_id);
+                if (!$ejemplar) {
+                    throw new \Exception('El ejemplar no existe');
+                }
+                if (!$ejemplar->estaDisponible()) {
+                    throw new \Exception('El ejemplar no está disponible para préstamo');
+                }
+                $ejemplar->marcarComoPrestado();
+            }
+        });
+    }
+
+    /**
+     * Validar datos del préstamo antes de crear
+     */
+    public static function validatePrestamoData(array $data)
+    {
+        // Verificar campos requeridos
+        $requiredFields = ['ejemplar_id', 'lector_id', 'fecha_prestamo', 'fecha_devolucion'];
+        
+        foreach ($requiredFields as $field) {
+            if (empty($data[$field])) {
+                throw new \Exception('Los campos son requeridos');
+            }
+        }
+    }
 
     // Enums para estado
     const ESTADO_ACTIVO = 'ACTIVO';
@@ -58,7 +105,12 @@ class Prestamo extends Model
 
     public function marcarComoDevuelto(): void
     {
+        if ($this->estaDevuelto()) {
+            throw new \Exception('Este préstamo ya ha sido devuelto');
+        }
+        
         $this->estado = self::ESTADO_DEVUELTO;
+        $this->fecha_devuelto = now()->format('Y-m-d');
         $this->save();
         
         // Actualizar el estado del ejemplar

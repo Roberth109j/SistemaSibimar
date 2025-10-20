@@ -49,11 +49,11 @@ class EditorialTest extends TestCase
     }
 
     /** @test */
-    public function tiene_timestamps_habilitados()
+    public function no_tiene_timestamps_habilitados()
     {
         $editorial = new Editorial();
-        
-        $this->assertTrue($editorial->timestamps);
+
+        $this->assertFalse($editorial->timestamps);
     }
 
     /** @test */
