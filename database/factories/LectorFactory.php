@@ -14,8 +14,8 @@ class LectorFactory extends Factory
 
     public function definition(): array
     {
-        // Intentar obtener una sección existente o crear una nueva con manejo de errores
-        $seccion = $this->getOrCreateSeccion('PRIMARIA');
+        // Obtener o crear una sección existente sin generar nombres únicos largos
+        $seccion = Seccion::firstOrCreate(['nombre' => 'PRIMARIA']);
         
         // Crear un grado asociado a la sección
         $grado = Grado::factory()->create([
@@ -32,34 +32,12 @@ class LectorFactory extends Factory
     }
 
     /**
-     * Obtiene o crea una sección manejando posibles conflictos de unicidad
-     */
-    private function getOrCreateSeccion(string $nombre): Seccion
-    {
-        try {
-            // Intentar crear la sección
-            return Seccion::create(['nombre' => $nombre]);
-        } catch (QueryException $e) {
-            // Si falla por restricción única, buscar la existente
-            if (str_contains($e->getMessage(), 'UNIQUE constraint failed')) {
-                $seccion = Seccion::where('nombre', $nombre)->first();
-                if ($seccion) {
-                    return $seccion;
-                }
-            }
-            
-            // Si no es error de unicidad o no se encuentra, crear con nombre único
-            return Seccion::create(['nombre' => $nombre . '_' . uniqid()]);
-        }
-    }
-
-    /**
      * Indica que el lector es un estudiante
      */
     public function estudiante(): static
     {
         return $this->state(function (array $attributes) {
-            $seccion = $this->getOrCreateSeccion('BACHILLERATO');
+            $seccion = Seccion::firstOrCreate(['nombre' => 'BACHILLERATO']);
             
             // Crear un grado asociado a la sección
             $grado = Grado::factory()->create([

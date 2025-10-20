@@ -77,7 +77,8 @@ class EjemplarTest extends TestCase
     {
         $this->assertEquals('DISPONIBLE', Ejemplar::ESTADO_DISPONIBLE);
         $this->assertEquals('PRESTADO', Ejemplar::ESTADO_PRESTADO);
-        $this->assertEquals('INACTIVO', Ejemplar::ESTADO_INACTIVO);
+        $this->assertEquals('DADO DE BAJA', Ejemplar::ESTADO_DADO_DE_BAJA);
+        $this->assertEquals('PERDIDO', Ejemplar::ESTADO_PERDIDO);
     }
 
     /** @test */
@@ -98,10 +99,11 @@ class EjemplarTest extends TestCase
         $estados = Ejemplar::estados();
 
         $this->assertIsArray($estados);
-        $this->assertCount(3, $estados);
+        $this->assertCount(4, $estados);
         $this->assertContains(Ejemplar::ESTADO_DISPONIBLE, $estados);
         $this->assertContains(Ejemplar::ESTADO_PRESTADO, $estados);
-        $this->assertContains(Ejemplar::ESTADO_INACTIVO, $estados);
+        $this->assertContains(Ejemplar::ESTADO_DADO_DE_BAJA, $estados);
+        $this->assertContains(Ejemplar::ESTADO_PERDIDO, $estados);
     }
 
     /** @test */
@@ -150,11 +152,11 @@ class EjemplarTest extends TestCase
     }
 
     /** @test */
-    public function identifica_correctamente_estado_inactivo()
+    public function identifica_correctamente_estado_dado_de_baja()
     {
-        $ejemplar = Ejemplar::factory()->create(['estado' => Ejemplar::ESTADO_INACTIVO]);
+        $ejemplar = Ejemplar::factory()->create(['estado' => Ejemplar::ESTADO_DADO_DE_BAJA]);
 
-        $this->assertTrue($ejemplar->estaInactivo());
+        $this->assertTrue($ejemplar->estaDadoDeBaja());
         $this->assertFalse($ejemplar->estaDisponible());
         $this->assertFalse($ejemplar->estaPrestado());
     }
@@ -182,14 +184,14 @@ class EjemplarTest extends TestCase
     }
 
     /** @test */
-    public function puede_marcar_como_inactivo()
+    public function puede_marcar_como_dado_de_baja()
     {
         $ejemplar = Ejemplar::factory()->create(['estado' => Ejemplar::ESTADO_DISPONIBLE]);
 
-        $ejemplar->marcarComoInactivo();
+        $ejemplar->marcarComoDadoDeBaja();
 
-        $this->assertEquals(Ejemplar::ESTADO_INACTIVO, $ejemplar->estado);
-        $this->assertTrue($ejemplar->estaInactivo());
+        $this->assertEquals(Ejemplar::ESTADO_DADO_DE_BAJA, $ejemplar->estado);
+        $this->assertTrue($ejemplar->estaDadoDeBaja());
     }
 
     /** @test */

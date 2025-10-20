@@ -34,7 +34,8 @@ class EstanteriaTest extends TestCase
 
         $this->assertContains('cod_estante', $fillable);
         $this->assertContains('descripcion', $fillable);
-        $this->assertCount(2, $fillable);
+        $this->assertContains('seccion_id', $fillable);
+        $this->assertCount(3, $fillable);
     }
 
     /** @test */

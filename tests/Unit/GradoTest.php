@@ -49,11 +49,11 @@ class GradoTest extends TestCase
     }
 
     /** @test */
-    public function no_tiene_timestamps_habilitados()
+    public function tiene_timestamps_habilitados()
     {
         $grado = new Grado();
-        
-        $this->assertFalse($grado->timestamps);
+
+        $this->assertTrue($grado->timestamps);
     }
 
     /** @test */

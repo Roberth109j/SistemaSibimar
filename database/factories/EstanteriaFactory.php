@@ -14,6 +14,7 @@ class EstanteriaFactory extends Factory
         return [
             'cod_estante' => $this->faker->unique()->regexify('[A-Z][1-9]'),
             'descripcion' => $this->faker->sentence(),
+            'seccion_id' => \App\Models\Seccion::firstOrCreate(['nombre' => 'PRIMARIA'])->id,
         ];
     }
 }

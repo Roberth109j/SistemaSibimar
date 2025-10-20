@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class Libro extends Model
 {
@@ -37,13 +39,62 @@ class Libro extends Model
     ];
 
     // ✅ FIX: Cambiar 'date' a 'date:Y-m-d' para evitar problemas de timezone
-    protected $casts = [
-        'fecha_ingreso' => 'date:Y-m-d',  // Formato fijo sin timezone
-        'anio' => 'integer',
-        'precio' => 'decimal:2',
-        'paginas' => 'integer',
-        'tomo' => 'integer'
-    ];
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($libro) {
+            // Validar datos antes de crear el libro
+            self::validateLibroData($libro->toArray());
+        });
+        
+        static::created(function ($libro) {
+            // Crear automáticamente un ejemplar cuando se crea un libro
+            Ejemplar::create([
+                'libro_id' => $libro->id,
+                'numEjemplar' => 1,
+                'tipo_adquisicion' => Ejemplar::TIPO_COMPRA,
+                'estado' => Ejemplar::ESTADO_DISPONIBLE,
+                'observaciones' => 'Ejemplar creado automáticamente al registrar el libro'
+            ]);
+        });
+    }
+
+    /**
+     * Validar datos del libro antes de crear
+     */
+    public static function validateLibroData(array $data)
+    {
+        // Verificar si el código único ya existe (antes de verificar campos requeridos)
+        if (isset($data['codigo_unico']) && !empty($data['codigo_unico'])) {
+            $existingLibro = self::where('codigo_unico', $data['codigo_unico'])->first();
+            if ($existingLibro) {
+                throw new \Exception('El código único ya está registrado');
+            }
+        }
+        
+        // Verificar formato del ISBN (código único) - antes de verificar campos requeridos
+        if (isset($data['codigo_unico']) && !empty($data['codigo_unico'])) {
+            $codigo = $data['codigo_unico'];
+            // Verificar que no contenga caracteres no válidos para ISBN
+            if (preg_match('/[^0-9\-]/', $codigo)) {
+                throw new \Exception('El formato del ISBN es incorrecto');
+            }
+            // Verificar longitud del ISBN (debe tener al menos 10 caracteres)
+            if (strlen($codigo) < 10) {
+                throw new \Exception('El formato del ISBN es incorrecto');
+            }
+        }
+        
+        // Verificar campos requeridos (solo si no hay errores específicos)
+        $requiredFields = ['codigo_unico', 'titulo', 'seccion_id', 'autor_id', 'editorial_id', 'clase', 'idioma', 'tema_id', 'estanteria_id', 'fecha_ingreso'];
+        
+        foreach ($requiredFields as $field) {
+            if (empty($data[$field])) {
+                throw new \Exception('Registro no realizado por la falta de campos');
+            }
+        }
+    }
 
     // Enums para las clases de material (solo LIBRO y REVISTA)
     const CLASE_LIBRO = 'LIBRO';

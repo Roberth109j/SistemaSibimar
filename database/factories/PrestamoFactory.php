@@ -23,8 +23,7 @@ class PrestamoFactory extends Factory
             'fecha_prestamo' => $fechaPrestamo,
             'fecha_devolucion' => $fechaDevolucion,
             'fecha_devuelto' => null,
-            'estado' => Prestamo::ESTADO_ACTIVO,
-            'observaciones' => $this->faker->optional()->sentence()
+            'estado' => Prestamo::ESTADO_ACTIVO
         ];
     }
 

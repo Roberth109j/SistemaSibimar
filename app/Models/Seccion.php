@@ -21,6 +21,14 @@
         ];
 
         /**
+         * Obtiene los libros que pertenecen a esta sección
+         */
+        public function libros(): HasMany
+        {
+            return $this->hasMany(Libro::class);
+        }
+
+        /**
          * Obtiene los grados que pertenecen a esta sección
          */
         public function grados(): HasMany
