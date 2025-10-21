@@ -469,21 +469,11 @@ class LibroController extends Controller
                 ]);
             }
 
-            // Crear ejemplar automáticamente después de crear el libro
-            $ejemplar = new Ejemplar();
-            $ejemplar->libro_id = $libro->id;
-            $ejemplar->numEjemplar = 1;
-            $ejemplar->tipo_adquisicion = 'COMPRA';
-            $ejemplar->estado = 'DISPONIBLE';
-            $ejemplar->observaciones = 'Ejemplar creado automáticamente al registrar el libro';
-            $ejemplar->save();
-
             DB::commit();
 
-            Log::info('Libro y ejemplar creados exitosamente:', [
+            Log::info('Libro creado exitosamente:', [
                 'libro_id' => $libro->id,
                 'titulo' => $libro->titulo,
-                'ejemplar_id' => $ejemplar->id,
                 'modo_signatura' => $request->signatura_automatica ? 'automático' : 'manual'
             ]);
 

@@ -408,6 +408,11 @@ const Index: React.FC<BuscadorProps> = ({ libros, secciones, filters }) => {
     router.get('/');
   }, []);
 
+  // Callback para redirección al login desde el logo
+  const handleLogoClick = useCallback(() => {
+    router.get('/login');
+  }, []);
+
   // Efectos optimizados
   useEffect(() => {
     setCurrentLibros(libros);
@@ -501,13 +506,19 @@ const Index: React.FC<BuscadorProps> = ({ libros, secciones, filters }) => {
           <div className="flex flex-col lg:flex-row items-center justify-between mb-6">
             <div className="flex items-center space-x-6 mb-4 lg:mb-0">
               <div className="relative">
-                <img
-                  src="/IMG/escudo.png"
-                  alt="Escudo Biblioteca Madre Caridad"
-                  className="h-16 w-16 object-contain filter drop-shadow-xl"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-blue-500/10 rounded-full blur-xl"></div>
+                <button
+                  onClick={handleLogoClick}
+                  className="group relative focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg transition-all duration-200 hover:scale-105"
+                  title="Ir al login"
+                >
+                  <img
+                    src="/IMG/escudo.png"
+                    alt="Escudo Biblioteca Madre Caridad"
+                    className="h-16 w-16 object-contain filter drop-shadow-xl group-hover:drop-shadow-2xl transition-all duration-200"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all duration-200"></div>
+                </button>
               </div>
               <div>
                 <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 bg-clip-text text-transparent mb-1 tracking-tight">

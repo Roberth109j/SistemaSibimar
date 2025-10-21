@@ -268,10 +268,12 @@ export default function ConfirmacionModalMultiple({
                   const fechaDevolucion = new Date(prestamo.fecha_devolucion);
                   const hoy = new Date();
                   const estaVencido = fechaDevolucion < hoy;
-                  // Prefill with DB observation from ejemplar if present; empty if null
-                  const observacionIndividual = (observacionesIndividuales.get(prestamo.id) ?? prestamo.ejemplar.observaciones ?? '').toString();
+                  // Get individual observation, only use ejemplar observation as initial value if not already set
+                  const observacionIndividual = observacionesIndividuales.has(prestamo.id) 
+                    ? observacionesIndividuales.get(prestamo.id)!
+                    : (prestamo.ejemplar.observaciones ?? '');
                   const tieneObservacionExpandida = prestamosConObservacionesExpandidas.has(prestamo.id);
-                  const usaraObservacionGlobal = !observacionIndividual.trim() && observacionesGlobales.trim();
+                  const usaraObservacionGlobal = (!observacionIndividual.trim() || observacionIndividual === '') && observacionesGlobales.trim();
 
                   return (
                     <div 
@@ -339,7 +341,8 @@ export default function ConfirmacionModalMultiple({
                                         if (e.target.value.trim()) {
                                           nuevas.set(prestamo.id, e.target.value);
                                         } else {
-                                          nuevas.delete(prestamo.id);
+                                          // Allow empty string to override ejemplar observations
+                                          nuevas.set(prestamo.id, '');
                                         }
                                         return nuevas;
                                       });
