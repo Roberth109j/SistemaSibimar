@@ -410,7 +410,7 @@ const Index: React.FC<BuscadorProps> = ({ libros, secciones, filters }) => {
 
   // Callback para redirección al login desde el logo
   const handleLogoClick = useCallback(() => {
-    router.get('/login');
+    router.get('/');
   }, []);
 
   // Efectos optimizados

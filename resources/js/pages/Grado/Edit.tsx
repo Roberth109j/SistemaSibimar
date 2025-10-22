@@ -64,8 +64,10 @@ export default function EditGrado({ grado, onSuccess, onError, errors = {}, all_
     const { name, value } = e.target;
     const validFields: Array<keyof GradoFormData> = ['grado', 'subGrado', 'estado', 'seccion_id']; // Correct capitalization
     if (validFields.includes(name as keyof GradoFormData)) {
-      setData(name as keyof GradoFormData, value);
-      console.log('Form data updated - Current state:', { ...data, [name]: value });
+      // Convertir a mayúsculas automáticamente para el campo subGrado
+      const processedValue = name === 'subGrado' ? value.toUpperCase() : value;
+      setData(name as keyof GradoFormData, processedValue);
+      console.log('Form data updated - Current state:', { ...data, [name]: processedValue });
     } else {
       console.error('Invalid field name:', name);
     }

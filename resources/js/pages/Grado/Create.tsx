@@ -26,8 +26,10 @@ export default function CreateGrado({ onSuccess, onError, errors = {}, all_secci
     const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['grado', 'subGrado', 'estado', 'seccion_id'];
     if (validFields.includes(name as keyof typeof data)) {
-      setData(name as keyof typeof data, value);
-      console.log('Form data updated - Current state:', { ...data, [name]: value });
+      // Convertir a mayúsculas automáticamente para el campo subGrado
+      const processedValue = name === 'subGrado' ? value.toUpperCase() : value;
+      setData(name as keyof typeof data, processedValue);
+      console.log('Form data updated - Current state:', { ...data, [name]: processedValue });
     } else {
       console.error('Invalid field name:', name);
     }

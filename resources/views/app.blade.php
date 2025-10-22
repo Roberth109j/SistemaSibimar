@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => ($appearance ?? 'system') == 'dark'])>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => ($appearance ?? 'light') == 'dark'])>
     <head>
         
         <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -8,17 +8,13 @@
         {{-- Desactivar advertencias de lazy loading --}}
         <meta http-equiv="origin-trial" content="AlpPPj7z2ySoFxPtuTlEp77ypX1P1Sx3Tg7G9CL/+ESzEQJUxCnG5st0QUh41jUNVPxwKUF+0LXyA5T+UhkuDgsAAABfeyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0OjgwMDAiLCJmZWF0dXJlIjoiTGF6eUltYWdlTWluaW1hbEluaXRpYWxJbWFnZVJlcXVlc3RzIiwiZXhwaXJ5IjoxNzE5MzU5OTk5fQ==">
 
-        {{-- Inline script to detect system dark mode preference and apply it immediately --}}
+        {{-- Inline script to apply theme immediately --}}
         <script>
             (function() {
-                const appearance = '{{ $appearance ?? "system" }}';
+                const appearance = '{{ $appearance ?? "light" }}';
 
-                if (appearance === 'system') {
-                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-                    if (prefersDark) {
-                        document.documentElement.classList.add('dark');
-                    }
+                if (appearance === 'dark') {
+                    document.documentElement.classList.add('dark');
                 }
             })();
         </script>

@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/react';
 import { Book, Search, X, CheckCircle, ArrowLeft, Calendar, User, Package, AlertCircle, Clock, Trash2, RotateCcw, MessageSquare, ChevronDown, ChevronUp, Filter, Eye, EyeOff } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import ConfirmacionModalMultiple from './ConfirmacionModal';
+import axios from 'axios';
 import {
   Prestamo,
   LectorInfo,
@@ -193,31 +194,16 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
 
     setCargando(true);
     try {
-      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') 
-        || document.querySelector('input[name="_token"]')?.getAttribute('value') 
-        || '';
-
-      const response = await fetch('/devoluciones/buscar-prestamos', {
-        method: 'POST',
+      const response = await axios.post('/devoluciones/buscar-prestamos', {
+        codigo: codigoLector.trim()
+      }, {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-CSRF-TOKEN': csrfToken,
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify({ codigo: codigoLector.trim() })
+        }
       });
 
-      if (!response.ok) {
-        if (response.status === 419) {
-          mostrarAlerta('error', 'Sesión expirada. Recargue la página e intente nuevamente.');
-          return;
-        }
-        throw new Error(`HTTP Error: ${response.status}`);
-      }
-
-      const data: BuscarPrestamosResponse = await response.json();
+      const data: BuscarPrestamosResponse = response.data;
       
       if (data.success) {
         setLectorInfo(data.lector || null);
@@ -238,9 +224,19 @@ export default function DevolucionIndex({ auth, flash }: DevolucionPageProps) {
         setPrestamos([]);
         setLectorInfo(null);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error en buscarPrestamos:', error);
-      mostrarAlerta('error', 'Error de conexión. Intente nuevamente.');
+      
+      if (error.response?.status === 419) {
+        mostrarAlerta('error', 'Sesión expirada. El token CSRF se ha renovado automáticamente, intente nuevamente.');
+      } else if (error.response?.status === 404) {
+        mostrarAlerta('error', 'Lector no encontrado o inactivo');
+      } else if (error.response?.data?.message) {
+        mostrarAlerta('error', error.response.data.message);
+      } else {
+        mostrarAlerta('error', 'Error de conexión. Intente nuevamente.');
+      }
+      
       setPrestamos([]);
       setLectorInfo(null);
     } finally {
