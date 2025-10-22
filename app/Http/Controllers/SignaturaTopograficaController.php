@@ -322,8 +322,9 @@ class SignaturaTopograficaController extends Controller
 
             $codigoDewey = $tema->codigo;
             
-            // Generar código Cutter usando el apellido del autor
-            $autorNormalizado = $this->normalizarAutor($autor->apellidos);
+            // Generar código Cutter usando el primer apellido del autor
+            $primerApellido = explode(' ', trim($autor->apellidos))[0];
+            $autorNormalizado = $this->normalizarAutor($primerApellido);
             $cutter = $this->calcularCutter($autorNormalizado);
             
             // Obtener primera letra del título (normalizada)
@@ -387,8 +388,9 @@ class SignaturaTopograficaController extends Controller
 
             $codigoDewey = $tema->codigo;
             
-            // Generar código Cutter usando el apellido del autor
-            $autorNormalizado = $this->normalizarAutor($autor->apellidos);
+            // Generar código Cutter usando el primer apellido del autor
+            $primerApellido = explode(' ', trim($autor->apellidos))[0];
+            $autorNormalizado = $this->normalizarAutor($primerApellido);
             $cutter = $this->calcularCutter($autorNormalizado);
             
             // Obtener primera letra del título (normalizada)
