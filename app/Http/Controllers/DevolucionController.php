@@ -71,14 +71,30 @@ class DevolucionController extends Controller
         }
 
         try {
-            $lector = Lector::where('codigo', $codigo)
+            $lectorQuery = Lector::where('codigo', $codigo)
                 ->where('estado', 'ACTIVO')
-                ->with(['grado'])
-                ->first();
+                ->with(['grado']);
+                
+            // 🆕 FILTRO POR SECCIÓN BASADO EN EL USUARIO AUTENTICADO
+            $user = $request->user();
+            if ($user->seccion_id) {
+                $lectorQuery->where(function ($q) use ($user) {
+                    // Para estudiantes: filtrar por sección del grado
+                    $q->whereHas('grado', function ($subQ) use ($user) {
+                        $subQ->where('grados.seccion_id', $user->seccion_id);
+                    })
+                    // Para profesores: permitir búsqueda (no tienen grado asignado)
+                    ->orWhere('tipo', 'DOCENTE');
+                });
+            }
+            // Si es Administrador (seccion_id = null), puede buscar cualquier lector
+            
+            $lector = $lectorQuery->first();
 
             if (!$lector) {
                 Log::info('❌ Lector no encontrado:', [
-                    'codigo_buscado' => $codigo
+                    'codigo_buscado' => $codigo,
+                    'user_seccion_id' => $user->seccion_id
                 ]);
 
                 return response()->json([
@@ -338,15 +354,27 @@ class DevolucionController extends Controller
             // Verificar que todos los préstamos existen y están en estado válido
             $prestamosIds = collect($prestamosData)->pluck('id')->toArray();
             
-            $prestamos = Prestamo::with([
+            // 🆕 FILTRO POR SECCIÓN BASADO EN EL USUARIO AUTENTICADO
+            $user = $request->user();
+            $prestamosQuery = Prestamo::with([
                     'ejemplar:id,libro_id,numEjemplar,estado,observaciones',
                     'ejemplar.libro:id,titulo,codigo_unico,autor_id,editorial_id',
                     'ejemplar.libro.autor:id,nombres,apellidos',
-                    'lector:id,codigo,nombre,tipo'
+                    'lector:id,codigo,nombre,tipo,grado_id',
+                    'lector.grado:id,seccion_id'
                 ])
                 ->select('id', 'ejemplar_id', 'lector_id', 'fecha_prestamo', 'fecha_devolucion', 'fecha_devuelto', 'estado')
-                ->whereIn('id', $prestamosIds)
-                ->get();
+                ->whereIn('id', $prestamosIds);
+                
+            // Si el usuario es bibliotecario, filtrar por la sección del libro prestado
+            if ($user->seccion_id) {
+                $prestamosQuery->whereHas('ejemplar.libro', function ($q) use ($user) {
+                    $q->where('libros.seccion_id', $user->seccion_id);
+                });
+            }
+            // Si es Administrador (seccion_id = null), puede procesar cualquier préstamo
+            
+            $prestamos = $prestamosQuery->get();
 
             // Validaciones de negocio
             $errores = [];

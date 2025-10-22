@@ -186,9 +186,13 @@ class InformeController extends Controller
                 'ejemplar.libro.estanteria.seccion',
                 'lector.grado'
             ])
-                ->where('estado', 'VENCIDO')
-                ->whereBetween('fecha_prestamo', [$fechaInicio, $fechaFin])
-                ->orderBy('fecha_devolucion', 'asc');
+                ->join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
+                ->join('grados', 'lectores.grado_id', '=', 'grados.id')
+                ->where('prestamos.estado', 'VENCIDO')
+                ->whereBetween('prestamos.fecha_prestamo', [$fechaInicio, $fechaFin])
+                ->orderBy('grados.subGrado', 'asc')
+                ->orderBy('prestamos.fecha_devolucion', 'asc')
+                ->select('prestamos.*');
 
             // NUEVO: Aplicar filtro de sección según rol
             $prestamosNoDevueltosQuery = $this->aplicarFiltroSeccion($prestamosNoDevueltosQuery, $seccionId);
@@ -404,9 +408,13 @@ class InformeController extends Controller
 
             // SOLO VENCIDOS con cálculo corregido y filtro de sección
             $prestamosNoDevueltosQuery = Prestamo::with(['ejemplar.libro.autor', 'ejemplar.libro.estanteria.seccion', 'lector.grado'])
-                ->where('estado', 'VENCIDO')
-                ->whereBetween('fecha_prestamo', [$fechaInicio, $fechaFin])
-                ->orderBy('fecha_devolucion', 'asc');
+                ->join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
+                ->join('grados', 'lectores.grado_id', '=', 'grados.id')
+                ->where('prestamos.estado', 'VENCIDO')
+                ->whereBetween('prestamos.fecha_prestamo', [$fechaInicio, $fechaFin])
+                ->orderBy('grados.subGrado', 'asc')
+                ->orderBy('prestamos.fecha_devolucion', 'asc')
+                ->select('prestamos.*');
 
             // NUEVO: Aplicar filtro de sección según rol
             $prestamosNoDevueltosQuery = $this->aplicarFiltroSeccion($prestamosNoDevueltosQuery, $seccionId);

@@ -204,13 +204,13 @@ export default function ConfirmacionModalMultiple({
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">Con obs. específicas:</span>
+                    <span className="text-gray-600 dark:text-gray-400">Con observaciones específicas:</span>
                     <span className="font-semibold text-purple-600 dark:text-purple-400">
                       {estadisticas.prestamosConObservacionesIndividuales}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">Con obs. globales:</span>
+                    <span className="text-gray-600 dark:text-gray-400">Con observaciones globales:</span>
                     <span className="font-semibold text-blue-600 dark:text-blue-400">
                       {estadisticas.prestamosQueUsaranObservacionesGlobales}
                     </span>
@@ -268,10 +268,12 @@ export default function ConfirmacionModalMultiple({
                   const fechaDevolucion = new Date(prestamo.fecha_devolucion);
                   const hoy = new Date();
                   const estaVencido = fechaDevolucion < hoy;
-                  // Prefill with DB observation from ejemplar if present; empty if null
-                  const observacionIndividual = (observacionesIndividuales.get(prestamo.id) ?? prestamo.ejemplar.observaciones ?? '').toString();
+                  // Get individual observation, only use ejemplar observation as initial value if not already set
+                  const observacionIndividual = observacionesIndividuales.has(prestamo.id) 
+                    ? observacionesIndividuales.get(prestamo.id)!
+                    : (prestamo.ejemplar.observaciones ?? '');
                   const tieneObservacionExpandida = prestamosConObservacionesExpandidas.has(prestamo.id);
-                  const usaraObservacionGlobal = !observacionIndividual.trim() && observacionesGlobales.trim();
+                  const usaraObservacionGlobal = (!observacionIndividual.trim() || observacionIndividual === '') && observacionesGlobales.trim();
 
                   return (
                     <div 
@@ -300,12 +302,12 @@ export default function ConfirmacionModalMultiple({
                                 )}
                                 {usaraObservacionGlobal && (
                                   <span className="text-blue-600 dark:text-blue-400 font-medium">
-                                    Obs. global
+                                    Observacion global
                                   </span>
                                 )}
                                 {observacionIndividual.trim() && (
                                   <span className="text-purple-600 dark:text-purple-400 font-medium">
-                                    Obs. específica
+                                    Observaciones específica
                                   </span>
                                 )}
                               </div>
@@ -321,7 +323,7 @@ export default function ConfirmacionModalMultiple({
                                   }`}
                                 >
                                   <MessageSquare className="w-3 h-3 mr-1" />
-                                  {tieneObservacionExpandida ? 'Ocultar obs. específica' : 'Agregar obs. específica'}
+                                  {tieneObservacionExpandida ? 'Ocultar observaciones específica' : 'Agregar observaciones específica'}
                                 </button>
                               </div>
 
@@ -339,7 +341,8 @@ export default function ConfirmacionModalMultiple({
                                         if (e.target.value.trim()) {
                                           nuevas.set(prestamo.id, e.target.value);
                                         } else {
-                                          nuevas.delete(prestamo.id);
+                                          // Allow empty string to override ejemplar observations
+                                          nuevas.set(prestamo.id, '');
                                         }
                                         return nuevas;
                                       });

@@ -32,16 +32,14 @@ class DashboardController extends Controller
         }
         // Si es Admin, $seccionId permanece null para ver todos los datos
 
-        // Obtener los 5 libros más prestados del año actual (filtrado por sección si aplica)
+        // Obtener los 5 libros más prestados del año actual (filtrado por sección del libro si aplica)
         $librosMasPrestadosQuery = Libro::select('libros.*', DB::raw('COUNT(prestamos.id) as total_prestamos'))
             ->join('ejemplares', 'libros.id', '=', 'ejemplares.libro_id')
             ->join('prestamos', 'ejemplares.id', '=', 'prestamos.ejemplar_id')
-            ->join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
-            ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
             ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd]);
             
         if ($seccionId) {
-            $librosMasPrestadosQuery->where('grados.seccion_id', $seccionId);
+            $librosMasPrestadosQuery->where('libros.seccion_id', $seccionId);
         }
         
         $librosMasPrestados = $librosMasPrestadosQuery
@@ -50,11 +48,19 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Obtener los 5 lectores docentes más frecuentes del año actual
-        $docentesFrecuentes = Lector::select('lectores.*', DB::raw('COUNT(prestamos.id) as total_prestamos'))
+        // Obtener los 5 lectores docentes más frecuentes del año actual (filtrado por sección del libro si aplica)
+        $docentesFrecuentesQuery = Lector::select('lectores.*', DB::raw('COUNT(prestamos.id) as total_prestamos'))
             ->join('prestamos', 'lectores.id', '=', 'prestamos.lector_id')
+            ->join('ejemplares', 'prestamos.ejemplar_id', '=', 'ejemplares.id')
+            ->join('libros', 'ejemplares.libro_id', '=', 'libros.id')
             ->where('lectores.tipo', 'DOCENTE')
-            ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd])
+            ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd]);
+            
+        if ($seccionId) {
+            $docentesFrecuentesQuery->where('libros.seccion_id', $seccionId);
+        }
+        
+        $docentesFrecuentes = $docentesFrecuentesQuery
             ->groupBy('lectores.id')
             ->orderBy('total_prestamos', 'desc')
             ->limit(5)
@@ -69,15 +75,17 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Obtener los 5 estudiantes más frecuentes del año actual (filtrado por sección si aplica)
+        // Obtener los 5 estudiantes más frecuentes del año actual (filtrado por sección del libro si aplica)
         $estudiantesFrecuentesQuery = Lector::select('lectores.*', DB::raw('COUNT(prestamos.id) as total_prestamos'))
             ->join('prestamos', 'lectores.id', '=', 'prestamos.lector_id')
+            ->join('ejemplares', 'prestamos.ejemplar_id', '=', 'ejemplares.id')
+            ->join('libros', 'ejemplares.libro_id', '=', 'libros.id')
             ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
             ->where('lectores.tipo', 'ESTUDIANTE')
             ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd]);
             
         if ($seccionId) {
-            $estudiantesFrecuentesQuery->where('grados.seccion_id', $seccionId);
+            $estudiantesFrecuentesQuery->where('libros.seccion_id', $seccionId);
         }
         
         $estudiantesFrecuentes = $estudiantesFrecuentesQuery
@@ -99,31 +107,31 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Preparar consultas para estadísticas generales (filtrado por sección si aplica)
-        $prestamosQuery = Prestamo::join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
-            ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
+        // Preparar consultas para estadísticas generales (filtrado por sección del libro si aplica)
+        $prestamosQuery = Prestamo::join('ejemplares', 'prestamos.ejemplar_id', '=', 'ejemplares.id')
+            ->join('libros', 'ejemplares.libro_id', '=', 'libros.id')
             ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd]);
             
         if ($seccionId) {
-            $prestamosQuery->where('grados.seccion_id', $seccionId);
+            $prestamosQuery->where('libros.seccion_id', $seccionId);
         }
         
-        $prestamosActivosQuery = Prestamo::join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
-            ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
+        $prestamosActivosQuery = Prestamo::join('ejemplares', 'prestamos.ejemplar_id', '=', 'ejemplares.id')
+            ->join('libros', 'ejemplares.libro_id', '=', 'libros.id')
             ->where('prestamos.estado', Prestamo::ESTADO_ACTIVO)
             ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd]);
             
         if ($seccionId) {
-            $prestamosActivosQuery->where('grados.seccion_id', $seccionId);
+            $prestamosActivosQuery->where('libros.seccion_id', $seccionId);
         }
         
-        $prestamosVencidosQuery = Prestamo::join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
-            ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
+        $prestamosVencidosQuery = Prestamo::join('ejemplares', 'prestamos.ejemplar_id', '=', 'ejemplares.id')
+            ->join('libros', 'ejemplares.libro_id', '=', 'libros.id')
             ->where('prestamos.estado', Prestamo::ESTADO_VENCIDO)
             ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd]);
             
         if ($seccionId) {
-            $prestamosVencidosQuery->where('grados.seccion_id', $seccionId);
+            $prestamosVencidosQuery->where('libros.seccion_id', $seccionId);
         }
         
         $lectoresQuery = Lector::leftJoin('grados', 'lectores.grado_id', '=', 'grados.id');
@@ -162,16 +170,16 @@ class DashboardController extends Controller
             'total_estudiantes' => $estudiantesQuery->count(),
         ];
 
-        // Obtener datos para el gráfico de préstamos por mes del año actual (filtrado por sección si aplica)
+        // Obtener datos para el gráfico de préstamos por mes del año actual (filtrado por sección del libro si aplica)
         $prestamosPorMes = collect();
         for ($mes = 1; $mes <= 12; $mes++) {
-            $prestamosMesQuery = Prestamo::join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
-                ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
+            $prestamosMesQuery = Prestamo::join('ejemplares', 'prestamos.ejemplar_id', '=', 'ejemplares.id')
+                ->join('libros', 'ejemplares.libro_id', '=', 'libros.id')
                 ->whereYear('prestamos.fecha_prestamo', $currentYear)
                 ->whereMonth('prestamos.fecha_prestamo', $mes);
                 
             if ($seccionId) {
-                $prestamosMesQuery->where('grados.seccion_id', $seccionId);
+                $prestamosMesQuery->where('libros.seccion_id', $seccionId);
             }
             
             $totalPrestamos = $prestamosMesQuery->count();
@@ -183,27 +191,27 @@ class DashboardController extends Controller
             ]);
         }
 
-        // Obtener estadísticas de devolución del año actual (filtrado por sección si aplica)
-        $devueltosTiempoQuery = Prestamo::join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
-            ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
+        // Obtener estadísticas de devolución del año actual (filtrado por sección del libro si aplica)
+        $devueltosTiempoQuery = Prestamo::join('ejemplares', 'prestamos.ejemplar_id', '=', 'ejemplares.id')
+            ->join('libros', 'ejemplares.libro_id', '=', 'libros.id')
             ->where('prestamos.estado', 'DEVUELTO')
             ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd])
             ->whereNotNull('prestamos.fecha_devuelto')
             ->whereRaw('DATE(prestamos.fecha_devuelto) <= DATE(prestamos.fecha_devolucion)');
             
         if ($seccionId) {
-            $devueltosTiempoQuery->where('grados.seccion_id', $seccionId);
+            $devueltosTiempoQuery->where('libros.seccion_id', $seccionId);
         }
         
-        $devueltosTardeQuery = Prestamo::join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
-            ->leftJoin('grados', 'lectores.grado_id', '=', 'grados.id')
+        $devueltosTardeQuery = Prestamo::join('ejemplares', 'prestamos.ejemplar_id', '=', 'ejemplares.id')
+            ->join('libros', 'ejemplares.libro_id', '=', 'libros.id')
             ->whereIn('prestamos.estado', ['DEVUELTO', 'VENCIDO'])
             ->whereBetween('prestamos.fecha_prestamo', [$yearStart, $yearEnd])
             ->whereNotNull('prestamos.fecha_devuelto')
             ->whereRaw('DATE(prestamos.fecha_devuelto) > DATE(prestamos.fecha_devolucion)');
             
         if ($seccionId) {
-            $devueltosTardeQuery->where('grados.seccion_id', $seccionId);
+            $devueltosTardeQuery->where('libros.seccion_id', $seccionId);
         }
         
         $estadisticasDevolucion = [

@@ -256,7 +256,7 @@ export default function Welcome() {
                                 {/* Logo tamaño controlado - sin scroll */}
                                 <div className="w-36 h-14 sm:w-44 sm:h-16 lg:w-52 lg:h-18 relative">
                                     <img 
-                                        src="https://franciscanaspasto.edu.co/wp-content/uploads/2024/03/logo.png" 
+                                        src="/IMG/logoColegio.png" 
                                         alt="Logo Biblioteca Madre Caridad" 
                                         className="w-full h-full object-contain drop-shadow-lg" 
                                     />

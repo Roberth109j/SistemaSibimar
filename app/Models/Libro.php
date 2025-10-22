@@ -55,7 +55,7 @@ class Libro extends Model
                 'numEjemplar' => 1,
                 'tipo_adquisicion' => Ejemplar::TIPO_COMPRA,
                 'estado' => Ejemplar::ESTADO_DISPONIBLE,
-                'observaciones' => 'Ejemplar creado automáticamente al registrar el libro'
+                'observaciones' => null
             ]);
         });
     }
@@ -73,16 +73,31 @@ class Libro extends Model
             }
         }
         
-        // Verificar formato del ISBN (código único) - antes de verificar campos requeridos
+        // Verificar formato del ISBN/ISSN (código único) - antes de verificar campos requeridos
         if (isset($data['codigo_unico']) && !empty($data['codigo_unico'])) {
             $codigo = $data['codigo_unico'];
-            // Verificar que no contenga caracteres no válidos para ISBN
+            // Verificar que no contenga caracteres no válidos para ISBN/ISSN
             if (preg_match('/[^0-9\-]/', $codigo)) {
-                throw new \Exception('El formato del ISBN es incorrecto');
+                throw new \Exception('El formato del código es incorrecto');
             }
-            // Verificar longitud del ISBN (debe tener al menos 10 caracteres)
-            if (strlen($codigo) < 10) {
-                throw new \Exception('El formato del ISBN es incorrecto');
+            
+            // Verificar longitud según el tipo de material
+            $clase = $data['clase'] ?? null;
+            if ($clase === self::CLASE_LIBRO) {
+                // ISBN debe tener exactamente 13 dígitos
+                if (strlen($codigo) !== 13) {
+                    throw new \Exception('El ISBN debe tener exactamente 13 dígitos');
+                }
+            } elseif ($clase === self::CLASE_REVISTA) {
+                // ISSN debe tener exactamente 8 dígitos
+                if (strlen($codigo) !== 8) {
+                    throw new \Exception('El ISSN debe tener exactamente 8 dígitos');
+                }
+            } else {
+                // Si no se especifica la clase, validar longitud mínima genérica
+                if (strlen($codigo) < 8) {
+                    throw new \Exception('El formato del código es incorrecto');
+                }
             }
         }
         

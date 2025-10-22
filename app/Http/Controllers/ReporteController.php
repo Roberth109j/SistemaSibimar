@@ -16,10 +16,19 @@ class ReporteController extends Controller
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 15; // Valor fijo de 15 elementos por página
 
+        // 🆕 FILTRO POR SECCIÓN PARA SUBGRADOS DISPONIBLES
+        $user = $request->user();
+        $subgradosQuery = Grado::whereNotNull('subGrado')
+            ->where('subGrado', '!=', '');
+            
+        // Si el usuario es bibliotecario, filtrar por su sección
+        if ($user->seccion_id) {
+            $subgradosQuery->where('seccion_id', $user->seccion_id);
+        }
+        // Si es Administrador, mostrar todos los subgrados
+
         // ✅ OBTENER TODOS LOS SUBGRADOS ÚNICOS PARA EL FILTRO CON ORDEN NATURAL
-        $subgradosCollection = Grado::whereNotNull('subGrado')
-            ->where('subGrado', '!=', '')
-            ->distinct()
+        $subgradosCollection = $subgradosQuery->distinct()
             ->pluck('subGrado')
             ->sort(function ($a, $b) {
                 // Función de ordenamiento natural para subgrados empezando desde Primero
@@ -76,9 +85,18 @@ class ReporteController extends Controller
 
         // ✅ OBTENER SOLO LOS 4 AÑOS MÁS RECIENTES PARA EL FILTRO
         $fechaLimite = Carbon::now()->subYears(4)->startOfYear();
-        $anosDisponibles = Prestamo::selectRaw('YEAR(fecha_prestamo) as ano')
-            ->where('fecha_prestamo', '>=', $fechaLimite)
-            ->distinct()
+        $anosQuery = Prestamo::selectRaw('YEAR(fecha_prestamo) as ano')
+            ->where('fecha_prestamo', '>=', $fechaLimite);
+            
+        // Si el usuario es bibliotecario, filtrar por la sección del libro prestado
+        if ($user->seccion_id) {
+            $anosQuery->whereHas('ejemplar.libro', function ($q) use ($user) {
+                $q->where('libros.seccion_id', $user->seccion_id);
+            });
+        }
+        // Si es Administrador, mostrar todos los años
+        
+        $anosDisponibles = $anosQuery->distinct()
             ->orderBy('ano', 'desc')
             ->pluck('ano')
             ->toArray();
@@ -96,9 +114,19 @@ class ReporteController extends Controller
         $query = Prestamo::with(['ejemplar.libro', 'lector.grado'])
             // ✅ FILTRAR POR AÑO (POR DEFECTO AÑO ACTUAL) Y LIMITAR A LOS ÚLTIMOS 4 AÑOS
             ->whereYear('fecha_prestamo', $anoFiltro)
-            ->where('fecha_prestamo', '>=', $fechaLimite)
-            // MODIFICACIÓN: Ordenar primero por estado (ACTIVO primero) y luego por fecha
-            ->orderByRaw("CASE 
+            ->where('fecha_prestamo', '>=', $fechaLimite);
+
+        // 🆕 FILTRO POR SECCIÓN BASADO EN EL USUARIO AUTENTICADO
+        // Si el usuario es bibliotecario (tiene seccion_id), filtrar por la sección del libro prestado
+        if ($user->seccion_id) {
+            $query->whereHas('ejemplar.libro', function ($q) use ($user) {
+                $q->where('libros.seccion_id', $user->seccion_id);
+            });
+        }
+        // Si es Administrador (seccion_id = null), puede ver todos los préstamos
+
+        // MODIFICACIÓN: Ordenar primero por estado (ACTIVO primero) y luego por fecha
+        $query->orderByRaw("CASE 
                 WHEN estado = 'ACTIVO' THEN 1 
                 WHEN estado = 'VENCIDO' THEN 2 
                 WHEN estado = 'DEVUELTO' THEN 3 
