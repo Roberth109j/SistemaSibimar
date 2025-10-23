@@ -158,20 +158,48 @@ export default function LibrosNoDevueltos({
 }: LibrosNoDevueltosProps) {
   
   const descargarPDF = () => {
-    const convertirFecha = (fechaStr: string) => {
-      const partes = fechaStr.split('/');
-      return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
-    };
-
-    const params = new URLSearchParams({
-      fecha_inicio: convertirFecha(periodo.inicio),
-      fecha_fin: convertirFecha(periodo.fin),
-      ...(periodo.tipo !== 'personalizado' && { periodo: periodo.tipo })
-    });
-
-    const url = `/informes/descargar-no-devueltos?${params}`;
-    window.open(url, '_blank');
+  const convertirFecha = (fechaStr: string) => {
+    const partes = fechaStr.split('/');
+    return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
   };
+
+  // Crear un formulario temporal para hacer POST
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/informes/libros-no-devueltos';
+  form.target = '_blank';
+
+  // Agregar token CSRF
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  if (csrfToken) {
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+  }
+
+  // Agregar campos del formulario
+  const fields = {
+    fecha_inicio: convertirFecha(periodo.inicio),
+    fecha_fin: convertirFecha(periodo.fin),
+    formato: 'pdf',
+    ...(periodo.tipo !== 'personalizado' && { periodo: periodo.tipo })
+  };
+
+  Object.entries(fields).forEach(([key, value]) => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = key;
+    input.value = value as string;
+    form.appendChild(input);
+  });
+
+  // Agregar al DOM, enviar y remover
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
+};
 
   // COLORES CONSISTENTES para severidad - CORREGIDO PARA VALORES POSITIVOS
   const getSeveridadColor = (dias: number) => {

@@ -163,6 +163,10 @@ class InformeController extends Controller
     /**
      * Generar informe de libros no devueltos - ACTUALIZADO CON CONTROL DE ROLES
      */
+
+/**
+     * Generar informe de libros no devueltos - ACTUALIZADO CON CONTROL DE ROLES
+     */
     public function librosNoDevueltos(Request $request)
     {
         $validated = $request->validate([
@@ -175,7 +179,7 @@ class InformeController extends Controller
         try {
             $fechaInicio = Carbon::parse($validated['fecha_inicio'])->startOfDay();
             $fechaFin = Carbon::parse($validated['fecha_fin'])->endOfDay();
-            $hoy = Carbon::now();
+            $hoy = Carbon::now()->startOfDay();
 
             // NUEVO: Obtener sección según rol del usuario
             $seccionId = $this->getSeccionByRole($request);
@@ -186,59 +190,52 @@ class InformeController extends Controller
                 'ejemplar.libro.estanteria.seccion',
                 'lector.grado'
             ])
-                ->join('lectores', 'prestamos.lector_id', '=', 'lectores.id')
-                ->join('grados', 'lectores.grado_id', '=', 'grados.id')
-                ->where('prestamos.estado', 'VENCIDO')
-                ->whereBetween('prestamos.fecha_prestamo', [$fechaInicio, $fechaFin])
-                ->orderBy('grados.subGrado', 'asc')
-                ->orderBy('prestamos.fecha_devolucion', 'asc')
-                ->select('prestamos.*');
+                ->where('estado', 'VENCIDO')
+                ->whereBetween('fecha_prestamo', [$fechaInicio, $fechaFin])
+                ->orderBy('fecha_devolucion', 'asc');
 
             // NUEVO: Aplicar filtro de sección según rol
             $prestamosNoDevueltosQuery = $this->aplicarFiltroSeccion($prestamosNoDevueltosQuery, $seccionId);
 
             $prestamosNoDevueltos = $prestamosNoDevueltosQuery->get()
                 ->map(function ($prestamo) use ($hoy) {
-                    // CORRECCIÓN CRÍTICA: Calcular días de retraso correctamente
                     $fechaVencimiento = Carbon::parse($prestamo->fecha_devolucion)->startOfDay();
-                    
-                    // Si la fecha de vencimiento ya pasó, calcular días de retraso positivos
-                    if ($hoy->startOfDay()->greaterThan($fechaVencimiento)) {
-                        $prestamo->dias_retraso = (int) $fechaVencimiento->diffInDays($hoy->startOfDay());
-                    } else {
-                        // Si aún no vence, no debería estar en vencidos, pero por seguridad ponemos 0
-                        $prestamo->dias_retraso = 0;
-                    }
-                    
+                    $diasRetraso = $hoy->diffInDays($fechaVencimiento, false);
+                    $prestamo->dias_retraso = abs($diasRetraso);
                     return $prestamo;
                 })
-                ->filter(function ($prestamo) {
-                    // Solo incluir préstamos con días de retraso positivos
-                    return $prestamo->dias_retraso > 0;
-                });
+                ->sortBy(function ($prestamo) {
+                    return $prestamo->lector && $prestamo->lector->grado 
+                        ? $prestamo->lector->grado->subGrado 
+                        : 'ZZZ';
+                })
+                ->values();
 
-            // Estadísticas específicas - CORREGIDAS
-            $estadisticas = [
-                'total_no_devueltos' => $prestamosNoDevueltos->count(),
-                'vencidos' => $prestamosNoDevueltos->count(),
-                'promedio_dias_retraso' => $prestamosNoDevueltos->count() > 0 
-                    ? round($prestamosNoDevueltos->avg('dias_retraso'), 0) 
-                    : 0,
-                'por_grado' => $this->getNoDevueltosPorGrado($prestamosNoDevueltos),
-                'por_severidad' => $this->getNoDevueltosPorSeveridad($prestamosNoDevueltos)
-            ];
+            // Verificar si hay préstamos no devueltos
+            if ($prestamosNoDevueltos->isEmpty()) {
+                return back()->with('info', 'No hay libros vencidos en el período seleccionado.');
+            }
 
+            // Preparar datos del informe
             $datos = [
                 'prestamos_no_devueltos' => $prestamosNoDevueltos,
-                'estadisticas' => $estadisticas,
+                'estadisticas' => [
+                    'total_no_devueltos' => $prestamosNoDevueltos->count(),
+                    'vencidos' => $prestamosNoDevueltos->count(),
+                    'promedio_dias_retraso' => round($prestamosNoDevueltos->avg('dias_retraso')),
+                    'maximo_dias_retraso' => $prestamosNoDevueltos->max('dias_retraso'),
+                    'por_grado' => $this->getNoDevueltosPorGrado($prestamosNoDevueltos)->toArray(),
+                    'por_severidad' => $this->getNoDevueltosPorSeveridad($prestamosNoDevueltos)
+                ],
                 'periodo' => [
                     'inicio' => $fechaInicio->format('d/m/Y'),
                     'fin' => $fechaFin->format('d/m/Y'),
                     'tipo' => $validated['periodo'] ?? 'personalizado'
                 ],
-                'seccion_info' => $seccionId ? Seccion::find($seccionId)->nombre : 'TODAS LAS SECCIONES', // NUEVO
+                'seccion_info' => $seccionId ? Seccion::find($seccionId)->nombre : 'TODAS LAS SECCIONES'
             ];
 
+            // Generar PDF o retornar vista
             if ($validated['formato'] === 'pdf') {
                 return $this->descargarPDF('no-devueltos', $datos);
             }
@@ -246,7 +243,7 @@ class InformeController extends Controller
             return Inertia::render('Informes/LibrosNoDevueltos', $datos);
 
         } catch (\Exception $e) {
-            Log::error('Error generando informe de no devueltos: ' . $e->getMessage());
+            Log::error('Error generando informe de libros no devueltos: ' . $e->getMessage());
             return back()->with('error', 'Error al generar el informe: ' . $e->getMessage());
         }
     }

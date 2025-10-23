@@ -145,8 +145,15 @@ class DashboardController extends Controller
             $estudiantesQuery->where('grados.seccion_id', $seccionId);
         }
         
-        // Contar ejemplares marcados como reposición (independientemente del estado)
-        $librosReposicion = Ejemplar::where('tipo_adquisicion', 'REPOSICION')->count();
+        // Contar ejemplares marcados como reposición (filtrado por sección si aplica)
+        $librosReposicionQuery = Ejemplar::join('libros', 'ejemplares.libro_id', '=', 'libros.id')
+            ->where('ejemplares.tipo_adquisicion', 'REPOSICION');
+            
+        if ($seccionId) {
+            $librosReposicionQuery->where('libros.seccion_id', $seccionId);
+        }
+        
+        $librosReposicion = $librosReposicionQuery->count();
 
         // Preparar consultas para libros y ejemplares (filtrado por sección si aplica)
         $librosQuery = Libro::query();
