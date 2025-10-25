@@ -593,7 +593,9 @@ export default function HistorialPrestamos({
               <div className="flex items-center space-x-2">
                 {prestamos.links.map((link: any, index: number) => {
                   // Botón anterior
-                  if (link.label.includes('Previous') || link.label.includes('Anterior') || link.label === '&laquo;') {
+                  if (link.label.includes('Previous') || link.label.includes('Anterior') ||
+                      link.label === '&laquo;' || link.label.includes('pagination.previous') ||
+                      link.label.includes('pagination.prev')) {
                     return (
                       <button
                         key={index}
@@ -617,7 +619,8 @@ export default function HistorialPrestamos({
                   }
 
                   // Botón siguiente
-                  if (link.label.includes('Next') || link.label.includes('Siguiente') || link.label === '&raquo;') {
+                  if (link.label.includes('Next') || link.label.includes('Siguiente') ||
+                      link.label === '&raquo;' || link.label.includes('pagination.next')) {
                     return (
                       <button
                         key={index}
@@ -643,6 +646,8 @@ export default function HistorialPrestamos({
                   // Números de página y puntos suspensivos
                   if (!link.label.includes('Previous') && !link.label.includes('Next') &&
                     !link.label.includes('Anterior') && !link.label.includes('Siguiente') &&
+                    !link.label.includes('pagination.previous') && !link.label.includes('pagination.prev') &&
+                    !link.label.includes('pagination.next') &&
                     link.label !== '&laquo;' && link.label !== '&raquo;') {
 
                     // Si es "..." 

@@ -314,14 +314,23 @@ class EjemplarController extends Controller
         
         // **AJUSTE: Estados permitidos incluyen el estado actual + estados de baja**
         $estadosPermitidos = ['DADO DE BAJA', 'PERDIDO'];
-        
+
         // Agregar el estado actual si no está ya en el array
         if (!in_array($ejemplar->estado, $estadosPermitidos)) {
             $estadosPermitidos[] = $ejemplar->estado;
         }
-        
-        // Validación
+
+        // Validación con numEjemplar incluido
         $validatedData = $request->validate([
+            'numEjemplar' => [
+                'required',
+                'integer',
+                'min:1',
+                // Validar que el número sea único para este libro, excepto el ejemplar actual
+                Rule::unique('ejemplares', 'numEjemplar')
+                    ->where('libro_id', $libroId)
+                    ->ignore($ejemplarId),
+            ],
             'tipo_adquisicion' => [
                 'required',
                 Rule::in(Ejemplar::tiposAdquisicion()),
@@ -333,6 +342,10 @@ class EjemplarController extends Controller
             'observaciones' => 'nullable|string|max:500',
         ], [
             // Mensajes personalizados de error
+            'numEjemplar.required' => 'El número de ejemplar es obligatorio.',
+            'numEjemplar.integer' => 'El número de ejemplar debe ser un número entero.',
+            'numEjemplar.min' => 'El número de ejemplar debe ser al menos 1.',
+            'numEjemplar.unique' => 'Ya existe un ejemplar con este número para este libro.',
             'tipo_adquisicion.required' => 'El tipo de adquisición es obligatorio.',
             'tipo_adquisicion.in' => 'El tipo de adquisición seleccionado no es válido.',
             'estado.required' => 'El estado es obligatorio.',
@@ -347,7 +360,7 @@ class EjemplarController extends Controller
             $estadoAnterior = $ejemplar->estado;
             $estadoNuevo = $validatedData['estado'];
 
-            Log::info('🔄 Iniciando actualización de ejemplar:', [
+            Log::info('Iniciando actualización de ejemplar:', [
                 'ejemplar_id' => $ejemplar->id,
                 'ejemplar_numero' => $ejemplar->numEjemplar,
                 'estado_anterior' => $estadoAnterior,
@@ -356,12 +369,13 @@ class EjemplarController extends Controller
 
             // Si se está marcando como PERDIDO, manejar préstamos activos
             if ($estadoNuevo === 'PERDIDO' && $estadoAnterior !== 'PERDIDO') {
-                Log::info('⚠️ Ejemplar siendo marcado como PERDIDO - Procesando préstamos activos');
+                Log::info('Ejemplar siendo marcado como PERDIDO - Procesando préstamos activos');
                 $this->manejarEjemplarPerdido($ejemplar);
             }
 
-            // Actualizar el ejemplar
+            // Actualizar el ejemplar (ahora incluye numEjemplar)
             $ejemplar->update([
+                'numEjemplar' => $validatedData['numEjemplar'],
                 'tipo_adquisicion' => $validatedData['tipo_adquisicion'],
                 'estado' => $validatedData['estado'],
                 'observaciones' => $validatedData['observaciones'] ?? null,
@@ -369,7 +383,7 @@ class EjemplarController extends Controller
 
             DB::commit();
 
-            Log::info('✅ Ejemplar actualizado exitosamente:', [
+            Log::info('Ejemplar actualizado exitosamente:', [
                 'ejemplar_id' => $ejemplar->id,
                 'libro_id' => $libroId,
                 'numEjemplar' => $ejemplar->numEjemplar,

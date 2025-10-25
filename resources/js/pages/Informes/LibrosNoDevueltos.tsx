@@ -81,72 +81,84 @@ const formatearDias = (dias: number): string => {
 // Función para ordenar grados de manera lógica
 const ordenarGrados = (grado: string): number => {
   const gradoLower = grado.toLowerCase();
-  
+
+  // PREESCOLAR (PREJARDIN, etc.) - SIEMPRE PRIMERO
+  if (gradoLower.includes('preescolar') || gradoLower.includes('prejardin') || gradoLower.includes('pre jardin')) {
+    // Ordenar por número dentro de prejardín
+    if (gradoLower.includes('uno') || gradoLower.includes('1')) {
+      return -2;
+    }
+    if (gradoLower.includes('dos') || gradoLower.includes('2')) {
+      return -1;
+    }
+    return -3; // Otros preescolares
+  }
+
   // Transición
   if (gradoLower.includes('transición') || gradoLower.includes('transicion')) {
     return 0;
   }
-  
+
   // Primero
   if (gradoLower.includes('primero')) {
     return 1;
   }
-  
+
   // Segundo
   if (gradoLower.includes('segundo')) {
     return 2;
   }
-  
+
   // Tercero
   if (gradoLower.includes('tercero')) {
     return 3;
   }
-  
+
   // Cuarto
   if (gradoLower.includes('cuarto')) {
     return 4;
   }
-  
+
   // Quinto
   if (gradoLower.includes('quinto')) {
     return 5;
   }
-  
+
   // Sexto
   if (gradoLower.includes('sexto')) {
     return 6;
   }
-  
+
   // Séptimo
   if (gradoLower.includes('séptimo') || gradoLower.includes('septimo')) {
     return 7;
   }
-  
+
   // Octavo
   if (gradoLower.includes('octavo')) {
     return 8;
   }
-  
+
   // Noveno
   if (gradoLower.includes('noveno')) {
     return 9;
   }
-  
+
   // Décimo
   if (gradoLower.includes('décimo') || gradoLower.includes('decimo')) {
     return 10;
   }
-  
+
   // Once
   if (gradoLower.includes('once') || gradoLower.includes('11')) {
     return 11;
   }
-  
-  // Sin grado al final
-  if (gradoLower.includes('sin grado')) {
+
+  // Sin grado / DOCENTES al final
+  if (gradoLower.includes('docentes') || gradoLower.includes('sin grado')) {
     return 999;
   }
-  
+
   // Por defecto
   return 500;
 };
@@ -258,7 +270,7 @@ export default function LibrosNoDevueltos({
           <div className="mb-8 flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Libros Vencidos No Devueltos
+                Prestamos Vencidos
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-2">
                 Período: {periodo.inicio} - {periodo.fin} • Total: {estadisticas.total_no_devueltos} libros vencidos
@@ -291,7 +303,7 @@ export default function LibrosNoDevueltos({
                 <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400 mr-3 flex-shrink-0 mt-1" />
                 <div>
                   <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
-                    ⚠️ Atención Requerida
+                    Atención Requerida
                   </h3>
                   <p className="text-red-700 dark:text-red-300">
                     Se encontraron <strong>{estadisticas.total_no_devueltos}</strong> libros vencidos no devueltos que requieren seguimiento.
@@ -464,10 +476,10 @@ export default function LibrosNoDevueltos({
                 <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Estudiante
+                      Grado
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Grado
+                      Estudiante
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Libro
@@ -488,11 +500,13 @@ export default function LibrosNoDevueltos({
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {prestamosOrdenados
-                    .slice(0, 30)
                     .map((prestamo) => {
                       const diasEnteros = Math.abs(Math.floor(Number(prestamo.dias_retraso) || 0)); // Asegurar valor positivo
                       return (
                         <tr key={prestamo.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            {prestamo.lector.grado?.subGrado || 'N/A'}
+                          </td>
                           <td className="px-6 py-4">
                             <div className="text-sm font-medium text-gray-900 dark:text-white">
                               {prestamo.lector.nombre}
@@ -500,9 +514,6 @@ export default function LibrosNoDevueltos({
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               {prestamo.lector.codigo}
                             </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                            {prestamo.lector.grado?.subGrado || 'N/A'}
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-sm text-gray-900 dark:text-white max-w-xs truncate">
@@ -532,14 +543,6 @@ export default function LibrosNoDevueltos({
                     })}
                 </tbody>
               </table>
-              
-              {prestamos_no_devueltos.length > 30 && (
-                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 text-center">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Mostrando 30 de {prestamos_no_devueltos.length} libros vencidos no devueltos. Descargue el PDF para ver el informe completo.
-                  </p>
-                </div>
-              )}
             </div>
           </div>
 

@@ -139,6 +139,7 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
 
   // Formulario con Inertia - inicializa con el estado actual del ejemplar
   const form = useForm({
+    numEjemplar: ejemplar.numEjemplar,
     tipo_adquisicion: ejemplar.tipo_adquisicion,
     estado: ejemplar.estado, // **IMPORTANTE: Mantiene el estado actual por defecto**
     observaciones: ejemplar.observaciones || '',
@@ -157,6 +158,7 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
 
     // Validar campos requeridos
     const camposRequeridos = {
+      numEjemplar: 'Número de Ejemplar',
       tipo_adquisicion: 'Tipo de Adquisición',
       estado: 'Estado',
     };
@@ -314,32 +316,34 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="p-6">
               <form onSubmit={handleSubmit} className="space-y-6">
-                
-                {/* Número de Ejemplar - Solo lectura */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-200 dark:border-gray-600">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center justify-center w-10 h-10 bg-blue-100 dark:bg-blue-800/50 rounded-full">
-                        <span className="text-lg font-bold text-blue-600 dark:text-blue-400">#{ejemplar.numEjemplar}</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-300">
-                          Número del Ejemplar
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          Este número se asignó automáticamente y no se puede modificar
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-300">
-                        🔒 No editable
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Número de Ejemplar - AHORA EDITABLE */}
+                  <div className="space-y-2">
+                    <label htmlFor="numEjemplar" className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Número del Ejemplar <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="numEjemplar"
+                      type="text"
+                      inputMode="numeric"
+                      value={form.data.numEjemplar}
+                      onChange={e => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        form.setData('numEjemplar', value ? parseInt(value) : 0);
+                      }}
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 px-3 py-2 text-sm"
+                      placeholder="Ej: 1"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Número único para identificar este ejemplar del libro
+                    </p>
+                    {form.errors.numEjemplar && (
+                      <p className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 p-2 rounded-md border-l-2 border-red-500">
+                        {form.errors.numEjemplar}
+                      </p>
+                    )}
+                  </div>
                   {/* Tipo de Adquisición */}
                   <div className="space-y-2">
                     <label htmlFor="tipo_adquisicion" className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -394,6 +398,7 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
                     )}
                   </div>
                 </div>
+
 
                 {/* Observaciones */}
                 <div className="space-y-2">
@@ -456,8 +461,16 @@ export default function Edit({ auth, libro, ejemplar, tiposAdquisicion, estados 
                   Información importante
                 </p>
                 <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
-                  Los campos marcados con <span className="text-red-500">*</span> son obligatorios. 
-                  El número de ejemplar #{ejemplar.numEjemplar} no se puede modificar.
+                  Los campos marcados con <span className="text-red-500">*</span> son obligatorios.
+                  <span className="block mt-2 font-semibold">
+                    🔢 Número de Ejemplar:
+                  </span>
+                  <span className="block mt-1">
+                    • Puedes modificar el número del ejemplar
+                  </span>
+                  <span className="block mt-1">
+                    • Debe ser único para este libro (no puede duplicarse)
+                  </span>
                   <span className="block mt-2 font-semibold">
                     📋 Estados disponibles:
                   </span>

@@ -245,9 +245,9 @@
         <table>
             <thead>
                 <tr>
+                    <th>Grado</th>
                     <th>Estudiante</th>
                     <th>Codigo</th>
-                    <th>Grado</th>
                     <th>Libro</th>
                     <th>Ejemplar</th>
                     <th>F. Prestamo</th>
@@ -260,7 +260,7 @@
                 @foreach($prestamos_no_devueltos as $index => $prestamo)
                     @php
                         $diasRetraso = abs((int) floor($prestamo->dias_retraso ?? 0));
-                        
+
                         $severidadClase = '';
                         $severidadTexto = '';
                         if ($diasRetraso >= 30) {
@@ -278,9 +278,9 @@
                         }
                     @endphp
                     <tr>
+                        <td>{{ $prestamo->lector->grado->subGrado ?? 'N/A' }}</td>
                         <td class="nombre-completo">{{ $prestamo->lector->nombre ?? 'N/A' }}</td>
                         <td>{{ $prestamo->lector->codigo ?? 'N/A' }}</td>
-                        <td>{{ $prestamo->lector->grado->subGrado ?? 'N/A' }}</td>
                         <td class="nombre-completo">{{ $prestamo->ejemplar->libro->titulo ?? 'N/A' }}</td>
                         <td class="text-center">{{ $prestamo->ejemplar->numEjemplar ?? 'N/A' }}</td>
                         <td>{{ \Carbon\Carbon::parse($prestamo->fecha_prestamo)->format('d/m/Y') }}</td>
