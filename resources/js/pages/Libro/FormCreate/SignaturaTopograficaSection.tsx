@@ -103,11 +103,10 @@ export default function SignaturaTopograficaSection({
         isRetry
       });
 
-      // ✅ Usar axios que viene preconfigurado con Laravel + Inertia
       const response = await axios.post('/api/signatura/generar-signatura', {
-        tema_id: temaId,
-        autor: autorNombre,
-        titulo: titulo
+      tema_id: temaId,
+      autor_id: autorId,
+      titulo: titulo
       });
 
       console.log('Signatura generada exitosamente:', response.data);

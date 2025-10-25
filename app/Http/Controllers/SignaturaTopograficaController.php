@@ -88,12 +88,19 @@ class SignaturaTopograficaController extends Controller
     {
         try {
             $temaId = $request->input('tema_id');
-            $autor = $request->input('autor', '');
+            $autorId = $request->input('autor_id');  // ✅ Recibir autor_id
             $titulo = $request->input('titulo', '');
             
-            if (!$temaId || empty($autor) || empty($titulo)) {
+            if (!$temaId || !$autorId || empty($titulo)) {
                 return response()->json([
                     'error' => 'Tema Dewey, autor y título son requeridos'
+                ], 400);
+            }
+
+            $autor = Autor::find($autorId);
+            if (!$autor) {
+                return response()->json([
+                    'error' => 'Autor no encontrado'
                 ], 400);
             }
 
@@ -108,8 +115,9 @@ class SignaturaTopograficaController extends Controller
 
             $codigoDewey = $tema->codigo;
             
-            // Generar código Cutter
-            $autorNormalizado = $this->normalizarAutor($autor);
+            // Generar código Cutter usando solo el primer apellido
+            $primerApellido = explode(' ', trim($autor->apellidos))[0];
+            $autorNormalizado = $this->normalizarAutor($primerApellido);
             $cutter = $this->calcularCutter($autorNormalizado);
             
             // Obtener primera letra del título (normalizada)
@@ -131,15 +139,13 @@ class SignaturaTopograficaController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al generar signatura topográfica:', [
+            Log::error('Error al generar signatura:', [
                 'error' => $e->getMessage(),
-                'tema_id' => $request->input('tema_id'),
-                'autor' => $request->input('autor'),
-                'titulo' => $request->input('titulo')
+                'request' => $request->all()
             ]);
             
             return response()->json([
-                'error' => 'Error interno al generar la signatura topográfica'
+                'error' => 'Error interno al generar la signatura'
             ], 500);
         }
     }

@@ -105,7 +105,7 @@ export interface Libro {
   paginas: number;
   tema_id: number;
   sign_top: string;
-  estanteria_id: number;
+  estanteria_id: number | null;
   created_at: string;
   updated_at: string;
   // Relaciones

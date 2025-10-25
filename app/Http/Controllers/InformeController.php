@@ -44,8 +44,11 @@ class InformeController extends Controller
     private function aplicarFiltroSeccion($query, $seccionId)
     {
         if ($seccionId) {
-            $query->whereHas('ejemplar.libro.estanteria', function ($q) use ($seccionId) {
-                $q->where('seccion_id', $seccionId);
+            $query->where(function($q) use ($seccionId) {
+                $q->whereHas('ejemplar.libro.estanteria', function ($subQuery) use ($seccionId) {
+                    $subQuery->where('seccion_id', $seccionId);
+                })
+                ->orWhereDoesntHave('ejemplar.libro.estanteria');
             });
         }
         return $query;
@@ -57,8 +60,11 @@ class InformeController extends Controller
     private function aplicarFiltroSeccionEjemplares($query, $seccionId)
     {
         if ($seccionId) {
-            $query->whereHas('libro.estanteria', function ($q) use ($seccionId) {
-                $q->where('seccion_id', $seccionId);
+            $query->where(function($q) use ($seccionId) {
+                $q->whereHas('libro.estanteria', function ($subQuery) use ($seccionId) {
+                    $subQuery->where('seccion_id', $seccionId);
+                })
+                ->orWhereDoesntHave('libro.estanteria');
             });
         }
         return $query;
@@ -211,19 +217,14 @@ class InformeController extends Controller
                 })
                 ->values();
 
-            // Verificar si hay préstamos no devueltos
-            if ($prestamosNoDevueltos->isEmpty()) {
-                return back()->with('info', 'No hay libros vencidos en el período seleccionado.');
-            }
-
             // Preparar datos del informe
             $datos = [
                 'prestamos_no_devueltos' => $prestamosNoDevueltos,
                 'estadisticas' => [
                     'total_no_devueltos' => $prestamosNoDevueltos->count(),
                     'vencidos' => $prestamosNoDevueltos->count(),
-                    'promedio_dias_retraso' => round($prestamosNoDevueltos->avg('dias_retraso')),
-                    'maximo_dias_retraso' => $prestamosNoDevueltos->max('dias_retraso'),
+                    'promedio_dias_retraso' => $prestamosNoDevueltos->count() > 0 ? round($prestamosNoDevueltos->avg('dias_retraso')) : 0,
+                    'maximo_dias_retraso' => $prestamosNoDevueltos->count() > 0 ? $prestamosNoDevueltos->max('dias_retraso') : 0,
                     'por_grado' => $this->getNoDevueltosPorGrado($prestamosNoDevueltos)->toArray(),
                     'por_severidad' => $this->getNoDevueltosPorSeveridad($prestamosNoDevueltos)
                 ],

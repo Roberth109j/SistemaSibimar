@@ -102,7 +102,7 @@ class Libro extends Model
         }
         
         // Verificar campos requeridos (solo si no hay errores específicos)
-        $requiredFields = ['codigo_unico', 'titulo', 'seccion_id', 'autor_id', 'editorial_id', 'clase', 'idioma', 'tema_id', 'estanteria_id', 'fecha_ingreso'];
+        $requiredFields = ['codigo_unico', 'titulo', 'seccion_id', 'autor_id', 'editorial_id', 'clase', 'idioma', 'tema_id', 'fecha_ingreso'];
         
         foreach ($requiredFields as $field) {
             if (empty($data[$field])) {

@@ -72,7 +72,7 @@ export default function Create({
     edad_recomendada: '',
     paginas: '',
     tema_id: '',
-    estanteria_id: '',
+    estanteria_id: null,
     sign_top: '',
     signatura_automatica: true,
   });
@@ -143,6 +143,7 @@ export default function Create({
     }
 
     form.post(route('libros.store'), {
+      preserveScroll: true,
       onSuccess: () => {
         console.log('Libro creado exitosamente');
       },

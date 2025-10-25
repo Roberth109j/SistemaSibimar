@@ -640,7 +640,7 @@ export default function Index({ auth, flash }: InformesProps) {
                 </div>
                 <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
                   <p className="text-xs text-yellow-800 dark:text-yellow-200 font-medium">
-                    💡 <strong>Tip:</strong> Puede editar manualmente las fechas incluso cuando tenga seleccionado el período anual. El sistema cambiará automáticamente a "Personalizado" si las fechas no coinciden.
+                     <strong>Tip:</strong> Puede editar manualmente las fechas incluso cuando tenga seleccionado el período anual. El sistema cambiará automáticamente a "Personalizado" si las fechas no coinciden.
                   </p>
                 </div>
               </div>
