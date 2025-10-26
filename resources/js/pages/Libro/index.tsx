@@ -217,36 +217,49 @@ function AlertNotification({
 // --- Hook personalizado para manejo de filtros ---
 function useLibroFilters(initialFilters: FilterOptions) {
   const [searchTerm, setSearchTerm] = useState<string>(initialFilters.search || '');
+  const [isSearching, setIsSearching] = useState<boolean>(false);
   const [selectedFilters, setSelectedFilters] = useState({
     clase: initialFilters.clase || '',
     area: initialFilters.area || '',
     idioma: initialFilters.idioma || ''
   });
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const applyFilters = useCallback((currentSearchTerm: string, currentSelectedFilters: typeof selectedFilters) => {
     const params: Record<string, string> = {};
-    if (currentSearchTerm) params.search = currentSearchTerm;
+    if (currentSearchTerm.trim()) params.search = currentSearchTerm.trim();
     if (currentSelectedFilters.clase) params.clase = currentSelectedFilters.clase;
     if (currentSelectedFilters.area) params.area = currentSelectedFilters.area;
     if (currentSelectedFilters.idioma) params.idioma = currentSelectedFilters.idioma;
 
+    setIsSearching(true);
     router.get('/libros', params, {
       preserveState: true,
       preserveScroll: true,
+      onFinish: () => setIsSearching(false),
     });
   }, []);
 
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value);
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
+
+    // Limpiar timeout anterior
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
-    const timeout = setTimeout(() => {
+
+    // Búsqueda instantánea si está vacío
+    if (value.trim() === '') {
+      applyFilters('', selectedFilters);
+      return;
+    }
+
+    // Debouncing inteligente: 400ms (balance entre UX y performance)
+    setIsSearching(true);
+    searchTimeoutRef.current = setTimeout(() => {
       applyFilters(value, selectedFilters);
-    }, 500);
-    setSearchTimeout(timeout);
-  }, [selectedFilters, searchTimeout, applyFilters]);
+    }, 400);
+  }, [selectedFilters, applyFilters]);
 
   const handleFilterChange = useCallback((filterType: string, value: string) => {
     const newFilters = { ...selectedFilters, [filterType]: value };
@@ -261,23 +274,29 @@ function useLibroFilters(initialFilters: FilterOptions) {
       area: '',
       idioma: ''
     });
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    setIsSearching(true);
     router.get('/libros', {}, {
       preserveState: true,
       preserveScroll: true,
+      onFinish: () => setIsSearching(false),
     });
   }, []);
 
   useEffect(() => {
     return () => {
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchTimeout]);
+  }, []);
 
   return {
     searchTerm,
     selectedFilters,
+    isSearching,
     handleSearch,
     handleFilterChange,
     resetFilters
@@ -399,10 +418,11 @@ const Index: React.FC<LibroPageProps> = ({
   errors = {}
 }) => {
   const [showFilters, setShowFilters] = useState<boolean>(false);
-  
+
   const {
     searchTerm,
     selectedFilters,
+    isSearching,
     handleSearch,
     handleFilterChange,
     resetFilters
@@ -488,14 +508,24 @@ const Index: React.FC<LibroPageProps> = ({
             <div className="relative">
               <input
                 type="text"
-                placeholder="Buscar por título, código, autor o contenido..."
-                className="w-80 pl-10 py-2.5 pr-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700
+                placeholder="Buscar por título, autor, contenido o ISBN..."
+                className="w-80 pl-10 py-2.5 pr-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700
                            text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                            shadow-sm transition-all duration-200"
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
               />
               <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+
+              {/* Indicador de búsqueda en progreso */}
+              {isSearching && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+              )}
             </div>
 
             <button

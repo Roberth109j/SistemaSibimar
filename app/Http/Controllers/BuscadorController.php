@@ -76,28 +76,47 @@ class BuscadorController extends Controller
             ->where('seccion_id', $seccionId) // Filtrar por sección SIEMPRE
             ->orderBy('titulo');
 
-        // Aplicar lógica de búsqueda
+        // 🚀 BÚSQUEDA PROFESIONAL OPTIMIZADA para 60k+ libros
         if (strlen($search) >= 3) {
-            // Búsqueda con término válido
-            $query->where(function ($q) use ($search) {
-                // Búsqueda en título
-                $q->where('titulo', 'like', "%{$search}%")
-                  // Búsqueda en código único
-                  ->orWhere('codigo_unico', 'like', "%{$search}%")
-                  // Búsqueda en autor usando EXISTS para mejor performance
-                  ->orWhereExists(function ($subQuery) use ($search) {
-                      $subQuery->select(DB::raw(1))
-                              ->from('autores')
-                              ->whereColumn('autores.id', 'libros.autor_id')
-                              ->where(function ($authorQuery) use ($search) {
-                                  $authorQuery->where('nombres', 'like', "%{$search}%")
-                                             ->orWhere('apellidos', 'like', "%{$search}%")
-                                             // Búsqueda en nombre completo concatenado
-                                             ->orWhereRaw("CONCAT(nombres, ' ', apellidos) LIKE ?", ["%{$search}%"]);
-                              });
-                  })
-                  // Búsqueda por contenido usando full text search
-                  ->orWhereRaw("MATCH(titulo, contenido) AGAINST(? IN NATURAL LANGUAGE MODE)", [$search]);
+            $searchLength = mb_strlen($search);
+
+            // JOIN optimizado con tabla autores para evitar subconsultas N+1
+            $query->leftJoin('autores', 'libros.autor_id', '=', 'autores.id')
+                ->select([
+                    'libros.id',
+                    'libros.titulo',
+                    'libros.codigo_unico',
+                    'libros.autor_id',
+                    'libros.estanteria_id',
+                    'libros.seccion_id',
+                    'libros.sign_top',
+                    'libros.contenido',
+                    // Mantener el conteo de ejemplares disponibles
+                    DB::raw("(SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = 'DISPONIBLE') as ejemplares_count")
+                ]);
+
+            $query->where(function ($q) use ($search, $searchLength) {
+
+                // ESTRATEGIA HÍBRIDA: FULLTEXT para búsquedas largas, LIKE optimizado para cortas
+
+                if ($searchLength >= 3) {
+                    // ✅ BÚSQUEDAS LARGAS (3+ caracteres): Usa FULLTEXT + índices optimizados
+
+                    // 1. FULLTEXT BOOLEAN MODE en título y contenido
+                    $q->whereRaw(
+                        "MATCH(libros.titulo, libros.contenido) AGAINST(? IN BOOLEAN MODE)",
+                        [$search . '*']  // * permite coincidencias parciales en FULLTEXT
+                    )
+
+                    // 2. Código único con índice (sin wildcard inicial)
+                    ->orWhere('libros.codigo_unico', 'LIKE', $search . '%')
+
+                    // 3. Autor con índices en JOIN (sin wildcard inicial)
+                    ->orWhere('autores.nombres', 'LIKE', $search . '%')
+                    ->orWhere('autores.apellidos', 'LIKE', $search . '%')
+                    ->orWhereRaw("CONCAT(autores.nombres, ' ', autores.apellidos) LIKE ?", [$search . '%'])
+                    ->orWhereRaw("CONCAT(autores.apellidos, ' ', autores.nombres) LIKE ?", [$search . '%']);
+                }
             });
         } elseif (strlen($search) > 0 && strlen($search) < 3) {
             // Si hay búsqueda pero menos de 3 caracteres, devolver vacío

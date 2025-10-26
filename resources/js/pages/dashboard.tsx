@@ -238,7 +238,7 @@ const ListCard = ({
                                                 {type === 'books'
                                                     ? `${item.total_prestamos} préstamos`
                                                     : item.grado
-                                                        ? `${item.grado.grado} ${item.grado.subGrado || ''}`.trim()
+                                                        ? item.grado.subGrado || ''
                                                         : type === 'docentes' ? 'Docente' : 'Estudiante'
                                                 }
                                             </p>

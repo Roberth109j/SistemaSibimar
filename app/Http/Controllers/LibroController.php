@@ -35,6 +35,9 @@ class LibroController extends Controller
             ]);
         }
 
+        $searchTerm = trim($search);
+        $searchLength = mb_strlen($searchTerm);
+
         $libro = Libro::with([
             'autor',
             'editorial',
@@ -42,9 +45,25 @@ class LibroController extends Controller
             'temaDewey',
             'estanteria'
         ])
-            ->where(function ($query) use ($search) {
-                $query->where('codigo_unico', 'like', "%{$search}%")
-                    ->orWhere('titulo', 'like', "%{$search}%");
+            ->leftJoin('autores', 'libros.autor_id', '=', 'autores.id')
+            ->select('libros.*')
+            ->where(function ($query) use ($searchTerm, $searchLength) {
+
+                if ($searchLength >= 3) {
+                    // Búsqueda optimizada para 3+ caracteres
+                    $query->whereRaw(
+                        "MATCH(libros.titulo, libros.contenido) AGAINST(? IN BOOLEAN MODE)",
+                        [$searchTerm . '*']
+                    )
+                    ->orWhere('libros.codigo_unico', 'LIKE', $searchTerm . '%')
+                    ->orWhere('autores.nombres', 'LIKE', $searchTerm . '%')
+                    ->orWhere('autores.apellidos', 'LIKE', $searchTerm . '%');
+                } else {
+                    // Búsqueda corta solo en campos clave
+                    $query->where('libros.titulo', 'LIKE', $searchTerm . '%')
+                    ->orWhere('libros.codigo_unico', 'LIKE', $searchTerm . '%')
+                    ->orWhere('autores.apellidos', 'LIKE', $searchTerm . '%');
+                }
             })
             ->first();
 
@@ -98,44 +117,50 @@ class LibroController extends Controller
             }
         }
 
-        // ✅ BÚSQUEDA MEJORADA - APLICAR FILTROS
+        // 🚀 BÚSQUEDA PROFESIONAL OPTIMIZADA para 60k+ libros
         if ($request->filled('search')) {
             $searchTerm = trim($request->search);
-
-            // Sanitizar el término de búsqueda
             $searchTerm = preg_replace('/\s+/', ' ', $searchTerm);
+            $searchLength = mb_strlen($searchTerm);
 
-            $query->where(function ($q) use ($searchTerm) {
-                // 1. Búsqueda en TÍTULO (completo, todas las palabras)
-                $q->where('titulo', 'LIKE', '%' . $searchTerm . '%')
+            // JOIN optimizado con tabla autores para evitar subconsultas N+1
+            $query->leftJoin('autores', 'libros.autor_id', '=', 'autores.id')
+                ->select([
+                    'libros.*',
+                    // Mantener el conteo de ejemplares
+                    DB::raw("(SELECT COUNT(*) FROM ejemplares WHERE ejemplares.libro_id = libros.id AND ejemplares.estado = 'DISPONIBLE') as ejemplares_count")
+                ]);
 
-                    // 2. Búsqueda en CÓDIGO ÚNICO (ISBN/ISSN)
-                    ->orWhere('codigo_unico', 'LIKE', '%' . $searchTerm . '%')
+            $query->where(function ($q) use ($searchTerm, $searchLength) {
 
-                    // 3. Búsqueda INTELIGENTE en AUTOR
-                    ->orWhereHas('autor', function ($authorQuery) use ($searchTerm) {
-                        $authorQuery->where(function ($aq) use ($searchTerm) {
-                            $aq->where('nombres', 'LIKE', '%' . $searchTerm . '%')
-                                ->orWhere('apellidos', 'LIKE', '%' . $searchTerm . '%')
-                                ->orWhereRaw("CONCAT(nombres, ' ', apellidos) LIKE ?", ['%' . $searchTerm . '%'])
-                                ->orWhereRaw("CONCAT(apellidos, ' ', nombres) LIKE ?", ['%' . $searchTerm . '%'])
-                                ->orWhereRaw("CONCAT(apellidos, ', ', nombres) LIKE ?", ['%' . $searchTerm . '%']);
-                        });
-                    })
+                // ESTRATEGIA HÍBRIDA: FULLTEXT para búsquedas largas, LIKE optimizado para cortas
 
-                    // 4. Búsqueda en EDITORIAL
-                    ->orWhereHas('editorial', function ($editorialQuery) use ($searchTerm) {
-                        $editorialQuery->where('nombre', 'LIKE', '%' . $searchTerm . '%');
-                    })
+                if ($searchLength >= 3) {
+                    // ✅ BÚSQUEDAS LARGAS (3+ caracteres): Usa FULLTEXT (más rápido)
 
-                    // 5. Búsqueda en CONTENIDO
-                    ->orWhere('contenido', 'LIKE', '%' . $searchTerm . '%')
+                    // 1. FULLTEXT en título y contenido
+                    $q->whereRaw(
+                        "MATCH(libros.titulo, libros.contenido) AGAINST(? IN BOOLEAN MODE)",
+                        [$searchTerm . '*']  // * permite coincidencias parciales en FULLTEXT
+                    )
 
-                    // 6. Búsqueda en ÁREA
-                    ->orWhere('area', 'LIKE', '%' . $searchTerm . '%')
+                    // 2. Código único con índice
+                    ->orWhere('libros.codigo_unico', 'LIKE', $searchTerm . '%')  // Sin wildcard inicial = usa índice
 
-                    // 7. Búsqueda en SIGNATURA TOPOGRÁFICA
-                    ->orWhere('sign_top', 'LIKE', '%' . $searchTerm . '%');
+                    // 3. Autor con índices en JOIN
+                    ->orWhere('autores.nombres', 'LIKE', $searchTerm . '%')
+                    ->orWhere('autores.apellidos', 'LIKE', $searchTerm . '%')
+                    ->orWhereRaw("CONCAT(autores.nombres, ' ', autores.apellidos) LIKE ?", [$searchTerm . '%'])
+                    ->orWhereRaw("CONCAT(autores.apellidos, ' ', autores.nombres) LIKE ?", [$searchTerm . '%']);
+
+                } else {
+                    // ✅ BÚSQUEDAS CORTAS (1-2 caracteres): LIKE optimizado solo en campos clave
+
+                    // Solo buscar en título y código (campos indexados)
+                    $q->where('libros.titulo', 'LIKE', $searchTerm . '%')  // Sin wildcard inicial
+                    ->orWhere('libros.codigo_unico', 'LIKE', $searchTerm . '%')
+                    ->orWhere('autores.apellidos', 'LIKE', $searchTerm . '%');  // Apellido tiene índice
+                }
             });
         }
 
@@ -156,7 +181,7 @@ class LibroController extends Controller
         }
 
         // Paginación optimizada con parámetros explícitos
-        $libros = $query->orderBy('id')
+        $libros = $query->orderBy('id', 'desc')
             ->paginate($perPage, ['*'], 'page', $page)
             ->withQueryString();
 
