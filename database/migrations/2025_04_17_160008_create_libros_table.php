@@ -16,7 +16,6 @@ return new class extends Migration
 
             // Código único - ISBN para libros (13 dígitos) o ISSN para revistas (8 dígitos)
             $table->string('codigo_unico')
-                ->unique()
                 ->index();  // index para mejorar la búsqueda
 
             $table->string('titulo')
@@ -87,6 +86,10 @@ return new class extends Migration
                 ->onDelete('set null');
 
             $table->timestamps();
+
+            // Constraint único: mismo código no puede repetirse en la misma sección
+            // pero SÍ puede existir el mismo ISBN en diferentes secciones
+            $table->unique(['codigo_unico', 'seccion_id'], 'libros_codigo_seccion_unique');
 
             // Índice de texto completo para búsqueda eficiente por contenido
             $table->fullText(['titulo', 'contenido']);

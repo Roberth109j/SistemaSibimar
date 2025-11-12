@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class LibroController extends Controller
@@ -355,16 +356,23 @@ class LibroController extends Controller
         }
 
         // Determinar la regla de validación para código_unico según la clase
-        $codigoRule = 'required|string|unique:libros,codigo_unico';
+        $codigoRules = [
+            'required',
+            'string',
+            Rule::unique('libros', 'codigo_unico')->where(function ($query) use ($request) {
+                return $query->where('seccion_id', $request->seccion_id);
+            })
+        ];
+
         if ($request->clase === Libro::CLASE_LIBRO) {
-            $codigoRule .= '|regex:/^\d{13}$/'; // ISBN 13 dígitos
+            $codigoRules[] = 'regex:/^\d{13}$/'; // ISBN 13 dígitos
         } elseif ($request->clase === Libro::CLASE_REVISTA) {
-            $codigoRule .= '|regex:/^\d{8}$/'; // ISSN 8 dígitos
+            $codigoRules[] = 'regex:/^\d{8}$/'; // ISSN 8 dígitos
         }
 
         $validator = Validator::make($request->all(), [
             'estanteria_id' => 'nullable|exists:estanterias,id',
-            'codigo_unico' => $codigoRule,
+            'codigo_unico' => $codigoRules,
             'titulo' => 'required|string|max:255',
             'seccion_id' => 'required|exists:secciones,id',
             'autor_id' => 'required|exists:autores,id',
@@ -399,7 +407,7 @@ class LibroController extends Controller
         ], [
             // Mensajes personalizados de error
             'codigo_unico.required' => 'El código único es obligatorio.',
-            'codigo_unico.unique' => 'Este código único ya está registrado en el sistema.',
+            'codigo_unico.unique' => 'Este código único ya está registrado en esta sección.',
             'codigo_unico.regex' => $request->clase === Libro::CLASE_LIBRO ?
                 'El ISBN debe tener exactamente 13 dígitos.' :
                 'El ISSN debe tener exactamente 8 dígitos.',
@@ -681,18 +689,27 @@ class LibroController extends Controller
         }
 
         // Determinar la regla de validación para código_unico según la clase
-        $codigoRule = 'required|string|unique:libros,codigo_unico,' . $id;
+        $codigoRules = [
+            'required',
+            'string',
+            Rule::unique('libros', 'codigo_unico')
+                ->ignore($id)
+                ->where(function ($query) use ($request) {
+                    return $query->where('seccion_id', $request->seccion_id);
+                })
+        ];
+
         if ($request->clase === Libro::CLASE_LIBRO) {
-            $codigoRule .= '|regex:/^\d{13}$/';
+            $codigoRules[] = 'regex:/^\d{13}$/';
         } elseif ($request->clase === Libro::CLASE_REVISTA) {
-            $codigoRule .= '|regex:/^\d{8}$/';
+            $codigoRules[] = 'regex:/^\d{8}$/';
         }
 
         // Regla de validación para signatura según el modo
         $signaturaRule = $request->signatura_automatica ? 'nullable|string|max:50' : 'required|string|max:50';
 
         $validator = Validator::make($request->all(), [
-            'codigo_unico' => $codigoRule,
+            'codigo_unico' => $codigoRules,
             'titulo' => 'required|string|max:255',
             'seccion_id' => 'required|exists:secciones,id',
             'autor_id' => 'required|exists:autores,id',
@@ -730,7 +747,7 @@ class LibroController extends Controller
 ], [
         ], [
             'codigo_unico.required' => 'El código único es obligatorio.',
-            'codigo_unico.unique' => 'Este código único ya está registrado en el sistema.',
+            'codigo_unico.unique' => 'Este código único ya está registrado en esta sección.',
             'codigo_unico.regex' => $request->clase === Libro::CLASE_LIBRO ?
                 'El ISBN debe tener exactamente 13 dígitos.' :
                 'El ISSN debe tener exactamente 8 dígitos.',

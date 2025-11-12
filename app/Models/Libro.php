@@ -65,11 +65,13 @@ class Libro extends Model
      */
     public static function validateLibroData(array $data)
     {
-        // Verificar si el código único ya existe (antes de verificar campos requeridos)
-        if (isset($data['codigo_unico']) && !empty($data['codigo_unico'])) {
-            $existingLibro = self::where('codigo_unico', $data['codigo_unico'])->first();
+        // Verificar si el código único ya existe en la misma sección (antes de verificar campos requeridos)
+        if (isset($data['codigo_unico']) && !empty($data['codigo_unico']) && isset($data['seccion_id'])) {
+            $existingLibro = self::where('codigo_unico', $data['codigo_unico'])
+                ->where('seccion_id', $data['seccion_id'])
+                ->first();
             if ($existingLibro) {
-                throw new \Exception('El código único ya está registrado');
+                throw new \Exception('Este código ya está registrado en esta sección');
             }
         }
         
