@@ -39,13 +39,25 @@ class LectorController extends Controller
             ->orderBy('grados.subGrado')
             ->orderBy('lectores.nombre');
 
-        // Aplicar filtros
+        // Aplicar filtros con búsqueda mejorada
         if ($request->filled('search')) {
             $search = trim($request->search);
-            $query->where(function($q) use ($search) {
-                // Búsqueda insensible a mayúsculas/minúsculas en nombre y código
-                $q->whereRaw('LOWER(lectores.nombre) LIKE ?', ['%' . strtolower($search) . '%'])
-                  ->orWhereRaw('LOWER(lectores.codigo) LIKE ?', ['%' . strtolower($search) . '%']);
+
+            // Normalizar espacios múltiples a uno solo y dividir en palabras
+            $search = preg_replace('/\s+/', ' ', $search);
+            $palabras = explode(' ', $search);
+
+            $query->where(function($q) use ($palabras, $search) {
+                // Opción 1: Buscar por código (coincidencia parcial del término completo)
+                $q->whereRaw('LOWER(lectores.codigo) LIKE ?', ['%' . strtolower($search) . '%'])
+                  // Opción 2: Buscar todas las palabras en el nombre
+                  ->orWhere(function($subQ) use ($palabras) {
+                      foreach ($palabras as $palabra) {
+                          if (!empty($palabra)) {
+                              $subQ->whereRaw('LOWER(lectores.nombre) LIKE ?', ['%' . strtolower($palabra) . '%']);
+                          }
+                      }
+                  });
             });
         }
 
@@ -58,8 +70,16 @@ class LectorController extends Controller
             $query->where('grados.subGrado', $request->subgrado);
         }
 
+        // Filtro por estado: Si no se especifica, por defecto mostrar solo ACTIVOS
+        // Si se especifica 'TODOS', no aplicar filtro de estado
         if ($request->filled('estado')) {
-            $query->where('lectores.estado', $request->estado); // Especificar tabla lectores
+            if ($request->estado !== 'TODOS') {
+                $query->where('lectores.estado', $request->estado);
+            }
+            // Si es 'TODOS', no aplicamos filtro de estado
+        } else {
+            // Por defecto, mostrar solo lectores activos
+            $query->where('lectores.estado', Lector::ESTADO_ACTIVO);
         }
 
         // Paginación mejorada

@@ -577,7 +577,7 @@ export default function Dashboard({
                                                         <div className="absolute inset-0 bg-white/40 dark:bg-gray-900/40 rounded-full scale-150"></div>
                                                         <div className="relative">
                                                             <div className="text-3xl font-black bg-gradient-to-b from-blue-600 via-blue-700 to-indigo-700 bg-clip-text text-transparent">
-                                                                {tasaDevolucionTiempo}%
+                                                                {Number(tasaDevolucionTiempo).toFixed(2)}%
                                                             </div>
                                                             <div className="text-xs text-blue-700 dark:text-blue-300 font-bold mt-1 tracking-wide">
                                                                 Tasa de éxito
@@ -704,7 +704,7 @@ export default function Dashboard({
                                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Porcentaje a tiempo</span>
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"></div>
-                                                            <span className="text-sm font-black text-blue-600">{tasaDevolucionTiempo}%</span>
+                                                            <span className="text-sm font-black text-blue-600">{Number(tasaDevolucionTiempo).toFixed(2)}%</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -716,7 +716,7 @@ export default function Dashboard({
                                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Porcentaje con retraso</span>
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2 h-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500"></div>
-                                                            <span className="text-sm font-black text-amber-600">{100 - tasaDevolucionTiempo}%</span>
+                                                            <span className="text-sm font-black text-amber-600">{(100 - tasaDevolucionTiempo).toFixed(2)}%</span>
                                                         </div>
                                                     </div>
                                                 </div>

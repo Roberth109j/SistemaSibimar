@@ -141,7 +141,7 @@ const Index = ({
   const [selectedFilters, setSelectedFilters] = useState({
     tipo: initialFilters.tipo || '',
     subgrado: initialFilters.subgrado || '',
-    estado: initialFilters.estado || '',
+    estado: initialFilters.estado || 'ACTIVO', // Por defecto filtrar por ACTIVO
   });
 
   const [alerts, setAlerts] = useState<{
@@ -206,7 +206,7 @@ const Index = ({
     setSelectedFilters({
       tipo: '',
       subgrado: '',
-      estado: ''
+      estado: 'ACTIVO' // Por defecto volver a filtrar por ACTIVO
     });
     router.get('/lectores', {}, {
       preserveState: true,
@@ -357,7 +357,7 @@ const Index = ({
                   value={selectedFilters.estado}
                   onChange={(e) => handleFilterChange('estado', e.target.value)}
                 >
-                  <option value="">Todos los estados</option>
+                  <option value="TODOS">Todos los estados</option>
                   <option value="ACTIVO">Activo</option>
                   <option value="INACTIVO">Inactivo</option>
                 </select>
