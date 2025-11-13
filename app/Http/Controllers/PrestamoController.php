@@ -16,41 +16,12 @@ use Illuminate\Support\Facades\Log;
 class PrestamoController extends Controller
 {
     /**
-     * Actualizar automáticamente el estado de préstamos vencidos
-     */
-    private function actualizarPrestamosVencidos()
-    {
-        $fechaActual = Carbon::now();
-
-        // **MEJORADO: Solo actualizar préstamos de ejemplares que NO estén perdidos**
-        $prestamosVencidos = Prestamo::where('estado', 'ACTIVO')
-            ->where('fecha_devolucion', '<', $fechaActual)
-            ->whereHas('ejemplar', function($query) {
-                $query->where('estado', '!=', 'PERDIDO'); // **Excluir ejemplares perdidos**
-            })
-            ->get();
-
-        foreach ($prestamosVencidos as $prestamo) {
-            $prestamo->update([
-                'estado' => 'VENCIDO',
-                'observaciones_devolucion' => 'Préstamo vencido automáticamente por fecha'
-            ]);
-            
-            Log::info('📅 Préstamo marcado como vencido por fecha:', [
-                'prestamo_id' => $prestamo->id,
-                'fecha_devolucion' => $prestamo->fecha_devolucion,
-                'fecha_actual' => $fechaActual
-            ]);
-        }
-    }
-
-    /**
      * Mostrar la vista de gestión de préstamos
      */
     public function index()
     {
-        // Actualizar estado de préstamos vencidos
-        $this->actualizarPrestamosVencidos();
+        // Actualizar estado de préstamos vencidos usando el controller especializado
+        PrestamoVencidoController::actualizarEstados();
 
         // Solo renderizamos la vista inicial, los libros se buscarán por AJAX
         return Inertia::render('Prestamos/Index');
