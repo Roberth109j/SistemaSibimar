@@ -143,7 +143,13 @@ class EstanteriaController extends Controller
                 ->withErrors(['seccion_id' => 'No tienes permisos para crear estanterías en esta sección.'])
                 ->withInput();
         }
-        
+
+        // Convertir a mayúsculas antes de guardar
+        $validated['cod_estante'] = strtoupper($validated['cod_estante']);
+        if (isset($validated['descripcion'])) {
+            $validated['descripcion'] = strtoupper($validated['descripcion']);
+        }
+
         Estanteria::create($validated);
         
         return redirect()->route('estanterias.index')
@@ -220,7 +226,13 @@ class EstanteriaController extends Controller
                 ->withErrors(['seccion_id' => 'No tienes permisos para editar estanterías en esta sección.'])
                 ->withInput();
         }
-        
+
+        // Convertir a mayúsculas antes de actualizar
+        $validated['cod_estante'] = strtoupper($validated['cod_estante']);
+        if (isset($validated['descripcion'])) {
+            $validated['descripcion'] = strtoupper($validated['descripcion']);
+        }
+
         $estanteria->update($validated);
         
         return redirect()->route('estanterias.index')

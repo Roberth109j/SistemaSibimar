@@ -342,7 +342,7 @@ export default function Edit({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === 'categoria_id') {
       setSelectedCategoria(value);
       setSelectedSubcategoria('');
@@ -350,6 +350,9 @@ export default function Edit({
     } else if (name === 'subcategoria_id') {
       setSelectedSubcategoria(value);
       setData('tema_id', '');
+    } else if (name === 'titulo') {
+      // Convertir título a mayúsculas automáticamente
+      setData(name as keyof typeof data, value.toUpperCase());
     } else {
       setData(name as keyof typeof data, value);
     }
@@ -556,6 +559,7 @@ export default function Edit({
                             onChange={handleChange}
                             className={selectClasses}
                             placeholder="Ingrese el título del libro"
+                            style={{ textTransform: 'uppercase' }}
                           />
                           {(formErrors.titulo || errors.titulo) && (
                             <p className="mt-2 text-sm text-red-600 dark:text-red-400">{formErrors.titulo || errors.titulo}</p>

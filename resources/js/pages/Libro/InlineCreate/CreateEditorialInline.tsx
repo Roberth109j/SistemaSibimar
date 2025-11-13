@@ -38,9 +38,11 @@ export default function CreateEditorialInline({ onEditorialCreated }: CreateEdit
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['nombre', 'pais', 'ciudad'];
-    
+
     if (validFields.includes(name as keyof typeof data)) {
-      setData(name as keyof typeof data, value);
+      // Convertir a mayúsculas automáticamente para el nombre de la editorial
+      const processedValue = (name === 'nombre') ? value.toUpperCase() : value;
+      setData(name as keyof typeof data, processedValue);
     }
   };
 
@@ -52,7 +54,8 @@ export default function CreateEditorialInline({ onEditorialCreated }: CreateEdit
       placeholder: 'Ingrese el nombre de la editorial',
       required: true,
       value: data.nombre,
-      onChange: handleChange
+      onChange: handleChange,
+      style: { textTransform: 'uppercase' as const }
     },
     {
       name: 'pais',

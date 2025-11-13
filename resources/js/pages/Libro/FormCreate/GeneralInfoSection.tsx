@@ -249,9 +249,10 @@ export default function GeneralInfoSection({
               type="text"
               id="titulo"
               value={form.data.titulo}
-              onChange={e => form.setData('titulo', e.target.value)}
+              onChange={e => form.setData('titulo', e.target.value.toUpperCase())}
               className={inputClasses}
               placeholder="Ingrese el título del libro"
+              style={{ textTransform: 'uppercase' }}
             />,
             "col-span-1 md:col-span-1 xl:col-span-1"
           )}
@@ -285,11 +286,12 @@ export default function GeneralInfoSection({
                 value={form.data.editorial_id}
                 onChange={e => form.setData('editorial_id', e.target.value)}
                 className={flexSelectClasses}
+                title={editoriales.find(e => e.id === parseInt(form.data.editorial_id))?.nombre || ''}
               >
                 <option value="">Seleccione una editorial</option>
                 {editoriales.map(editorial => (
-                  <option key={editorial.id} value={editorial.id}>
-                    {editorial.nombre}
+                  <option key={editorial.id} value={editorial.id} title={editorial.nombre}>
+                    {editorial.nombre.length > 30 ? `${editorial.nombre.substring(0, 30)}...` : editorial.nombre}
                   </option>
                 ))}
               </select>
@@ -361,13 +363,18 @@ export default function GeneralInfoSection({
                 value={form.data.estanteria_id || ''}
                 onChange={e => handleEstanteriaChange(e.target.value)}
                 className={flexSelectClasses}
+                title={estanteriasFiltradas.find(e => e.id === parseInt(form.data.estanteria_id))?.cod_estante + (estanteriasFiltradas.find(e => e.id === parseInt(form.data.estanteria_id))?.descripcion ? ` - ${estanteriasFiltradas.find(e => e.id === parseInt(form.data.estanteria_id))?.descripcion}` : '') || ''}
               >
                 <option value="">Seleccione una estantería (opcional)</option>
-                {estanteriasFiltradas.map(estanteria => (
-                  <option key={estanteria.id} value={estanteria.id}>
-                    {estanteria.cod_estante}{estanteria.descripcion ? ` - ${estanteria.descripcion}` : ''}
-                  </option>
-                ))}
+                {estanteriasFiltradas.map(estanteria => {
+                  const fullText = `${estanteria.cod_estante}${estanteria.descripcion ? ` - ${estanteria.descripcion}` : ''}`;
+                  const displayText = fullText.length > 30 ? `${fullText.substring(0, 30)}...` : fullText;
+                  return (
+                    <option key={estanteria.id} value={estanteria.id} title={fullText}>
+                      {displayText}
+                    </option>
+                  );
+                })}
               </select>
               <CreateEstanteriaInline
                 onEstanteriaCreated={onEstanteriaCreated}

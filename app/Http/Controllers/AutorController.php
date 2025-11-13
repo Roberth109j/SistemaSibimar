@@ -102,6 +102,10 @@ class AutorController extends Controller
                 'nombres' => 'required|string|max:255',
             ]);
 
+            // Convertir a mayúsculas antes de guardar
+            $validated['nombres'] = strtoupper($validated['nombres']);
+            $validated['apellidos'] = strtoupper($validated['apellidos']);
+
             // Verificar si ya existe un autor con el mismo nombre y apellido
             $existingAutor = Autor::where('nombres', $validated['nombres'])
                                   ->where('apellidos', $validated['apellidos'])
@@ -188,6 +192,10 @@ class AutorController extends Controller
                 'apellidos' => 'required|string|max:255',
                 'nombres' => 'required|string|max:255',
             ]);
+
+            // Convertir a mayúsculas antes de actualizar
+            $validated['nombres'] = strtoupper($validated['nombres']);
+            $validated['apellidos'] = strtoupper($validated['apellidos']);
 
             DB::beginTransaction();
             $originalData = $autor->toArray();

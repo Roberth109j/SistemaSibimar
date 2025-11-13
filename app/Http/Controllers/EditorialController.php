@@ -123,6 +123,9 @@ class EditorialController extends Controller
                 'pais' => 'nullable|string|max:255',
             ]);
 
+            // Convertir nombre a mayúsculas antes de guardar
+            $validated['nombre'] = strtoupper($validated['nombre']);
+
             // Verificar si ya existe una editorial con el mismo nombre
             $existingEditorial = Editorial::where('nombre', $validated['nombre'])->first();
 
@@ -198,6 +201,9 @@ class EditorialController extends Controller
                 'ciudad' => 'nullable|string|max:255',
                 'pais' => 'nullable|string|max:255',
             ]);
+
+            // Convertir nombre a mayúsculas antes de actualizar
+            $validated['nombre'] = strtoupper($validated['nombre']);
 
             DB::beginTransaction();
             $originalData = $editorial->toArray();

@@ -40,18 +40,22 @@ class InlineCreateController extends Controller
                 ], 422);
             }
 
+            // Convertir a mayúsculas antes de verificar duplicados y guardar
+            $nombresUpper = strtoupper($request->nombres);
+            $apellidosUpper = strtoupper($request->apellidos);
+
             // Verificar si ya existe un autor con el mismo nombre y apellido
-            $existingAutor = Autor::where('nombres', $request->nombres)
-                                  ->where('apellidos', $request->apellidos)
+            $existingAutor = Autor::where('nombres', $nombresUpper)
+                                  ->where('apellidos', $apellidosUpper)
                                   ->first();
 
             if ($existingAutor) {
                 Log::warning('Intento de crear autor duplicado:', [
-                    'nombres' => $request->nombres,
-                    'apellidos' => $request->apellidos,
+                    'nombres' => $nombresUpper,
+                    'apellidos' => $apellidosUpper,
                     'existing_id' => $existingAutor->id
                 ]);
-                
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Ya existe un autor con el mismo nombre y apellidos',
@@ -60,10 +64,10 @@ class InlineCreateController extends Controller
             }
 
             DB::beginTransaction();
-            
+
             $autor = Autor::create([
-                'nombres' => $request->nombres,
-                'apellidos' => $request->apellidos
+                'nombres' => $nombresUpper,
+                'apellidos' => $apellidosUpper
             ]);
             
             DB::commit();
@@ -114,15 +118,18 @@ class InlineCreateController extends Controller
                 ], 422);
             }
 
+            // Convertir nombre a mayúsculas antes de verificar duplicados y guardar
+            $nombreUpper = strtoupper($request->nombre);
+
             // Verificar si ya existe una editorial con el mismo nombre
-            $existingEditorial = Editorial::where('nombre', $request->nombre)->first();
+            $existingEditorial = Editorial::where('nombre', $nombreUpper)->first();
 
             if ($existingEditorial) {
                 Log::warning('Intento de crear editorial duplicada:', [
-                    'nombre' => $request->nombre,
+                    'nombre' => $nombreUpper,
                     'existing_id' => $existingEditorial->id
                 ]);
-                
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Ya existe una editorial con el mismo nombre',
@@ -131,9 +138,9 @@ class InlineCreateController extends Controller
             }
 
             DB::beginTransaction();
-            
+
             $editorial = Editorial::create([
-                'nombre' => $request->nombre,
+                'nombre' => $nombreUpper,
                 'ciudad' => $request->ciudad,
                 'pais' => $request->pais
             ]);
@@ -207,10 +214,11 @@ class InlineCreateController extends Controller
             }
 
             DB::beginTransaction();
-            
+
+            // Convertir a mayúsculas antes de guardar
             $estanteria = Estanteria::create([
-                'cod_estante' => $request->cod_estante,
-                'descripcion' => $request->descripcion,
+                'cod_estante' => strtoupper($request->cod_estante),
+                'descripcion' => $request->descripcion ? strtoupper($request->descripcion) : null,
                 'seccion_id' => $request->seccion_id
             ]);
             

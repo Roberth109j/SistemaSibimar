@@ -38,8 +38,10 @@ export default function CreateEditorial({ onSuccess, onError, errors = {} }: Cre
     const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['nombre', 'pais', 'ciudad'];
     if (validFields.includes(name as keyof typeof data)) {
-      setData(name as keyof typeof data, value);
-      console.log('Form data updated - Current state:', { ...data, [name]: value });
+      // Convertir a mayúsculas automáticamente para el nombre de la editorial
+      const processedValue = (name === 'nombre') ? value.toUpperCase() : value;
+      setData(name as keyof typeof data, processedValue);
+      console.log('Form data updated - Current state:', { ...data, [name]: processedValue });
     } else {
       console.error('Invalid field name:', name);
     }
@@ -53,7 +55,8 @@ export default function CreateEditorial({ onSuccess, onError, errors = {} }: Cre
       placeholder: 'Ingrese el nombre',
       required: true,
       value: data.nombre,
-      onChange: handleChange as any // Type assertion to bypass TypeScript error
+      onChange: handleChange as any, // Type assertion to bypass TypeScript error
+      style: { textTransform: 'uppercase' as const }
     },
     {
       name: 'pais',

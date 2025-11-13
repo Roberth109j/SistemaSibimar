@@ -456,7 +456,7 @@ class LibroController extends Controller
             // Crear el libro SIN signatura topográfica primero
             $libro = new Libro();
             $libro->codigo_unico = $request->codigo_unico;
-            $libro->titulo = $request->titulo;
+            $libro->titulo = strtoupper($request->titulo);
             $libro->contenido = $request->contenido;
             $libro->seccion_id = $request->seccion_id;
             $libro->autor_id = $request->autor_id;
@@ -794,7 +794,7 @@ class LibroController extends Controller
             // Preparar datos para actualización
             $updateData = [
                 'codigo_unico' => $request->codigo_unico,
-                'titulo' => $request->titulo,
+                'titulo' => strtoupper($request->titulo),
                 'contenido' => $request->contenido,
                 'seccion_id' => $request->seccion_id,
                 'autor_id' => $request->autor_id,

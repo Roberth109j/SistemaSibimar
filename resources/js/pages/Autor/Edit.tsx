@@ -34,8 +34,10 @@ export default function EditAutor({ autor, onSuccess, onError, errors = {} }: Ed
     const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['nombres', 'apellidos'];
     if (validFields.includes(name as keyof typeof data)) {
-      setData(name as keyof typeof data, value);
-      console.log('Form data updated - Current state:', { ...data, [name]: value });
+      // Convertir a mayúsculas automáticamente
+      const processedValue = value.toUpperCase();
+      setData(name as keyof typeof data, processedValue);
+      console.log('Form data updated - Current state:', { ...data, [name]: processedValue });
     } else {
       console.error('Invalid field name:', name);
     }
@@ -49,16 +51,18 @@ export default function EditAutor({ autor, onSuccess, onError, errors = {} }: Ed
       placeholder: 'Ingrese los nombres',
       required: true,
       value: data.nombres,
-      onChange: handleChange as any // Type assertion to bypass TypeScript error
+      onChange: handleChange as any, // Type assertion to bypass TypeScript error
+      style: { textTransform: 'uppercase' as const }
     },
     {
       name: 'apellidos',
-      label: 'Apellidos', 
+      label: 'Apellidos',
       type: 'text',
       placeholder: 'Ingrese los apellidos',
       required: true,
       value: data.apellidos,
-      onChange: handleChange as any // Type assertion to bypass TypeScript error
+      onChange: handleChange as any, // Type assertion to bypass TypeScript error
+      style: { textTransform: 'uppercase' as const }
     }
   ];
 

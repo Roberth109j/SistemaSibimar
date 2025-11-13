@@ -37,9 +37,11 @@ export default function CreateAutorInline({ onAutorCreated }: CreateAutorInlineP
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['nombres', 'apellidos'];
-    
+
     if (validFields.includes(name as keyof typeof data)) {
-      setData(name as keyof typeof data, value);
+      // Convertir a mayúsculas automáticamente
+      const processedValue = value.toUpperCase();
+      setData(name as keyof typeof data, processedValue);
     }
   };
 
@@ -51,7 +53,8 @@ export default function CreateAutorInline({ onAutorCreated }: CreateAutorInlineP
       placeholder: 'Ingrese los nombres',
       required: true,
       value: data.nombres,
-      onChange: handleChange
+      onChange: handleChange,
+      style: { textTransform: 'uppercase' as const }
     },
     {
       name: 'apellidos',
@@ -60,7 +63,8 @@ export default function CreateAutorInline({ onAutorCreated }: CreateAutorInlineP
       placeholder: 'Ingrese los apellidos',
       required: true,
       value: data.apellidos,
-      onChange: handleChange
+      onChange: handleChange,
+      style: { textTransform: 'uppercase' as const }
     }
   ];
 

@@ -56,10 +56,17 @@ export default function EditEstanteria({ estanteria, onSuccess, onError, errors 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === 'cod_estante' || name === 'descripcion' || name === 'seccion_id') {
-      setData(name as keyof FormData, name === 'seccion_id' ? parseInt(value) : value);
-      console.log('Form data updated - Current state:', { ...data, [name]: value });
+      // Convertir a mayúsculas para cod_estante y descripcion
+      let processedValue: string | number = value;
+      if (name === 'seccion_id') {
+        processedValue = parseInt(value);
+      } else if (name === 'cod_estante' || name === 'descripcion') {
+        processedValue = value.toUpperCase();
+      }
+      setData(name as keyof FormData, processedValue);
+      console.log('Form data updated - Current state:', { ...data, [name]: processedValue });
     } else {
       console.error('Invalid field name:', name);
     }
@@ -86,6 +93,7 @@ export default function EditEstanteria({ estanteria, onSuccess, onError, errors 
       required: true,
       value: data.cod_estante,
       onChange: handleChange,
+      style: { textTransform: 'uppercase' as const }
     },
     {
       name: 'descripcion',
@@ -96,7 +104,8 @@ export default function EditEstanteria({ estanteria, onSuccess, onError, errors 
       value: data.descripcion,
       onChange: handleChange,
       rows: 4,
-      className: 'resize-y min-h-[100px] max-h-[300px]'
+      className: 'resize-y min-h-[100px] max-h-[300px]',
+      style: { textTransform: 'uppercase' as const }
     },
     {
       name: 'seccion_id',

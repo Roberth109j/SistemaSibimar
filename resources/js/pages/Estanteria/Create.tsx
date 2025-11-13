@@ -38,8 +38,10 @@ export default function CreateEstanteria({ onSuccess, onError, errors = {}, all_
     const { name, value } = e.target;
     const validFields: Array<keyof typeof data> = ['cod_estante', 'descripcion', 'seccion_id'];
     if (validFields.includes(name as keyof typeof data)) {
-      setData(name as keyof typeof data, value);
-      console.log('Form data updated - Current state:', { ...data, [name]: value });
+      // Convertir a mayúsculas para cod_estante y descripcion
+      const processedValue = (name === 'cod_estante' || name === 'descripcion') ? value.toUpperCase() : value;
+      setData(name as keyof typeof data, processedValue);
+      console.log('Form data updated - Current state:', { ...data, [name]: processedValue });
     } else {
       console.error('Invalid field name:', name);
     }
@@ -105,7 +107,8 @@ export default function CreateEstanteria({ onSuccess, onError, errors = {}, all_
       placeholder: 'Ingrese el código de estante',
       required: true,
       value: data.cod_estante,
-      onChange: handleChange
+      onChange: handleChange,
+      style: { textTransform: 'uppercase' as const }
     },
     {
       name: 'descripcion',
@@ -116,7 +119,8 @@ export default function CreateEstanteria({ onSuccess, onError, errors = {}, all_
       value: data.descripcion,
       onChange: handleChange,
       rows: 4,
-      className: 'resize-y min-h-[100px] max-h-[300px]'
+      className: 'resize-y min-h-[100px] max-h-[300px]',
+      style: { textTransform: 'uppercase' as const }
     },
     {
       name: 'seccion_id',
