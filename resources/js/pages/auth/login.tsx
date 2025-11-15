@@ -194,9 +194,14 @@ export default function Login({ status, canResetPassword, error }: LoginProps) {
                                     </Label>
                                 </div>
                                 {canResetPassword && (
-                                    <TextLink href={route('password.request')} className="text-xs text-blue-600 hover:underline dark:text-blue-400">
-                                        ¿Olvidaste tu contraseña?
-                                    </TextLink>
+                                    <a 
+                                        href="https://www.youtube.com/watch?v=XReb9k1kFl8&list=PL-s6XUYTlEzqsyLODxenw6QAuccbQgydU&index=3" 
+                                        className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        ¿Necesitas ayuda para iniciar sesión?
+                                    </a>
                                 )}
                             </div>
 

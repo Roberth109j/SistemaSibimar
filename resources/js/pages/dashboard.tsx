@@ -281,6 +281,9 @@ export default function Dashboard({
     distribucionLectores,
     yearCurrent
 }: DashboardProps) {
+    // Calcular porcentaje de retraso considerando cuando no hay devoluciones
+    const totalDevueltos = estadisticasDevolucion.devueltos_tiempo + estadisticasDevolucion.devueltos_tarde;
+    const porcentajeConRetraso = totalDevueltos > 0 ? (100 - tasaDevolucionTiempo) : 0;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -648,7 +651,7 @@ export default function Dashboard({
                                                         <div className="w-full bg-amber-200/60 dark:bg-amber-900/40 rounded-full h-2.5">
                                                             <div
                                                                 className="h-2.5 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 transition-all duration-1200 ease-out relative overflow-hidden"
-                                                                style={{ width: `${100 - tasaDevolucionTiempo}%` }}
+                                                                style={{ width: `${porcentajeConRetraso}%` }}
                                                             >
                                                                 <div className="absolute inset-0 bg-gradient-to-r from-white/30 via-white/10 to-transparent rounded-full"></div>
                                                             </div>
@@ -716,7 +719,7 @@ export default function Dashboard({
                                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Porcentaje con retraso</span>
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2 h-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500"></div>
-                                                            <span className="text-sm font-black text-amber-600">{(100 - tasaDevolucionTiempo).toFixed(2)}%</span>
+                                                            <span className="text-sm font-black text-amber-600">{porcentajeConRetraso.toFixed(2)}%</span>
                                                         </div>
                                                     </div>
                                                 </div>
