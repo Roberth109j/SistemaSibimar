@@ -15,9 +15,6 @@ class DashboardController extends Controller
 {
     public function index(): Response
     {
-        // Actualizar estados de préstamos vencidos al acceder al dashboard
-        PrestamoVencidoController::actualizarEstados();
-
         $currentYear = date('Y');
         $yearStart = $currentYear . '-01-01';
         $yearEnd = $currentYear . '-12-31';

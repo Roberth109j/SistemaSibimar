@@ -14,39 +14,10 @@ use Illuminate\Validation\ValidationException;
 class DevolucionController extends Controller
 {
     /**
-     * Actualizar automáticamente el estado de préstamos vencidos
-     */
-    private function actualizarPrestamosVencidos()
-    {
-        $fechaActual = Carbon::now();
-
-        $prestamosVencidos = Prestamo::where('estado', 'ACTIVO')
-            ->where('fecha_devolucion', '<', $fechaActual)
-            ->whereHas('ejemplar', function($query) {
-                $query->where('estado', '!=', 'PERDIDO');
-            })
-            ->get();
-
-        foreach ($prestamosVencidos as $prestamo) {
-            $prestamo->update([
-                'estado' => 'VENCIDO',
-                'observaciones_devolucion' => 'Préstamo vencido automáticamente por fecha'
-            ]);
-            
-            Log::info('📅 Préstamo marcado como vencido por fecha:', [
-                'prestamo_id' => $prestamo->id,
-                'fecha_devolucion' => $prestamo->fecha_devolucion,
-                'fecha_actual' => $fechaActual
-            ]);
-        }
-    }
-
-    /**
      * Mostrar la vista principal de devoluciones
      */
     public function index()
     {
-        $this->actualizarPrestamosVencidos();
         return Inertia::render('Devoluciones/Index');
     }
 
@@ -102,8 +73,6 @@ class DevolucionController extends Controller
                     'message' => 'Lector no encontrado o inactivo'
                 ], 404);
             }
-
-            $this->actualizarPrestamosVencidos();
 
             $prestamos = Prestamo::with([
                     'ejemplar:id,libro_id,numEjemplar,estado,observaciones',

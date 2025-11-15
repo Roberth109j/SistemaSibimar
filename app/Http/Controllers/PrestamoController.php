@@ -20,9 +20,6 @@ class PrestamoController extends Controller
      */
     public function index()
     {
-        // Actualizar estado de préstamos vencidos usando el controller especializado
-        PrestamoVencidoController::actualizarEstados();
-
         // Solo renderizamos la vista inicial, los libros se buscarán por AJAX
         return Inertia::render('Prestamos/Index');
     }
@@ -303,8 +300,11 @@ class PrestamoController extends Controller
     }
 
     /**
-     * **CORREGIDO: Cancelar un préstamo activo - Observaciones en ejemplar**
+     * Cancelar un préstamo activo
      * Útil para casos donde se registró mal o se necesita anular
+     *
+     * NOTA: Este método no tiene ruta registrada actualmente.
+     * El estado se marca como DEVUELTO (no existe CANCELADO en ENUM).
      */
     public function cancelar(Request $request, Prestamo $prestamo)
     {
@@ -327,28 +327,26 @@ class PrestamoController extends Controller
         try {
             DB::beginTransaction();
 
-            // **CORREGIDO: Actualizar el préstamo como cancelado con observaciones específicas**
+            // Marcar como devuelto (estado CANCELADO no existe en ENUM)
             $prestamo->update([
-                'estado' => 'CANCELADO',
-                'observaciones_devolucion' => $request->input('motivo_cancelacion')
+                'estado' => Prestamo::ESTADO_DEVUELTO,
+                'fecha_devuelto' => now()->format('Y-m-d')
             ]);
 
-            // **CORREGIDO: Devolver el ejemplar al estado DISPONIBLE y actualizar observaciones**
-            $prestamo->ejemplar->update([
-                'estado' => 'DISPONIBLE',
-                'observaciones' => 'Préstamo cancelado: ' . $request->input('motivo_cancelacion')
-            ]);
+            // Devolver el ejemplar al estado DISPONIBLE usando el método del modelo
+            $prestamo->ejemplar->marcarComoDisponible();
 
             DB::commit();
 
-            Log::info('🚫 Préstamo cancelado exitosamente:', [
+            Log::info('🚫 Préstamo cancelado (marcado como devuelto):', [
                 'prestamo_id' => $prestamo->id,
                 'motivo' => $request->input('motivo_cancelacion'),
                 'ejemplar_id' => $prestamo->ejemplar_id,
-                'lector_id' => $prestamo->lector_id
+                'lector_id' => $prestamo->lector_id,
+                'nota' => 'Estado CANCELADO no existe en ENUM, se marca como DEVUELTO'
             ]);
 
-            return redirect()->route('prestamos.index')->with('success', 
+            return redirect()->route('prestamos.index')->with('success',
                 'Préstamo cancelado exitosamente. El ejemplar #' . $prestamo->ejemplar->numEjemplar . ' está nuevamente disponible.'
             );
 

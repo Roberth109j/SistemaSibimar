@@ -255,15 +255,14 @@ class EjemplarController extends Controller
                     'fecha_devolucion' => $prestamo->fecha_devolucion
                 ]);
 
-                // Marcar préstamo como vencido por pérdida del ejemplar
-                $prestamo->update([
-                    'estado' => 'VENCIDO',
-                    'observaciones_devolucion' => 'Préstamo marcado como vencido debido a pérdida del ejemplar #' . $ejemplar->numEjemplar
-                ]);
+                // Marcar préstamo como vencido por pérdida del ejemplar usando método del modelo
+                $prestamo->marcarComoVencido();
 
                 Log::info('✅ Préstamo marcado como vencido por pérdida:', [
                     'prestamo_id' => $prestamo->id,
-                    'nuevo_estado' => 'VENCIDO'
+                    'nuevo_estado' => 'VENCIDO',
+                    'ejemplar_numero' => $ejemplar->numEjemplar,
+                    'razon' => 'Ejemplar marcado como PERDIDO'
                 ]);
             }
 
