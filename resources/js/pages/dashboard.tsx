@@ -569,7 +569,7 @@ export default function Dashboard({
 
                                                     <circle cx="50" cy="50" r="38" fill="none" stroke="url(#trackGradient)" strokeWidth="6" />
                                                     <circle cx="50" cy="50" r="32" fill="none" stroke="rgba(59, 130, 246, 0.08)" strokeWidth="1" />
-                                                    <circle cx="50" cy="50" r="38" fill="none" stroke="url(#successGradient)" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(tasaDevolucionTiempo * 238.76) / 100} 238.76`} className="transition-all duration-1500 ease-out" />
+                                                    <circle cx="50" cy="50" r="38" fill="none" stroke="url(#successGradient)" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(Math.round(tasaDevolucionTiempo) * 238.76) / 100} 238.76`} className="transition-all duration-1500 ease-out" />
                                                     <circle cx="50" cy="12" r="1.5" fill="rgba(59, 130, 246, 0.4)" />
                                                     <circle cx="88" cy="50" r="1.5" fill="rgba(59, 130, 246, 0.3)" />
                                                     <circle cx="50" cy="88" r="1.5" fill="rgba(59, 130, 246, 0.2)" />
@@ -580,7 +580,7 @@ export default function Dashboard({
                                                         <div className="absolute inset-0 bg-white/40 dark:bg-gray-900/40 rounded-full scale-150"></div>
                                                         <div className="relative">
                                                             <div className="text-3xl font-black bg-gradient-to-b from-blue-600 via-blue-700 to-indigo-700 bg-clip-text text-transparent">
-                                                                {Number(tasaDevolucionTiempo).toFixed(2)}%
+                                                                {Math.round(tasaDevolucionTiempo)}%
                                                             </div>
                                                             <div className="text-xs text-blue-700 dark:text-blue-300 font-bold mt-1 tracking-wide">
                                                                 Tasa de éxito
@@ -590,12 +590,12 @@ export default function Dashboard({
                                                 </div>
 
                                                 <div
-                                                    className="absolute w-3 h-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full border-2 border-white dark:border-gray-900 transition-all duration-1500 ease-out"
+                                                    className="absolute w-3 h-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full border-2 border-white dark:border-gray-900 transition-all duration-1500 ease-out shadow-lg"
                                                     style={{
-                                                        top: '18px',
+                                                        top: '50%',
                                                         left: '50%',
-                                                        transform: `translate(-50%, -50%) rotate(${(tasaDevolucionTiempo * 360) / 100}deg) translateY(-38px)`,
-                                                        transformOrigin: '50% 38px'
+                                                        transform: `translate(-50%, -50%) rotate(${(Math.round(tasaDevolucionTiempo) * 3.6)}deg) translateY(-38px)`,
+                                                        transformOrigin: 'center center'
                                                     }}
                                                 ></div>
                                             </div>
@@ -622,7 +622,7 @@ export default function Dashboard({
                                                         <div className="w-full bg-blue-200/60 dark:bg-blue-900/40 rounded-full h-2.5">
                                                             <div
                                                                 className="h-2.5 rounded-full bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 transition-all duration-1200 ease-out relative overflow-hidden"
-                                                                style={{ width: `${tasaDevolucionTiempo}%` }}
+                                                                style={{ width: `${Math.round(tasaDevolucionTiempo)}%` }}
                                                             >
                                                                 <div className="absolute inset-0 bg-gradient-to-r from-white/30 via-white/10 to-transparent rounded-full"></div>
                                                             </div>
@@ -651,7 +651,7 @@ export default function Dashboard({
                                                         <div className="w-full bg-amber-200/60 dark:bg-amber-900/40 rounded-full h-2.5">
                                                             <div
                                                                 className="h-2.5 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 transition-all duration-1200 ease-out relative overflow-hidden"
-                                                                style={{ width: `${porcentajeConRetraso}%` }}
+                                                                style={{ width: `${Math.round(porcentajeConRetraso)}%` }}
                                                             >
                                                                 <div className="absolute inset-0 bg-gradient-to-r from-white/30 via-white/10 to-transparent rounded-full"></div>
                                                             </div>
@@ -707,7 +707,7 @@ export default function Dashboard({
                                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Porcentaje a tiempo</span>
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"></div>
-                                                            <span className="text-sm font-black text-blue-600">{Number(tasaDevolucionTiempo).toFixed(2)}%</span>
+                                                            <span className="text-sm font-black text-blue-600">{Math.round(tasaDevolucionTiempo)}%</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -719,7 +719,7 @@ export default function Dashboard({
                                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Porcentaje con retraso</span>
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2 h-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500"></div>
-                                                            <span className="text-sm font-black text-amber-600">{porcentajeConRetraso.toFixed(2)}%</span>
+                                                            <span className="text-sm font-black text-amber-600">{Math.round(porcentajeConRetraso)}%</span>
                                                         </div>
                                                     </div>
                                                 </div>
