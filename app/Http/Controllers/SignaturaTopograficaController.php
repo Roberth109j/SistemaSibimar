@@ -186,17 +186,24 @@ class SignaturaTopograficaController extends Controller
     {
         // Remover artículos iniciales comunes
         $articulos = ['el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'the', 'a', 'an'];
-        
+
         $titulo = trim($titulo);
+
+        // Remover signos de puntuación al inicio (¿, ¡, ", ', (, [, {, etc.)
+        $titulo = preg_replace('/^[¿¡"\'\(\[\{\-\—\–\‐]+\s*/', '', $titulo);
+
         $palabras = explode(' ', strtolower($titulo));
-        
+
         // Si la primera palabra es un artículo, usar la segunda
         if (count($palabras) > 1 && in_array($palabras[0], $articulos)) {
             $titulo = $palabras[1];
         } else {
             $titulo = $palabras[0];
         }
-        
+
+        // Remover cualquier signo de puntuación que pueda quedar al inicio de la palabra
+        $titulo = preg_replace('/^[¿¡"\'\(\[\{\-\—\–\‐]+/', '', $titulo);
+
         return $this->removerAcentos($titulo);
     }
 
