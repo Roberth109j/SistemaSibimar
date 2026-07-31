@@ -140,7 +140,7 @@ gestionBibliotecaMaridiaz/
 5. Abrir un Pull Request
 
 ## Autoría
-Desarrollado por el equipo de desarrollo de la Biblioteca Maridiaz
+Desarrollado por: Daniel Cáceres -Roberth Riascos - Carlos Suarez
 
 ## Licencia
 Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE.md](LICENSE.md) para más detalles.
